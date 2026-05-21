@@ -1,0 +1,135 @@
+import Foundation
+import SwiftUI
+import Combine
+
+@MainActor
+final class VehicleManagementViewModel: ObservableObject {
+    private let service: MockDataService
+    private let currentOrgID: UUID?
+
+    // List State
+    @Published var searchText = ""
+    @Published var selectedVehicle: Vehicle? = nil
+    @Published var isPresentingForm = false
+
+    // Form Fields
+    @Published var displayName = ""
+    @Published var plateNumber = ""
+    @Published var model = ""
+    @Published var status: VehicleStatus = .active
+    @Published var fuelLevel = 50.0
+    @Published var odometer = ""
+    @Published var assignedDriverID: UUID? = nil
+    @Published var nextServiceDate = Date.now.addingTimeInterval(86400 * 10)
+    @Published var utilization = 70.0
+
+    // Detail/Document State
+    @Published var isPresentingDocumentSheet = false
+    @Published var docType: DocumentType = .rc
+    @Published var docNumber = ""
+    @Published var docExpiryDate = Date.now.addingTimeInterval(86400 * 120)
+
+    init(service: MockDataService, currentOrgID: UUID?) {
+        self.service = service
+        self.currentOrgID = currentOrgID
+    }
+
+    var filteredVehicles: [Vehicle] {
+        service.vehicles.filter {
+            searchText.isEmpty ||
+            $0.displayName.localizedCaseInsensitiveContains(searchText) ||
+            $0.plateNumber.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    var drivers: [User] {
+        service.users(for: .driver)
+    }
+
+    func user(for driverID: UUID?) -> User? {
+        service.user(for: driverID)
+    }
+
+    func vehicle(for vehicleID: UUID) -> Vehicle? {
+        service.vehicle(for: vehicleID)
+    }
+
+    func documents(for vehicleID: UUID) -> [VehicleDocument] {
+        service.documents(for: vehicleID)
+    }
+
+    func deleteVehicle(_ vehicle: Vehicle) {
+        service.deleteVehicle(vehicle)
+    }
+
+    func prepareForAdd() {
+        selectedVehicle = nil
+        displayName = ""
+        plateNumber = ""
+        model = ""
+        status = .active
+        fuelLevel = 50.0
+        odometer = ""
+        assignedDriverID = nil
+        nextServiceDate = Date.now.addingTimeInterval(86400 * 10)
+        utilization = 70.0
+        isPresentingForm = true
+    }
+
+    func prepareForEdit(_ vehicle: Vehicle) {
+        selectedVehicle = vehicle
+        displayName = vehicle.displayName
+        plateNumber = vehicle.plateNumber
+        model = vehicle.model
+        status = vehicle.status
+        fuelLevel = Double(vehicle.fuelLevel)
+        odometer = String(vehicle.odometer)
+        assignedDriverID = vehicle.assignedDriverID
+        nextServiceDate = vehicle.nextServiceDate
+        utilization = Double(vehicle.utilization)
+        isPresentingForm = true
+    }
+
+    func saveVehicle() {
+        guard let orgID = currentOrgID, let odo = Int(odometer) else { return }
+
+        let vehicle = Vehicle(
+            id: selectedVehicle?.id ?? UUID(),
+            organizationID: orgID,
+            displayName: displayName,
+            plateNumber: plateNumber,
+            model: model,
+            status: status,
+            fuelLevel: Int(fuelLevel),
+            odometer: odo,
+            assignedDriverID: assignedDriverID,
+            nextServiceDate: nextServiceDate,
+            utilization: Int(utilization)
+        )
+
+        if selectedVehicle == nil {
+            service.addVehicle(vehicle)
+        } else {
+            service.updateVehicle(vehicle)
+        }
+        isPresentingForm = false
+    }
+
+    // Documents
+    func prepareForDocumentUpload() {
+        docType = .rc
+        docNumber = ""
+        docExpiryDate = Date.now.addingTimeInterval(86400 * 120)
+        isPresentingDocumentSheet = true
+    }
+
+    func saveDocument(for vehicleID: UUID) {
+        service.addDocument(
+            vehicleID: vehicleID,
+            type: docType,
+            number: docNumber,
+            expiryDate: docExpiryDate
+        )
+        isPresentingDocumentSheet = false
+    }
+}

@@ -1,0 +1,407 @@
+-- Recommended extensions
+create extension if not exists "pgcrypto";
+
+-- =========================
+-- ENUMS
+-- =========================
+do $$ begin
+  create type user_role as enum ('Fleet Manager', 'Driver', 'Maintenance Personnel');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type vehicle_status as enum ('Active', 'In Service', 'Idle', 'Out of Service');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type document_type as enum ('RC', 'Insurance', 'PUC', 'Permit');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type trip_status as enum ('Scheduled', 'In Progress', 'Completed');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type work_order_status as enum ('Open', 'In Progress', 'Waiting Parts', 'Completed');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type work_order_priority as enum ('Low', 'Medium', 'High', 'Critical');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type inspection_type as enum ('Pre-Trip', 'Post-Trip');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type maintenance_schedule_status as enum ('Upcoming', 'Overdue', 'Completed');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type notification_category as enum ('Info', 'Warning', 'Critical', 'Success');
+exception when duplicate_object then null;
+end $$;
+
+-- =========================
+-- TIMESTAMP HELPER
+-- =========================
+create or replace function set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+-- =========================
+-- ORGANIZATIONS
+-- =========================
+create table if not exists organizations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  industry text not null,
+  fleet_size integer not null default 0 check (fleet_size >= 0),
+  compliance_score integer not null default 0 check (compliance_score between 0 and 100),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- =========================
+-- USERS / PROFILES
+-- Use auth.users.id as the primary key when integrating auth
+-- =========================
+create table if not exists profiles (
+  id uuid primary key,
+  organization_id uuid not null references organizations(id) on delete cascade,
+  name text not null,
+  role user_role not null,
+  email text not null unique,
+  phone text not null,
+  title text not null,
+  assigned_vehicle_id uuid null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- =========================
+-- VEHICLES
+-- =========================
+create table if not exists vehicles (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  display_name text not null,
+  plate_number text not null unique,
+  model text not null,
+  status vehicle_status not null,
+  fuel_level integer not null default 0 check (fuel_level between 0 and 100),
+  odometer integer not null default 0 check (odometer >= 0),
+  assigned_driver_id uuid null references profiles(id) on delete set null,
+  next_service_date timestamptz not null,
+  utilization integer not null default 0 check (utilization between 0 and 100),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.profiles 
+  drop constraint if exists profiles_assigned_vehicle_id_fkey;
+
+alter table profiles
+  add constraint profiles_assigned_vehicle_id_fkey
+  foreign key (assigned_vehicle_id)
+  references vehicles(id)
+  on delete set null;
+
+-- =========================
+-- VEHICLE DOCUMENTS
+-- =========================
+create table if not exists vehicle_documents (
+  id uuid primary key default gen_random_uuid(),
+  vehicle_id uuid not null references vehicles(id) on delete cascade,
+  type document_type not null,
+  document_number text not null,
+  expiry_date timestamptz not null,
+  is_verified boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- =========================
+-- TRIPS
+-- =========================
+create table if not exists trips (
+  id uuid primary key default gen_random_uuid(),
+  driver_id uuid not null references profiles(id) on delete cascade,
+  vehicle_id uuid not null references vehicles(id) on delete cascade,
+  origin text not null,
+  destination text not null,
+  start_date timestamptz not null,
+  end_date timestamptz null,
+  distance_km numeric(10,2) not null default 0 check (distance_km >= 0),
+  status trip_status not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- =========================
+-- INSPECTION RECORDS
+-- =========================
+create table if not exists inspection_records (
+  id uuid primary key default gen_random_uuid(),
+  driver_id uuid not null references profiles(id) on delete cascade,
+  vehicle_id uuid not null references vehicles(id) on delete cascade,
+  type inspection_type not null,
+  date timestamptz not null,
+  notes text not null default '',
+  passed boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists inspection_items (
+  id uuid primary key default gen_random_uuid(),
+  inspection_record_id uuid not null references inspection_records(id) on delete cascade,
+  title text not null,
+  is_checked boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- =========================
+-- DEFECT REPORTS
+-- =========================
+create table if not exists defect_reports (
+  id uuid primary key default gen_random_uuid(),
+  driver_id uuid not null references profiles(id) on delete cascade,
+  vehicle_id uuid not null references vehicles(id) on delete cascade,
+  severity work_order_priority not null,
+  description text not null,
+  reported_date timestamptz not null,
+  is_resolved boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- =========================
+-- WORK ORDERS
+-- =========================
+create table if not exists work_orders (
+  id uuid primary key default gen_random_uuid(),
+  vehicle_id uuid not null references vehicles(id) on delete cascade,
+  assigned_maintenance_id uuid null references profiles(id) on delete set null,
+  title text not null,
+  details text not null,
+  priority work_order_priority not null,
+  status work_order_status not null,
+  scheduled_date timestamptz not null,
+  completed_date timestamptz null,
+  estimated_cost numeric(12,2) not null default 0 check (estimated_cost >= 0),
+  repair_summary text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- =========================
+-- MAINTENANCE SCHEDULES
+-- =========================
+create table if not exists maintenance_schedules (
+  id uuid primary key default gen_random_uuid(),
+  vehicle_id uuid not null references vehicles(id) on delete cascade,
+  service_type text not null,
+  due_date timestamptz not null,
+  status maintenance_schedule_status not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- =========================
+-- NOTIFICATIONS
+-- =========================
+create table if not exists notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid null references profiles(id) on delete cascade,
+  role_target user_role null,
+  title text not null,
+  message text not null,
+  date timestamptz not null,
+  is_read boolean not null default false,
+  category notification_category not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- =========================
+-- INDEXES
+-- =========================
+create index if not exists idx_profiles_organization_id on profiles(organization_id);
+create index if not exists idx_profiles_role on profiles(role);
+create index if not exists idx_vehicles_organization_id on vehicles(organization_id);
+create index if not exists idx_vehicles_assigned_driver_id on vehicles(assigned_driver_id);
+create index if not exists idx_vehicle_documents_vehicle_id on vehicle_documents(vehicle_id);
+create index if not exists idx_trips_driver_id on trips(driver_id);
+create index if not exists idx_trips_vehicle_id on trips(vehicle_id);
+create index if not exists idx_inspection_records_driver_id on inspection_records(driver_id);
+create index if not exists idx_inspection_records_vehicle_id on inspection_records(vehicle_id);
+create index if not exists idx_inspection_items_record_id on inspection_items(inspection_record_id);
+create index if not exists idx_defect_reports_driver_id on defect_reports(driver_id);
+create index if not exists idx_defect_reports_vehicle_id on defect_reports(vehicle_id);
+create index if not exists idx_work_orders_vehicle_id on work_orders(vehicle_id);
+create index if not exists idx_work_orders_assigned_maintenance_id on work_orders(assigned_maintenance_id);
+create index if not exists idx_maintenance_schedules_vehicle_id on maintenance_schedules(vehicle_id);
+create index if not exists idx_notifications_user_id on notifications(user_id);
+create index if not exists idx_notifications_role_target on notifications(role_target);
+
+-- =========================
+-- UPDATED_AT TRIGGERS
+-- =========================
+drop trigger if exists trg_organizations_updated_at on organizations;
+create trigger trg_organizations_updated_at
+before update on organizations
+for each row execute function set_updated_at();
+
+drop trigger if exists trg_profiles_updated_at on profiles;
+create trigger trg_profiles_updated_at
+before update on profiles
+for each row execute function set_updated_at();
+
+drop trigger if exists trg_vehicles_updated_at on vehicles;
+create trigger trg_vehicles_updated_at
+before update on vehicles
+for each row execute function set_updated_at();
+
+drop trigger if exists trg_vehicle_documents_updated_at on vehicle_documents;
+create trigger trg_vehicle_documents_updated_at
+before update on vehicle_documents
+for each row execute function set_updated_at();
+
+drop trigger if exists trg_trips_updated_at on trips;
+create trigger trg_trips_updated_at
+before update on trips
+for each row execute function set_updated_at();
+
+drop trigger if exists trg_inspection_records_updated_at on inspection_records;
+create trigger trg_inspection_records_updated_at
+before update on inspection_records
+for each row execute function set_updated_at();
+
+drop trigger if exists trg_defect_reports_updated_at on defect_reports;
+create trigger trg_defect_reports_updated_at
+before update on defect_reports
+for each row execute function set_updated_at();
+
+drop trigger if exists trg_work_orders_updated_at on work_orders;
+create trigger trg_work_orders_updated_at
+before update on work_orders
+for each row execute function set_updated_at();
+
+drop trigger if exists trg_maintenance_schedules_updated_at on maintenance_schedules;
+create trigger trg_maintenance_schedules_updated_at
+before update on maintenance_schedules
+for each row execute function set_updated_at();
+
+drop trigger if exists trg_notifications_updated_at on notifications;
+create trigger trg_notifications_updated_at
+before update on notifications
+for each row execute function set_updated_at();
+
+-- =========================================================================
+-- SECURE USER PROVISIONING STORED PROCEDURE
+-- =========================================================================
+create or replace function create_user_admin(
+  p_email text,
+  p_password text,
+  p_name text,
+  p_role user_role,
+  p_phone text,
+  p_title text,
+  p_organization_id uuid
+)
+returns uuid
+language plpgsql
+security definer -- executes with postgres administrative privileges
+set search_path = public, auth
+as $$
+declare
+  new_user_id uuid;
+  encrypted_pw text;
+begin
+  -- 1. Authorization check: Only logged-in users with Fleet Manager profile role
+  if not exists (
+    select 1 from public.profiles 
+    where id = auth.uid() and role = 'Fleet Manager'
+  ) then
+    raise exception 'Access denied: Only Fleet Managers can create user accounts';
+  end if;
+
+  -- 2. Check if email already registered
+  select id into new_user_id from auth.users where email = p_email;
+  if new_user_id is not null then
+    raise exception 'A user with this email address already exists';
+  end if;
+
+  -- 3. Prepare credentials
+  new_user_id := gen_random_uuid();
+  encrypted_pw := crypt(p_password, gen_salt('bf', 10));
+
+  -- 4. Create auth record in Supabase Auth
+  insert into auth.users (
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    created_at,
+    updated_at
+  )
+  values (
+    '00000000-0000-0000-0000-000000000000',
+    new_user_id,
+    'authenticated',
+    'authenticated',
+    p_email,
+    encrypted_pw,
+    now(), -- confirmed immediately so no email verification required
+    '{"provider": "email", "providers": ["email"]}'::jsonb,
+    jsonb_build_object('name', p_name, 'role', p_role),
+    now(),
+    now()
+  );
+
+  -- 5. Register corresponding public profiles record
+  insert into public.profiles (
+    id,
+    organization_id,
+    name,
+    role,
+    email,
+    phone,
+    title,
+    assigned_vehicle_id,
+    created_at,
+    updated_at
+  )
+  values (
+    new_user_id,
+    p_organization_id,
+    p_name,
+    p_role,
+    p_email,
+    p_phone,
+    p_title,
+    null,
+    now(),
+    now()
+  );
+
+  return new_user_id;
+end;
+$$;
