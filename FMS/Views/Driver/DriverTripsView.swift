@@ -2,8 +2,8 @@ import SwiftUI
 import MapKit
 
 struct DriverTripTabView: View {
-    @Environment(AppViewModel.self) private var appViewModel
-    @Environment(DriverViewModel.self) private var driverVM
+    @EnvironmentObject private var appViewModel: AppViewModel
+    @EnvironmentObject private var driverVM: DriverViewModel
 
     private var currentUser: User? { appViewModel.currentUser }
 
@@ -22,8 +22,8 @@ struct DriverTripTabView: View {
 // MARK: - Active Trip Map View
 
 struct ActiveTripMapView: View {
-    @Environment(AppViewModel.self) private var appViewModel
-    @Environment(DriverViewModel.self) private var driverVM
+    @EnvironmentObject private var appViewModel: AppViewModel
+    @EnvironmentObject private var driverVM: DriverViewModel
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var showReportSheet = false
 
@@ -115,7 +115,7 @@ struct ActiveTripMapView: View {
         }
         .sheet(isPresented: $showReportSheet) {
             DefectReportView()
-                .environment(appViewModel)
+                .environmentObject(appViewModel)
         }
     }
 
@@ -296,6 +296,6 @@ struct ActiveTripMapView: View {
 
 #Preview {
     DriverTripTabView()
-        .environment(AppViewModel())
-        .environment(DriverViewModel())
+        .environmentObject(AppViewModel())
+        .environmentObject(DriverViewModel())
 }

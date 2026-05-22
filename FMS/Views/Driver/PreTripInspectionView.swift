@@ -1,12 +1,11 @@
 import SwiftUI
 
 struct PreTripInspectionView: View {
-    @Environment(AppViewModel.self) private var appViewModel
-    @Environment(DriverViewModel.self) private var driverVM
+    @EnvironmentObject private var appViewModel: AppViewModel
+    @EnvironmentObject private var driverVM: DriverViewModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        @Bindable var driverVM = driverVM
         VStack(spacing: 0) {
             // Progress bar
             progressBar
@@ -199,7 +198,7 @@ struct PreTripInspectionView: View {
 #Preview {
     NavigationStack {
         PreTripInspectionView()
-            .environment(AppViewModel())
-            .environment(DriverViewModel())
+            .environmentObject(AppViewModel())
+            .environmentObject(DriverViewModel())
     }
 }

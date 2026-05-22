@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct SOSSheetView: View {
-    @Environment(AppViewModel.self) private var appViewModel
-    @Environment(DriverViewModel.self) private var driverVM
+    @EnvironmentObject private var appViewModel: AppViewModel
+    @EnvironmentObject private var driverVM: DriverViewModel
 
     var body: some View {
         ZStack {
@@ -116,6 +116,6 @@ struct SOSSheetView: View {
 
 #Preview {
     SOSSheetView()
-        .environment(AppViewModel())
-        .environment(DriverViewModel())
+        .environmentObject(AppViewModel())
+        .environmentObject(DriverViewModel())
 }

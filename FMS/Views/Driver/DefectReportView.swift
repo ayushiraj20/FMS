@@ -2,7 +2,7 @@ import SwiftUI
 
 struct DefectReportView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppViewModel.self) private var appViewModel
+    @EnvironmentObject private var appViewModel: AppViewModel
 
     @State private var issueType: DefectIssueType = .engine
     @State private var severity: WorkOrderPriority = .medium
@@ -144,5 +144,5 @@ struct DefectReportView: View {
 
 #Preview {
     DefectReportView()
-        .environment(AppViewModel())
+        .environmentObject(AppViewModel())
 }

@@ -2,8 +2,8 @@ import SwiftUI
 
 struct FuelReceiptView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppViewModel.self) private var appViewModel
-    @Environment(DriverViewModel.self) private var driverVM
+    @EnvironmentObject private var appViewModel: AppViewModel
+    @EnvironmentObject private var driverVM: DriverViewModel
 
     @State private var showManualEntry = false
     @State private var stationName = ""
@@ -404,7 +404,7 @@ struct FuelReceiptView: View {
 
         Task {
             // Step 1: Detect Receipt
-            try? await Task.sleep(for: .seconds(0.7))
+            try? await Task.sleep(nanoseconds: 700_000_000)
             guard isScanning else { return }
             await MainActor.run {
                 scanStatus = "Detecting document edges..."
@@ -412,7 +412,7 @@ struct FuelReceiptView: View {
             }
 
             // Step 2: Read OCR Text
-            try? await Task.sleep(for: .seconds(0.8))
+            try? await Task.sleep(nanoseconds: 800_000_000)
             guard isScanning else { return }
             await MainActor.run {
                 scanStatus = "Extracting text with Vision OCR..."
@@ -420,7 +420,7 @@ struct FuelReceiptView: View {
             }
 
             // Step 3: Parse Fields
-            try? await Task.sleep(for: .seconds(0.7))
+            try? await Task.sleep(nanoseconds: 700_000_000)
             guard isScanning else { return }
             await MainActor.run {
                 scanStatus = "Parsing amount & litres..."
@@ -428,7 +428,7 @@ struct FuelReceiptView: View {
             }
 
             // Step 4: Complete
-            try? await Task.sleep(for: .seconds(0.4))
+            try? await Task.sleep(nanoseconds: 400_000_000)
             guard isScanning else { return }
             await MainActor.run {
                 scanProgress = 1.0
@@ -436,7 +436,7 @@ struct FuelReceiptView: View {
             }
 
             // Short pause to show completion
-            try? await Task.sleep(for: .seconds(0.3))
+            try? await Task.sleep(nanoseconds: 300_000_000)
             guard isScanning else { return }
             
             await MainActor.run {
@@ -462,19 +462,19 @@ struct FuelReceiptView: View {
 
         Task {
             // Step 1: Analyze receipt
-            try? await Task.sleep(for: .seconds(0.8))
+            try? await Task.sleep(nanoseconds: 800_000_000)
             await MainActor.run {
                 scanStatus = "Running OCR text extraction..."
             }
             
             // Step 2: Parse details
-            try? await Task.sleep(for: .seconds(0.8))
+            try? await Task.sleep(nanoseconds: 800_000_000)
             await MainActor.run {
                 scanStatus = "Matching fuel receipt data..."
             }
             
             // Step 3: Prefill & transition
-            try? await Task.sleep(for: .seconds(0.4))
+            try? await Task.sleep(nanoseconds: 400_000_000)
             await MainActor.run {
                 stationName = "HP Fuel Station"
                 litres = "38.40"
@@ -492,6 +492,6 @@ struct FuelReceiptView: View {
 
 #Preview {
     FuelReceiptView()
-        .environment(AppViewModel())
-        .environment(DriverViewModel())
+        .environmentObject(AppViewModel())
+        .environmentObject(DriverViewModel())
 }
