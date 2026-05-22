@@ -254,15 +254,7 @@ private struct VehicleFormSheet: View {
 
 private struct VehicleDetailView: View {
     @Bindable var viewModel: VehicleManagementViewModel
-    let initialVehicleID: UUID
-
-    @State private var selectedVehicleID: UUID
-
-    init(viewModel: VehicleManagementViewModel, vehicleID: UUID) {
-        self.viewModel = viewModel
-        self.initialVehicleID = vehicleID
-        self._selectedVehicleID = State(initialValue: vehicleID)
-    }
+    let vehicleID: UUID
 
     var body: some View {
         VStack(spacing: 0) {
@@ -270,9 +262,9 @@ private struct VehicleDetailView: View {
             HStack(spacing: 8) {
                 ZStack {
                     Circle().fill(AppTheme.brand).frame(width: 24, height: 24)
-                    Text("2").font(.caption.weight(.bold)).foregroundStyle(.white)
+                    Text("1").font(.caption.weight(.bold)).foregroundStyle(.white)
                 }
-                Text(".Fleet Carousel")
+                Text("Vehicle Details")
                     .font(.headline)
                     .foregroundStyle(.white)
                 Text("(AI Prioritized)")
@@ -282,32 +274,14 @@ private struct VehicleDetailView: View {
             }
             .padding()
 
-            HStack {
+            if let vehicle = viewModel.vehicle(for: vehicleID) {
+                VehicleCarouselCard(viewModel: viewModel, vehicle: vehicle, isSelected: true)
+            } else {
                 Spacer()
-                HStack(spacing: 6) {
-                    Image(systemName: "smallcircle.filled.circle")
-                    Text("Sorted by Priority")
-                        .font(.caption.weight(.bold))
-                    Image(systemName: "chevron.down")
-                }
-                .foregroundStyle(AppTheme.brand)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color(hex: "#1A1A1A"))
-                .clipShape(Capsule())
-                .overlay(Capsule().stroke(AppTheme.brand.opacity(0.3), lineWidth: 1))
+                Text("Vehicle not found")
+                    .foregroundStyle(.white)
                 Spacer()
             }
-            .padding(.bottom, 16)
-
-            // Carousel
-            TabView(selection: $selectedVehicleID) {
-                ForEach(viewModel.filteredVehicles) { vehicle in
-                    VehicleCarouselCard(viewModel: viewModel, vehicle: vehicle, isSelected: selectedVehicleID == vehicle.id)
-                        .tag(vehicle.id)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
 
             // Action Bar
             HStack(spacing: 12) {
