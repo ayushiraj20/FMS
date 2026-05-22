@@ -20,7 +20,7 @@ struct VehicleManagementView: View {
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
                         .padding(12)
-                        .background(Color(hex: "#1A1A1A"))
+                        .background(AppTheme.surfaceSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         
                         Button(action: {}) {
@@ -109,7 +109,7 @@ struct VehicleManagementView: View {
             .frame(minWidth: 70)
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
-            .background(isSelected ? Color(hex: "#2A2A2A") : Color(hex: "#1A1A1A"))
+            .background(isSelected ? AppTheme.surfaceSecondary : AppTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -127,18 +127,18 @@ private struct VehicleCardView: View {
             // Image Placeholder
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(hex: "#252525"))
+                    .fill(AppTheme.surfaceSecondary)
                     .frame(width: 80, height: 80)
                 Image(systemName: "box.truck.fill")
                     .font(.largeTitle)
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(AppTheme.textSecondary)
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(vehicle.plateNumber)
                         .font(.headline.weight(.black))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.textPrimary)
                     Spacer()
                     Circle()
                         .fill(statusColor)
@@ -156,16 +156,16 @@ private struct VehicleCardView: View {
                     Spacer()
                     Text("\(vehicle.utilization)%")
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.textPrimary)
                 }
             }
         }
         .padding(16)
-        .background(Color(hex: "#121212"))
+        .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                .stroke(AppTheme.border, lineWidth: 1)
         )
     }
 
@@ -266,7 +266,7 @@ private struct VehicleDetailView: View {
                 }
                 Text("Vehicle Details")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.textPrimary)
                 Text("(AI Prioritized)")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.textSecondary)
@@ -279,7 +279,7 @@ private struct VehicleDetailView: View {
             } else {
                 Spacer()
                 Text("Vehicle not found")
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.textPrimary)
                 Spacer()
             }
 
@@ -294,7 +294,7 @@ private struct VehicleDetailView: View {
             .padding(.top, 20)
             .padding(.bottom, 30)
         }
-        .background(Color.black.ignoresSafeArea())
+        .background(AppTheme.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -308,8 +308,8 @@ private struct VehicleDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(Color(hex: "#1A1A1A"))
-            .foregroundStyle(AppTheme.textSecondary)
+            .background(AppTheme.surfaceSecondary)
+            .foregroundStyle(AppTheme.textPrimary)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -326,15 +326,15 @@ private struct VehicleCarouselCard: View {
                 // Mock Image area
                 ZStack {
                     Rectangle()
-                        .fill(Color(hex: "#252525"))
+                        .fill(AppTheme.surfaceSecondary)
                     
                     Image(systemName: "box.truck.fill")
                         .font(.system(size: 60))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
                 }
                 .frame(height: geometry.size.height * 0.45)
                 .overlay(
-                    LinearGradient(colors: [Color.black.opacity(0.1), Color(hex: "#121212")], startPoint: .top, endPoint: .bottom)
+                    LinearGradient(colors: [Color.black.opacity(0.1), AppTheme.cardBackground], startPoint: .top, endPoint: .bottom)
                 )
 
                 // Content
@@ -343,7 +343,7 @@ private struct VehicleCarouselCard: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(vehicle.plateNumber)
                                 .font(.title2.weight(.bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(AppTheme.textPrimary)
                             Text("Driver \(viewModel.user(for: vehicle.assignedDriverID)?.name.components(separatedBy: " ").first ?? "Unassigned")")
                                 .font(.subheadline)
                                 .foregroundStyle(AppTheme.textSecondary)
@@ -368,7 +368,7 @@ private struct VehicleCarouselCard: View {
                                 .foregroundStyle(Color(hex: "#ff3b30"))
                             Text("ETA Delay 45 min")
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(AppTheme.textPrimary)
                         }
                         HStack(spacing: 8) {
                             Image(systemName: "exclamationmark.circle")
@@ -386,11 +386,11 @@ private struct VehicleCarouselCard: View {
                         HStack {
                             Text("Fuel")
                                 .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(AppTheme.textPrimary)
                             Spacer()
                             Text("\(vehicle.fuelLevel)%")
                                 .font(.subheadline.weight(.bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(AppTheme.textPrimary)
                         }
                         
                         GeometryReader { barGeo in
@@ -407,11 +407,11 @@ private struct VehicleCarouselCard: View {
                 }
                 .padding(20)
             }
-            .background(Color(hex: "#121212"))
+            .background(AppTheme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 24))
             .overlay(
                 RoundedRectangle(cornerRadius: 24)
-                    .stroke(isSelected ? AppTheme.brand : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? AppTheme.brand : AppTheme.border, lineWidth: isSelected ? 2 : 1)
             )
             .shadow(color: isSelected ? AppTheme.brand.opacity(0.6) : .clear, radius: 15, y: 0)
             .padding(.horizontal, isSelected ? 20 : 40)
