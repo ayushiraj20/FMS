@@ -1,41 +1,42 @@
 import Foundation
 import SwiftUI
 import CoreLocation
-import Combine
+import Observation
 
+@Observable
 @MainActor
-final class DriverViewModel: ObservableObject {
-    @Published var isLoading = true
-    @Published var selectedTab = 0
-    @Published var showSOSSheet = false
-    @Published var showProfileSheet = false
-    @Published var showDefectSheet = false
-    @Published var showChatSheet = false
-    @Published var showFuelReceiptSheet = false
-    @Published var showBreakLogSheet = false
-    @Published var showInspection = false
-    @Published var showDutyToggleAlert = false
-    @Published var showAlertDetail: VehicleAlert?
+final class DriverViewModel {
+    var isLoading = true
+    var selectedTab = 0
+    var showSOSSheet = false
+    var showProfileSheet = false
+    var showDefectSheet = false
+    var showChatSheet = false
+    var showFuelReceiptSheet = false
+    var showBreakLogSheet = false
+    var showInspection = false
+    var showDutyToggleAlert = false
+    var showAlertDetail: VehicleAlert?
 
     // SOS
-    @Published var sosCountdown: Int = 10
-    @Published var sosTriggered = false
-    @Published var sosConfirmed = false
-    private var sosTimer: Timer?
+    var sosCountdown: Int = 10
+    var sosTriggered = false
+    var sosConfirmed = false
+    @ObservationIgnored private var sosTimer: Timer?
 
     // Inspection
-    @Published var inspectionItems: [DriverInspectionItem] = DriverViewModel.defaultInspectionItems()
-    @Published var inspectionType: InspectionType = .preTrip
-    @Published var inspectionSubmitted = false
-    @Published var showInspectionCriticalAlert = false
+    var inspectionItems: [DriverInspectionItem] = DriverViewModel.defaultInspectionItems()
+    var inspectionType: InspectionType = .preTrip
+    var inspectionSubmitted = false
+    var showInspectionCriticalAlert = false
 
     // Toast
-    @Published var toastMessage: String?
-    @Published var showToast = false
+    var toastMessage: String?
+    var showToast = false
 
     // Trip map
-    @Published var currentSpeed: Double = 72.0
-    @Published var speedLimit: Double = 80.0
+    var currentSpeed: Double = 72.0
+    var speedLimit: Double = 80.0
 
     func load() async {
         guard isLoading else { return }

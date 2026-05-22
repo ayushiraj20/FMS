@@ -1,13 +1,14 @@
 import SwiftUI
 
 struct DriverDashboardView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @EnvironmentObject private var driverVM: DriverViewModel
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(DriverViewModel.self) private var driverVM
 
     private var currentUser: User? { appViewModel.currentUser }
     private var assignedVehicle: Vehicle? { appViewModel.service.vehicle(for: currentUser?.assignedVehicleID) }
 
     var body: some View {
+        @Bindable var driverVM = driverVM
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 12) {
                 if driverVM.isLoading {
@@ -38,21 +39,21 @@ struct DriverDashboardView: View {
         }
         .sheet(isPresented: $driverVM.showProfileSheet) {
             DriverProfileView()
-                .environmentObject(appViewModel)
-                .environmentObject(driverVM)
+                .environment(appViewModel)
+                .environment(driverVM)
         }
         .sheet(isPresented: $driverVM.showFuelReceiptSheet) {
             FuelReceiptView()
-                .environmentObject(appViewModel)
-                .environmentObject(driverVM)
+                .environment(appViewModel)
+                .environment(driverVM)
         }
         .sheet(isPresented: $driverVM.showBreakLogSheet) {
             BreakLogSheet()
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
         .sheet(item: $driverVM.showAlertDetail) { alert in
             VehicleAlertDetailSheet(alert: alert)
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
         .overlay(alignment: .top) {
             if driverVM.showToast, let message = driverVM.toastMessage {
@@ -136,7 +137,7 @@ struct DriverDashboardView: View {
                         icon: isOnDuty ? "circle.fill" : "moon.fill"
                     )
                 }
-                .alert("Change Duty Status", isPresented: $driverVM.showDutyToggleAlert) {
+                .alert("Change Duty Status", isPresented: Bindable(driverVM).showDutyToggleAlert) {
                     Button("Confirm") {
                         appViewModel.service.toggleDutyStatus(for: user.id)
                     }
@@ -646,7 +647,7 @@ struct DriverDashboardView: View {
 
 struct BreakLogSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var breakType = "Tea Break"
     let breakTypes = ["Tea Break", "Lunch Break", "Rest Break", "Personal Break"]
 
@@ -695,7 +696,7 @@ struct BreakLogSheet: View {
 
 struct VehicleAlertDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     let alert: VehicleAlert
 
     var body: some View {
@@ -767,7 +768,7 @@ struct VehicleAlertDetailSheet: View {
 #Preview {
     NavigationStack {
         DriverDashboardView()
-            .environmentObject(AppViewModel())
-            .environmentObject(DriverViewModel())
+            .environment(AppViewModel())
+            .environment(DriverViewModel())
     }
 }

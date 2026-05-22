@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MaintenanceChatView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var messageText = ""
 
     private var currentUser: User? { appViewModel.currentUser }
@@ -119,5 +119,5 @@ struct MaintenanceChatView: View {
 
 #Preview {
     MaintenanceChatView()
-        .environmentObject(AppViewModel())
+        .environment(AppViewModel())
 }

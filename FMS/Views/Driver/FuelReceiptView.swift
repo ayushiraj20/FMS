@@ -2,8 +2,8 @@ import SwiftUI
 
 struct FuelReceiptView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @EnvironmentObject private var driverVM: DriverViewModel
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(DriverViewModel.self) private var driverVM
 
     @State private var showManualEntry = false
     @State private var stationName = ""
@@ -492,6 +492,6 @@ struct FuelReceiptView: View {
 
 #Preview {
     FuelReceiptView()
-        .environmentObject(AppViewModel())
-        .environmentObject(DriverViewModel())
+        .environment(AppViewModel())
+        .environment(DriverViewModel())
 }

@@ -40,8 +40,8 @@ private struct FleetManagerTabView: View {
 }
 
 private struct DriverTabView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @StateObject private var driverVM = DriverViewModel()
+    @Environment(AppViewModel.self) private var appViewModel
+    @State private var driverVM = DriverViewModel()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -76,11 +76,11 @@ private struct DriverTabView: View {
                 .padding(.bottom, 60)
             }
         }
-        .environmentObject(driverVM)
+        .environment(driverVM)
         .fullScreenCover(isPresented: $driverVM.showSOSSheet) {
             SOSSheetView()
-                .environmentObject(appViewModel)
-                .environmentObject(driverVM)
+                .environment(appViewModel)
+                .environment(driverVM)
         }
     }
 }

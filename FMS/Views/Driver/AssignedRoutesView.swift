@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AssignedRoutesView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     private var currentUser: User? { appViewModel.currentUser }
 
@@ -135,6 +135,6 @@ struct AssignedRoutesView: View {
 #Preview {
     NavigationStack {
         AssignedRoutesView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

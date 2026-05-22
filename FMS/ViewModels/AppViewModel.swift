@@ -1,6 +1,5 @@
 import Foundation
 import SwiftUI
-import Combine
 import Supabase
 import Observation
 
@@ -14,7 +13,7 @@ enum RootFlowState {
 
 @Observable
 @MainActor
-final class AppViewModel: ObservableObject {
+final class AppViewModel {
     @ObservationIgnored
     private var hasSeenOnboarding: Bool {
         get { UserDefaults.standard.bool(forKey: "hasSeenOnboarding") }
