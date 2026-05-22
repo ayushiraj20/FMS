@@ -196,6 +196,7 @@ struct Trip: Identifiable, Codable, Hashable {
     var endDate: Date?
     var distanceKM: Double
     var status: TripStatus
+    var safetyScore: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -207,6 +208,7 @@ struct Trip: Identifiable, Codable, Hashable {
         case endDate = "end_date"
         case distanceKM = "distance_km"
         case status
+        case safetyScore = "safety_score"
     }
 }
 

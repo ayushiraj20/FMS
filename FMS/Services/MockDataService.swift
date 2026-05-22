@@ -751,7 +751,7 @@ enum DemoSeed {
         ]
 
         let trips = [
-            Trip(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, origin: "Mumbai", destination: "Nashik", startDate: .now.addingTimeInterval(-86400), endDate: .now.addingTimeInterval(-82000), distanceKM: 168, status: .completed),
+            Trip(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, origin: "Mumbai", destination: "Nashik", startDate: .now.addingTimeInterval(-86400), endDate: .now.addingTimeInterval(-82000), distanceKM: 168, status: .completed, safetyScore: 94),
             Trip(id: activeTripID, driverID: driver1ID, vehicleID: vehicle1ID, origin: "Mumbai", destination: "Pune Warehouse", startDate: .now.addingTimeInterval(-7200), endDate: nil, distanceKM: 148, status: .inProgress),
             Trip(id: scheduledTrip1ID, driverID: driver1ID, vehicleID: vehicle1ID, origin: "Pune", destination: "Kolhapur", startDate: .now.addingTimeInterval(86400), endDate: nil, distanceKM: 232, status: .scheduled),
             Trip(id: scheduledTrip2ID, driverID: driver1ID, vehicleID: vehicle1ID, origin: "Mumbai", destination: "Surat", startDate: .now.addingTimeInterval(86400 * 2), endDate: nil, distanceKM: 284, status: .scheduled),

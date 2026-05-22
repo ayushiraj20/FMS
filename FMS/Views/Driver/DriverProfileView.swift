@@ -8,71 +8,138 @@ struct DriverProfileView: View {
     @State private var showChatSheet = false
     @State private var showLogoutAlert = false
 
+    // Edit fields
+    @State private var isEditing = false
+    @State private var editName = ""
+    @State private var editEmail = ""
+    @State private var editPhone = ""
+    @State private var editLicense = ""
+
     private var currentUser: User? { appViewModel.currentUser }
     private var assignedVehicle: Vehicle? { appViewModel.service.vehicle(for: currentUser?.assignedVehicleID) }
 
     var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    profileHeader
-                    vehicleCard
-                    contactInfo
-                    safetyScore
-                    tripHistory
-                    settingsSection
-                    logoutButton
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 20) {
+                profileHeader
+                vehicleCard
+                contactInfo
+                tripHistory
+                settingsSection
+                logoutButton
+            }
+            .padding(20)
+        }
+        .background(DriverTheme.background.ignoresSafeArea())
+        .navigationTitle("Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(isEditing ? "Save" : "Edit") {
+                    if isEditing {
+                        saveFields()
+                    } else {
+                        loadFields()
+                    }
+                    isEditing.toggle()
                 }
-                .padding(20)
-            }
-            .background(DriverTheme.background.ignoresSafeArea())
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-            }
-            .sheet(isPresented: $showDefectSheet) {
-                DefectReportView()
-                    .environment(appViewModel)
-            }
-            .sheet(isPresented: $showChatSheet) {
-                MaintenanceChatView()
-                    .environment(appViewModel)
-            }
-            .alert("Log Out", isPresented: $showLogoutAlert) {
-                Button("Log Out", role: .destructive) {
-                    dismiss()
-                    appViewModel.logout()
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("Are you sure you want to log out?")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(DriverTheme.accent)
             }
         }
-        .presentationDetents([.large])
+        .onAppear(perform: loadFields)
+        .sheet(isPresented: $showDefectSheet) {
+            DefectReportView()
+                .environment(appViewModel)
+        }
+        .sheet(isPresented: $showChatSheet) {
+            MaintenanceChatView()
+                .environment(appViewModel)
+        }
+        .alert("Log Out", isPresented: $showLogoutAlert) {
+            Button("Log Out", role: .destructive) {
+                dismiss()
+                appViewModel.logout()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to log out?")
+        }
+    }
+
+    private func loadFields() {
+        if let user = currentUser {
+            editName = user.name
+            editEmail = user.email
+            editPhone = user.phone
+            editLicense = UserDefaults.standard.string(forKey: "driver_license_\(user.id)") ?? "DL-0420231234567"
+        }
+    }
+
+    private func saveFields() {
+        if let user = currentUser {
+            appViewModel.updateProfile(name: editName, email: editEmail, phone: editPhone)
+            UserDefaults.standard.set(editLicense, forKey: "driver_license_\(user.id)")
+        }
     }
 
     private var profileHeader: some View {
         VStack(spacing: 12) {
             ZStack {
-                Circle()
-                    .fill(DriverTheme.accent)
-                    .frame(width: 80, height: 80)
-                Text(driverVM.driverInitials(currentUser))
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white)
+                if let user = currentUser, user.name.contains("Rajesh") {
+                    Image("driver_profile")
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 80, height: 80)
+                        .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(DriverTheme.accent)
+                        .frame(width: 80, height: 80)
+                    Text(driverVM.driverInitials(currentUser))
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(.white)
+                }
             }
 
             if let user = currentUser {
-                Text(user.name)
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(DriverTheme.textPrimary)
+                if isEditing {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Name")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(DriverTheme.textSecondary)
+                        TextField("Name", text: $editName)
+                            .padding(10)
+                            .background(DriverTheme.cardFill)
+                            .cornerRadius(8)
+                            .foregroundStyle(DriverTheme.textPrimary)
+                    }
+                    .padding(.horizontal, 20)
+                } else {
+                    Text(user.name)
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(DriverTheme.textPrimary)
+                }
 
-                Text("Licence: DL-0420231234567")
-                    .font(.system(size: 13))
-                    .foregroundStyle(DriverTheme.textSecondary)
+                if isEditing {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("License Number")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(DriverTheme.textSecondary)
+                        TextField("License", text: $editLicense)
+                            .padding(10)
+                            .background(DriverTheme.cardFill)
+                            .cornerRadius(8)
+                            .foregroundStyle(DriverTheme.textPrimary)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
+                } else {
+                    let license = UserDefaults.standard.string(forKey: "driver_license_\(user.id)") ?? "DL-0420231234567"
+                    Text("Licence: \(license)")
+                        .font(.system(size: 13))
+                        .foregroundStyle(DriverTheme.textSecondary)
+                }
             }
         }
     }
@@ -108,6 +175,16 @@ struct DriverProfileView: View {
                     }
                     Spacer()
                 }
+            } else {
+                HStack {
+                    Image(systemName: "truck.box.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(DriverTheme.textSecondary)
+                    Text("No Assigned Vehicle")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(DriverTheme.textSecondary)
+                    Spacer()
+                }
             }
         }
     }
@@ -116,77 +193,86 @@ struct DriverProfileView: View {
         DriverGlassCard {
             VStack(spacing: 12) {
                 if let user = currentUser {
-                    profileRow(icon: "envelope.fill", label: "Email", value: user.email)
-                    Divider().foregroundStyle(DriverTheme.separator)
-                    profileRow(icon: "phone.fill", label: "Phone", value: user.phone)
-                    Divider().foregroundStyle(DriverTheme.separator)
-                    profileRow(icon: "building.2.fill", label: "Organization", value: appViewModel.organizationName)
+                    if isEditing {
+                        VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Email")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(DriverTheme.textSecondary)
+                                TextField("Email", text: $editEmail)
+                                    .padding(10)
+                                    .background(DriverTheme.cardFill)
+                                    .cornerRadius(8)
+                                    .foregroundStyle(DriverTheme.textPrimary)
+                                    .keyboardType(.emailAddress)
+                                    .autocapitalization(.none)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Phone")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(DriverTheme.textSecondary)
+                                TextField("Phone", text: $editPhone)
+                                    .padding(10)
+                                    .background(DriverTheme.cardFill)
+                                    .cornerRadius(8)
+                                    .foregroundStyle(DriverTheme.textPrimary)
+                                    .keyboardType(.phonePad)
+                            }
+                        }
+                    } else {
+                        profileRow(icon: "envelope.fill", label: "Email", value: user.email)
+                        Divider().foregroundStyle(DriverTheme.separator)
+                        profileRow(icon: "phone.fill", label: "Phone", value: user.phone)
+                        Divider().foregroundStyle(DriverTheme.separator)
+                        profileRow(icon: "building.2.fill", label: "Organization", value: appViewModel.organizationName)
+                    }
                 }
-            }
-        }
-    }
-
-    private var safetyScore: some View {
-        DriverGlassCard {
-            HStack(spacing: 20) {
-                ZStack {
-                    CircularProgressRing(
-                        progress: 0.92,
-                        size: 80,
-                        strokeWidth: 8
-                    )
-                    Text("92")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(DriverTheme.textPrimary)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Safety Score")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(DriverTheme.textPrimary)
-                    Text("Excellent driving record")
-                        .font(.system(size: 13))
-                        .foregroundStyle(DriverTheme.textSecondary)
-                }
-                Spacer()
             }
         }
     }
 
     private var tripHistory: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Trip History")
+            Text("Trip History & Safety Score")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(DriverTheme.textPrimary)
 
-            if let user = currentUser {
-                let allTrips = appViewModel.service.trips(for: user.id)
-                ForEach(allTrips.prefix(5)) { trip in
-                    NavigationLink(destination: TripDetailView(trip: trip)) {
-                        DriverGlassCard {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("\(trip.origin) → \(trip.destination)")
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundStyle(DriverTheme.textPrimary)
-                                    Text(trip.startDate.formatted(date: .abbreviated, time: .omitted))
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(DriverTheme.textSecondary)
-                                }
-                                Spacer()
-                                VStack(alignment: .trailing, spacing: 4) {
-                                    Text("\(Int(trip.distanceKM)) km")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(DriverTheme.textPrimary)
-                                    Text(trip.status.rawValue)
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(trip.status == .completed ? DriverTheme.successGreen : trip.status == .inProgress ? DriverTheme.accent : DriverTheme.textSecondary)
-                                }
-                            }
+            NavigationLink {
+                // Navigate to safety score & trip history view
+                DriverSafetyView()
+                    .environment(appViewModel)
+                    .environment(driverVM)
+            } label: {
+                DriverGlassCard {
+                    HStack(spacing: 16) {
+                        Circle()
+                            .fill(DriverTheme.accent.opacity(0.1))
+                            .frame(width: 44, height: 44)
+                            .overlay(
+                                Image(systemName: "shield.checkerboard")
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(DriverTheme.accent)
+                            )
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Safety Score & History")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(DriverTheme.textPrimary)
+                            Text("Driving stats, safety logs & full trip records")
+                                .font(.system(size: 12))
+                                .foregroundStyle(DriverTheme.textSecondary)
                         }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(DriverTheme.textSecondary)
                     }
                 }
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -198,11 +284,7 @@ struct DriverProfileView: View {
 
             DriverGlassCard {
                 VStack(spacing: 0) {
-                    settingsRow(icon: "bell.fill", title: "Notifications") { }
-                    Divider().foregroundStyle(DriverTheme.separator)
                     settingsRow(icon: "lock.fill", title: "Change Password") { }
-                    Divider().foregroundStyle(DriverTheme.separator)
-                    settingsRow(icon: "globe", title: "Language") { }
                     Divider().foregroundStyle(DriverTheme.separator)
                     settingsRow(icon: "wrench.fill", title: "Report Defect") {
                         showDefectSheet = true

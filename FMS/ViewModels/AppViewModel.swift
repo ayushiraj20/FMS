@@ -198,6 +198,25 @@ final class AppViewModel {
         flowState = .authenticated
     }
 
+    func updateProfile(name: String, email: String, phone: String) {
+        guard var user = currentUser else { return }
+        user.name = name
+        user.email = email
+        user.phone = phone
+        currentUser = user
+        
+        service.updateUser(user)
+        
+        if SupabaseConfig.isConfigured {
+            Task {
+                try? await SupabaseService.shared.client.from("profiles")
+                    .update(user)
+                    .eq("id", value: user.id)
+                    .execute()
+            }
+        }
+    }
+
     func logout() {
         if SupabaseConfig.isConfigured {
             Task {
