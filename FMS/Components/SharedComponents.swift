@@ -75,7 +75,7 @@ struct StatCardView: View {
                     Spacer()
                     Image(systemName: stat.iconName)
                         .font(.title3)
-                        .foregroundStyle(AppTheme.brand)
+                        .foregroundStyle(Color("AccentColor"))
                 }
 
                 Text(stat.value)
@@ -95,7 +95,7 @@ struct StatCardView: View {
                 } else {
                     Text(stat.trend)
                         .font(.footnote.weight(.medium))
-                        .foregroundStyle(AppTheme.brand)
+                        .foregroundStyle(Color("AccentColor"))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -104,7 +104,7 @@ struct StatCardView: View {
 
     private func badgeDisplayColor(_ type: KPIStat.BadgeColorType) -> Color {
         switch type {
-        case .none: return AppTheme.brand
+        case .none: return Color("AccentColor")
         case .critical: return AppTheme.badgeCritical
         case .action: return AppTheme.badgeAction
         case .success: return AppTheme.badgeSuccess

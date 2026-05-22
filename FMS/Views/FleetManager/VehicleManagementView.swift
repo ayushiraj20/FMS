@@ -256,6 +256,13 @@ private struct VehicleDetailView: View {
     @Bindable var viewModel: VehicleManagementViewModel
     let vehicleID: UUID
 
+    enum VehicleActionSheet: String, Identifiable {
+        case liveView, tripDetails, ping, more
+        var id: String { rawValue }
+    }
+
+    @State private var activeSheet: VehicleActionSheet?
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -285,10 +292,10 @@ private struct VehicleDetailView: View {
 
             // Action Bar
             HStack(spacing: 12) {
-                actionButton(icon: "viewfinder", title: "Live View")
-                actionButton(icon: "doc.text", title: "Trip Details")
-                actionButton(icon: "antenna.radiowaves.left.and.right", title: "Ping")
-                actionButton(icon: "ellipsis", title: "More")
+                actionButton(icon: "viewfinder", title: "Live View") { activeSheet = .liveView }
+                actionButton(icon: "doc.text", title: "Trip Details") { activeSheet = .tripDetails }
+                actionButton(icon: "antenna.radiowaves.left.and.right", title: "Ping") { activeSheet = .ping }
+                actionButton(icon: "ellipsis", title: "More") { activeSheet = .more }
             }
             .padding(.horizontal)
             .padding(.top, 20)
@@ -296,10 +303,60 @@ private struct VehicleDetailView: View {
         }
         .background(AppTheme.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $activeSheet) { sheet in
+            NavigationStack {
+                ZStack {
+                    AppTheme.background.ignoresSafeArea()
+                    VStack {
+                        Spacer()
+                        Image(systemName: sheetIcon(for: sheet))
+                            .font(.system(size: 60))
+                            .foregroundStyle(Color("AccentColor"))
+                            .padding(.bottom, 20)
+                        Text(sheetTitle(for: sheet))
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Text("Details coming soon.")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .padding(.top, 8)
+                        Spacer()
+                    }
+                }
+                .navigationTitle(sheetTitle(for: sheet))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") {
+                            activeSheet = nil
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 
-    private func actionButton(icon: String, title: String) -> some View {
-        Button(action: {}) {
+    private func sheetIcon(for sheet: VehicleActionSheet) -> String {
+        switch sheet {
+        case .liveView: return "viewfinder"
+        case .tripDetails: return "doc.text"
+        case .ping: return "antenna.radiowaves.left.and.right"
+        case .more: return "ellipsis"
+        }
+    }
+
+    private func sheetTitle(for sheet: VehicleActionSheet) -> String {
+        switch sheet {
+        case .liveView: return "Live View"
+        case .tripDetails: return "Trip Details"
+        case .ping: return "Ping Vehicle"
+        case .more: return "More Options"
+        }
+    }
+
+    private func actionButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.title3)

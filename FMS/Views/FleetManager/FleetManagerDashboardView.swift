@@ -349,9 +349,9 @@ struct FleetManagerDashboardView: View {
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 HStack(spacing: 12) {
-                    needsAttentionCard(count: 2, label: "Maintenance\nDue", color: .orange)
-                    needsAttentionCard(count: 3, label: "Overdue\nServices", color: .red)
-                    needsAttentionCard(count: 4, label: "Lost\nGPS Feed", color: .blue)
+                    needsAttentionCard(count: 2, label: "Maintenance\nDue", color: Color("AccentColor"))
+                    needsAttentionCard(count: 3, label: "Overdue\nServices", color: Color("AccentColor"))
+                    needsAttentionCard(count: 4, label: "Lost\nGPS Feed", color: Color("AccentColor"))
                 }
             }
         }

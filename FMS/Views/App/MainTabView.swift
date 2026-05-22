@@ -36,6 +36,7 @@ private struct FleetManagerTabView: View {
             NavigationStack { MaintenanceTabContentView() }
                 .tabItem { Label("Maintenance", systemImage: "wrench.and.screwdriver.fill") }
         }
+        .tint(Color("AccentColor"))
     }
 }
 
@@ -54,6 +55,7 @@ private struct DriverTabView: View {
             NavigationStack { ProfileSettingsView() }
                 .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
         }
+        .tint(Color("AccentColor"))
     }
 }
 
@@ -84,6 +86,7 @@ private struct MaintenanceTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .maintenanceDashboardRequested)) { _ in
             selectedTab = 0
         }
+        .tint(Color("AccentColor"))
     }
 }
 

@@ -77,9 +77,9 @@ struct ThemeConfigurator {
         tabAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
             .foregroundColor: UIColor.secondaryLabel
         ]
-        tabAppearance.stackedLayoutAppearance.selected.iconColor = UIColor(Color(hex: "#FF6B35"))
+        tabAppearance.stackedLayoutAppearance.selected.iconColor = UIColor(Color("AccentColor"))
         tabAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor(Color(hex: "#FF6B35"))
+            .foregroundColor: UIColor(Color("AccentColor"))
         ]
 
         UITabBar.appearance().standardAppearance = tabAppearance
@@ -96,7 +96,7 @@ struct ThemeConfigurator {
         UINavigationBar.appearance().standardAppearance = navAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
         UINavigationBar.appearance().compactAppearance = navAppearance
-        UINavigationBar.appearance().tintColor = UIColor(Color(hex: "#FF6B35"))
+        UINavigationBar.appearance().tintColor = UIColor(Color("AccentColor"))
     }
 }
 
