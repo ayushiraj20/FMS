@@ -1,65 +1,200 @@
 import SwiftUI
 
 struct UserManagementView: View {
-    @StateObject private var viewModel: UserManagementViewModel
+    @State private var viewModel: UserManagementViewModel
 
     init(service: MockDataService, currentOrgID: UUID?) {
-        _viewModel = StateObject(wrappedValue: UserManagementViewModel(service: service, currentOrgID: currentOrgID))
+        _viewModel = State(wrappedValue: UserManagementViewModel(service: service, currentOrgID: currentOrgID))
     }
 
     var body: some View {
-        List {
-            Section {
-                ForEach(viewModel.filteredUsers) { user in
-                    GlassCard {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(user.name)
-                                        .font(.headline)
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                    Text(user.title)
-                                        .font(.subheadline)
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                }
-                                Spacer()
-                                RoleBadgeView(role: user.role)
-                            }
-                            Text(user.email)
-                                .font(.footnote)
-                                .foregroundStyle(AppTheme.textSecondary)
+        ZStack(alignment: .bottomTrailing) {
+            Color(hex: "#121212").ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 20) {
+                // Header
+                HStack {
+                    Text("Team")
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundStyle(.white)
+                    
+                    Text("\(viewModel.filteredUsers.count) members")
+                        .font(.caption)
+                        .foregroundStyle(Color(hex: "#8E8E93"))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color(hex: "#1C1C1E"))
+                        .clipShape(Capsule())
+                }
+                .padding(.horizontal)
+                .padding(.top, 10)
+
+                // Search Bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(Color(hex: "#8E8E93"))
+                    TextField("Search", text: $viewModel.searchText)
+                        .foregroundStyle(.white)
+                        .tint(AppTheme.brand)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(hex: "#1C1C1E"))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+
+                // Filter Chips
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        filterChip(title: "All", role: nil)
+                        filterChip(title: "Managers", role: .fleetManager)
+                        filterChip(title: "Drivers", role: .driver)
+                        filterChip(title: "Maintenance", role: .maintenance)
+                    }
+                    .padding(.horizontal)
+                }
+
+                // User Cards List
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(viewModel.filteredUsers) { user in
+                            TeamMemberCard(user: user)
                         }
                     }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                }
-            } header: {
-                Text("Team Members")
-            }
-        }
-        .appListStyle()
-        .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .always))
-        .navigationTitle("User Management")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    viewModel.resetForm()
-                    viewModel.isPresentingCreateUser = true
-                } label: {
-                    Image(systemName: "plus")
-                        .foregroundStyle(AppTheme.brand)
+                    .padding(.horizontal)
+                    .padding(.bottom, 100) // Space for FAB
                 }
             }
+
+            // Floating Action Button
+            Button {
+                viewModel.resetForm()
+                viewModel.isPresentingCreateUser = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(AppTheme.brand)
+                    .clipShape(Circle())
+                    .shadow(color: AppTheme.brand.opacity(0.6), radius: 10, y: 4)
+            }
+            .padding(.trailing, 20)
+            .padding(.bottom, 30)
         }
+        .navigationBarHidden(true)
         .sheet(isPresented: $viewModel.isPresentingCreateUser) {
             CreateUserSheet(viewModel: viewModel)
         }
+    }
+
+    private func filterChip(title: String, role: UserRole?) -> some View {
+        let isSelected = viewModel.selectedRoleFilter == role
+        return Button {
+            withAnimation {
+                viewModel.selectedRoleFilter = role
+            }
+        } label: {
+            Text(title)
+                .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? .white : Color(hex: "#8E8E93"))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(isSelected ? AppTheme.brand : .clear)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(isSelected ? .clear : Color(hex: "#3A3A3C"), lineWidth: 1)
+                )
+        }
+    }
+}
+
+private struct TeamMemberCard: View {
+    let user: User
+    
+    // Mock status based on ID hash for UI
+    private var isOnDuty: Bool {
+        user.id.hashValue % 2 == 0
+    }
+    
+    private var statusColor: Color {
+        isOnDuty ? AppTheme.success : Color(hex: "#8E8E93")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
+                // Avatar
+                Image(systemName: "person.crop.circle.fill")
+                    .resizable()
+                    .frame(width: 50, height: 50)
+                    .foregroundStyle(Color(hex: "#D1D1D6"))
+                    .background(Circle().fill(Color(hex: "#F2F2F7")))
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(user.name)
+                        .font(.headline)
+                        .foregroundStyle(.black)
+                    
+                    Text(user.role.rawValue)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(AppTheme.brand)
+                        .clipShape(Capsule())
+                }
+                
+                Spacer()
+                
+                // Status
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 6, height: 6)
+                    Text(isOnDuty ? "On Duty" : "Off Duty")
+                        .font(.caption)
+                        .foregroundStyle(statusColor)
+                }
+            }
+            
+            HStack {
+                // Vehicle ID / Subtitle
+                Text(user.role == .driver ? "TRK-\(abs(user.id.hashValue % 9000) + 1000)" : user.title)
+                    .font(.headline)
+                    .foregroundStyle(.black)
+                
+                Spacer()
+                
+                // Action Buttons
+                HStack(spacing: 8) {
+                    Button(action: {}) {
+                        Image(systemName: "phone")
+                            .foregroundStyle(.black)
+                            .frame(width: 36, height: 36)
+                            .background(Color(hex: "#F2F2F7"))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    Button(action: {}) {
+                        Image(systemName: "ellipsis")
+                            .foregroundStyle(.black)
+                            .frame(width: 36, height: 36)
+                            .background(Color(hex: "#F2F2F7"))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }
 
 private struct CreateUserSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: UserManagementViewModel
+    @Bindable var viewModel: UserManagementViewModel
 
     var body: some View {
         NavigationStack {

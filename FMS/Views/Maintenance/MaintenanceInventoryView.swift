@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct MaintenanceInventoryView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var parts = InventoryPart.demoParts
     @State private var searchText = ""
     @State private var selectedPartForUsage: InventoryPart?
@@ -946,6 +946,6 @@ private struct InventoryReconciliationView: View {
 #Preview {
     NavigationStack {
         MaintenanceInventoryView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DriverTripsView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var isPresentingStartTrip = false
 
     private var currentUser: User? { appViewModel.currentUser }
@@ -67,14 +67,14 @@ struct DriverTripsView: View {
         .navigationTitle("Trips")
         .sheet(isPresented: $isPresentingStartTrip) {
             StartTripSheet()
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
     }
 }
 
 private struct StartTripSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     @State private var origin = "Distribution Hub A"
     @State private var destination = "Retail Node 12"
@@ -107,6 +107,6 @@ private struct StartTripSheet: View {
 #Preview {
     NavigationStack {
         DriverTripsView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

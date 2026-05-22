@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct FMSApp: App {
-    @StateObject private var appViewModel = AppViewModel()
+    @State private var appViewModel = AppViewModel()
 
     init() {
         ThemeConfigurator.configure()
@@ -19,7 +19,7 @@ struct FMSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
     }
 }

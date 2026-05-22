@@ -2,67 +2,101 @@ import SwiftUI
 import UIKit
 
 enum AppTheme {
-    static let brand = Color.dynamic(light: "#00C853", dark: "#00E676")
-    static let background = Color.dynamic(light: "#F7F9F6", dark: "#060B08")
-    static let surface = Color.dynamic(light: "#FFFFFF", dark: "#111A15")
+    // MARK: - Brand Colors
+    static let brand = Color.dynamic(light: "#FF6B35", dark: "#FF8A50")
+    static let brandDark = Color.dynamic(light: "#E55A2B", dark: "#FF6B35")
+
+    // MARK: - Backgrounds
+    static let background = Color.dynamic(light: "#FFFFFF", dark: "#000000")
+    static let surface = Color.dynamic(light: "#FFFFFF", dark: "#1C1C1E")
+    static let surfaceSecondary = Color.dynamic(light: "#F2F2F7", dark: "#2C2C2E")
+
+    // MARK: - Glass & Border
     static let glass = Color(UIColor { trait in
         if trait.userInterfaceStyle == .dark {
             return UIColor.white.withAlphaComponent(0.06)
         } else {
-            return UIColor.black.withAlphaComponent(0.04)
+            return UIColor.black.withAlphaComponent(0.03)
         }
     })
     static let border = Color(UIColor { trait in
         if trait.userInterfaceStyle == .dark {
-            return UIColor.white.withAlphaComponent(0.08)
+            return UIColor.white.withAlphaComponent(0.10)
         } else {
-            return UIColor.black.withAlphaComponent(0.06)
+            return UIColor.black.withAlphaComponent(0.08)
         }
     })
-    static let textPrimary = Color.dynamic(light: "#1A241E", dark: "#F5F7FA")
-    static let textSecondary = Color.dynamic(light: "#5A6B60", dark: "#9EAB9F")
-    static let success = Color.dynamic(light: "#27AE60", dark: "#2ECC71")
-    static let warning = Color.dynamic(light: "#F39C12", dark: "#FFB547")
-    static let error = Color.dynamic(light: "#C0392B", dark: "#D62828")
+
+    // MARK: - Card Styles
+    static let cardBackground = Color.dynamic(light: "#FFFFFF", dark: "#1C1C1E")
+    static let cardShadowColor = Color.dynamic(light: "#000000", dark: "#000000")
+
+    // MARK: - Text
+    static let textPrimary = Color.dynamic(light: "#1C1C1E", dark: "#F5F5F7")
+    static let textSecondary = Color.dynamic(light: "#8E8E93", dark: "#98989D")
+
+    // MARK: - Status Colors
+    static let success = Color.dynamic(light: "#34C759", dark: "#30D158")
+    static let warning = Color.dynamic(light: "#FF9500", dark: "#FFB340")
+    static let error = Color.dynamic(light: "#FF3B30", dark: "#FF453A")
+
+    // MARK: - Gradients
     static let gradient = LinearGradient(
         colors: [
-            Color.dynamic(light: "#00C853", dark: "#00E676"),
-            Color.dynamic(light: "#00B0FF", dark: "#05C3DE")
+            Color.dynamic(light: "#FF6B35", dark: "#FF8A50"),
+            Color.dynamic(light: "#FF8A50", dark: "#FFAB76")
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+
     static let ambientGradient = LinearGradient(
         colors: [
-            Color.dynamic(light: "#E8F5E9", dark: "#0C2016"),
-            Color.dynamic(light: "#F7F9F6", dark: "#060B08"),
-            Color.dynamic(light: "#EDF2EE", dark: "#08140F")
+            Color.dynamic(light: "#FFFFFF", dark: "#000000"),
+            Color.dynamic(light: "#FFF8F4", dark: "#0A0604"),
+            Color.dynamic(light: "#FFFFFF", dark: "#000000")
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+
+    // MARK: - Badge Colors
+    static let badgeCritical = Color.dynamic(light: "#FF3B30", dark: "#FF453A")
+    static let badgeAction = Color.dynamic(light: "#FF9500", dark: "#FFB340")
+    static let badgeSuccess = Color.dynamic(light: "#34C759", dark: "#30D158")
 }
 
 struct ThemeConfigurator {
     static func configure() {
         let tabAppearance = UITabBarAppearance()
         tabAppearance.configureWithOpaqueBackground()
-        tabAppearance.backgroundColor = UIColor(AppTheme.surface)
-        tabAppearance.shadowColor = UIColor.clear
-        tabAppearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppTheme.textSecondary)
-        tabAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor(AppTheme.textSecondary)]
-        tabAppearance.stackedLayoutAppearance.selected.iconColor = UIColor(AppTheme.brand)
-        tabAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor(AppTheme.brand)]
+        tabAppearance.backgroundColor = UIColor.systemBackground
+        tabAppearance.shadowColor = UIColor.separator
+
+        tabAppearance.stackedLayoutAppearance.normal.iconColor = UIColor.secondaryLabel
+        tabAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+            .foregroundColor: UIColor.secondaryLabel
+        ]
+        tabAppearance.stackedLayoutAppearance.selected.iconColor = UIColor(Color(hex: "#FF6B35"))
+        tabAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+            .foregroundColor: UIColor(Color(hex: "#FF6B35"))
+        ]
+
         UITabBar.appearance().standardAppearance = tabAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabAppearance
 
         let navAppearance = UINavigationBarAppearance()
-        navAppearance.configureWithTransparentBackground()
-        navAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor(AppTheme.textPrimary)]
-        navAppearance.titleTextAttributes = [.foregroundColor: UIColor(AppTheme.textPrimary)]
+        navAppearance.configureWithDefaultBackground()
+        navAppearance.largeTitleTextAttributes = [
+            .foregroundColor: UIColor.label
+        ]
+        navAppearance.titleTextAttributes = [
+            .foregroundColor: UIColor.label
+        ]
         UINavigationBar.appearance().standardAppearance = navAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
         UINavigationBar.appearance().compactAppearance = navAppearance
+        UINavigationBar.appearance().tintColor = UIColor(Color(hex: "#FF6B35"))
     }
 }
 

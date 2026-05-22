@@ -1,18 +1,20 @@
 import Foundation
 import Combine
+import Observation
 
+@Observable
 @MainActor
-final class MockDataService: ObservableObject {
-    @Published var organizations: [Organization]
-    @Published var users: [User]
-    @Published var vehicles: [Vehicle]
-    @Published var documents: [VehicleDocument]
-    @Published var trips: [Trip]
-    @Published var inspections: [InspectionRecord]
-    @Published var defects: [DefectReport]
-    @Published var workOrders: [WorkOrder]
-    @Published var maintenanceSchedules: [MaintenanceSchedule]
-    @Published var notifications: [AppNotification]
+final class MockDataService {
+    var organizations: [Organization]
+    var users: [User]
+    var vehicles: [Vehicle]
+    var documents: [VehicleDocument]
+    var trips: [Trip]
+    var inspections: [InspectionRecord]
+    var defects: [DefectReport]
+    var workOrders: [WorkOrder]
+    var maintenanceSchedules: [MaintenanceSchedule]
+    var notifications: [AppNotification]
 
     init() {
         let seed = DemoSeed.make()
