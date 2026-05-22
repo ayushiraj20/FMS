@@ -4,7 +4,7 @@ import SwiftUI
 
 struct CompleteWorkOrderView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var workOrder: WorkOrder
     @State private var technicianNotes = ""
     @State private var allStepsCompleted = true
@@ -63,7 +63,7 @@ struct CompleteWorkOrderView: View {
                 vehicle: vehicle,
                 timeLogged: labourHoursText
             )
-            .environmentObject(appViewModel)
+            .environment(appViewModel)
         }
     }
 
@@ -283,6 +283,6 @@ private struct CompletionCard<Content: View>: View {
             labourHoursText: "1.5",
             partName: "Front Brake Pads"
         )
-        .environmentObject(AppViewModel())
+        .environment(AppViewModel())
     }
 }

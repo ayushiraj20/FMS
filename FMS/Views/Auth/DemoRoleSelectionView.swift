@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DemoRoleSelectionView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         NavigationStack {
@@ -61,5 +61,5 @@ struct DemoRoleSelectionView: View {
 
 #Preview {
     DemoRoleSelectionView()
-        .environmentObject(AppViewModel())
+        .environment(AppViewModel())
 }

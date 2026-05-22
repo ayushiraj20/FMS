@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         Group {
@@ -20,21 +20,21 @@ struct MainTabView: View {
 }
 
 private struct FleetManagerTabView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         TabView {
             NavigationStack { FleetManagerDashboardView() }
-                .tabItem { Label("Dashboard", systemImage: "chart.pie.fill") }
+                .tabItem { Label("Dashboard", systemImage: "square.grid.2x2.fill") }
 
             NavigationStack { VehicleManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id) }
-                .tabItem { Label("Vehicles", systemImage: "car.side.fill") }
+                .tabItem { Label("Vehicles", systemImage: "truck.box.fill") }
 
-            NavigationStack { WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id) }
-                .tabItem { Label("Work Orders", systemImage: "wrench.and.screwdriver.fill") }
+            NavigationStack { TeamView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id) }
+                .tabItem { Label("Team", systemImage: "person.2.fill") }
 
-            NavigationStack { ProfileSettingsView() }
-                .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
+            NavigationStack { MaintenanceTabContentView() }
+                .tabItem { Label("Maintenance", systemImage: "wrench.and.screwdriver.fill") }
         }
     }
 }
@@ -93,5 +93,5 @@ extension Notification.Name {
 
 #Preview {
     MainTabView()
-        .environmentObject(AppViewModel())
+        .environment(AppViewModel())
 }

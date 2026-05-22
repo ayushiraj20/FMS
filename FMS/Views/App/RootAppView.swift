@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RootAppView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         AppScaffold {
@@ -30,5 +30,5 @@ struct RootAppView: View {
 
 #Preview {
     RootAppView()
-        .environmentObject(AppViewModel())
+        .environment(AppViewModel())
 }
