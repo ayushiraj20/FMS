@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MaintenanceScheduleView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         List {
@@ -40,6 +40,6 @@ struct MaintenanceScheduleView: View {
 #Preview {
     NavigationStack {
         MaintenanceScheduleView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

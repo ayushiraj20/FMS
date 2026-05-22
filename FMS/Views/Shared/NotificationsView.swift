@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct NotificationsView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         List {
@@ -58,6 +58,6 @@ struct NotificationsView: View {
 #Preview {
     NavigationStack {
         NotificationsView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

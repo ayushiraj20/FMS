@@ -361,6 +361,16 @@ struct KPIStat: Identifiable, Hashable {
     var value: String
     var detail: String
     var trend: String
+    var iconName: String = "chart.bar.fill"
+    var badgeText: String? = nil
+    var badgeColor: BadgeColorType = .none
+
+    enum BadgeColorType: Hashable {
+        case none
+        case critical
+        case action
+        case success
+    }
 }
 
 // MARK: - Driver-Specific Models

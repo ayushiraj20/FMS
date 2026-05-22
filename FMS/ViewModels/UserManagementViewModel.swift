@@ -1,26 +1,29 @@
 import Foundation
 import SwiftUI
 import Combine
+import Observation
 
+@Observable
 @MainActor
-final class UserManagementViewModel: ObservableObject {
+final class UserManagementViewModel {
     private let service: MockDataService
     private let currentOrgID: UUID?
 
     // List State
-    @Published var searchText = ""
-    @Published var isPresentingCreateUser = false
+    var searchText = ""
+    var selectedRoleFilter: UserRole? = nil
+    var isPresentingCreateUser = false
 
     // Form Fields
-    @Published var newUserName = ""
-    @Published var newUserRole: UserRole = .driver
-    @Published var newUserEmail = ""
-    @Published var newUserPhone = ""
-    @Published var newUserTitle = ""
+    var newUserName = ""
+    var newUserRole: UserRole = .driver
+    var newUserEmail = ""
+    var newUserPhone = ""
+    var newUserTitle = ""
 
     // Status State
-    @Published var isCreating = false
-    @Published var errorMessage: String? = nil
+    var isCreating = false
+    var errorMessage: String? = nil
 
     init(service: MockDataService, currentOrgID: UUID?) {
         self.service = service
@@ -30,6 +33,12 @@ final class UserManagementViewModel: ObservableObject {
     var filteredUsers: [User] {
         service.users
             .filter { $0.role != .fleetManager }
+            .filter { user in
+                if let filter = selectedRoleFilter {
+                    return user.role == filter
+                }
+                return true
+            }
             .filter {
                 searchText.isEmpty ||
                 $0.name.localizedCaseInsensitiveContains(searchText) ||

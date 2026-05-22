@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         Group {
@@ -20,21 +20,21 @@ struct MainTabView: View {
 }
 
 private struct FleetManagerTabView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         TabView {
             NavigationStack { FleetManagerDashboardView() }
-                .tabItem { Label("Dashboard", systemImage: "chart.pie.fill") }
+                .tabItem { Label("Dashboard", systemImage: "square.grid.2x2.fill") }
 
             NavigationStack { VehicleManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id) }
-                .tabItem { Label("Vehicles", systemImage: "car.side.fill") }
+                .tabItem { Label("Vehicles", systemImage: "truck.box.fill") }
 
-            NavigationStack { WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id) }
-                .tabItem { Label("Work Orders", systemImage: "wrench.and.screwdriver.fill") }
+            NavigationStack { TeamView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id) }
+                .tabItem { Label("Team", systemImage: "person.2.fill") }
 
-            NavigationStack { ProfileSettingsView() }
-                .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
+            NavigationStack { MaintenanceTabContentView() }
+                .tabItem { Label("Maintenance", systemImage: "wrench.and.screwdriver.fill") }
         }
     }
 }
@@ -86,24 +86,40 @@ private struct DriverTabView: View {
 }
 
 private struct MaintenanceTabView: View {
+    @State private var selectedTab = 0
+
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack { MaintenanceDashboardView() }
                 .tabItem { Label("Dashboard", systemImage: "wrench.adjustable.fill") }
+                .tag(0)
 
             NavigationStack { MaintenanceWorkOrdersView() }
                 .tabItem { Label("Orders", systemImage: "list.clipboard.fill") }
+                .tag(1)
 
-            NavigationStack { MaintenanceScheduleView() }
-                .tabItem { Label("Schedules", systemImage: "calendar") }
+            // Previous third tab kept for rollback:
+            // NavigationStack { MaintenanceScheduleView() }
+            //     .tabItem { Label("Schedules", systemImage: "calendar") }
+            NavigationStack { MaintenanceInventoryView() }
+                .tabItem { Label("Inventory", systemImage: "shippingbox.fill") }
+                .tag(2)
 
             NavigationStack { ProfileSettingsView() }
                 .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
+                .tag(3)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .maintenanceDashboardRequested)) { _ in
+            selectedTab = 0
         }
     }
 }
 
+extension Notification.Name {
+    static let maintenanceDashboardRequested = Notification.Name("maintenanceDashboardRequested")
+}
+
 #Preview {
     MainTabView()
-        .environmentObject(AppViewModel())
+        .environment(AppViewModel())
 }

@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import Combine
 import Supabase
+import Observation
 
 enum RootFlowState {
     case splash
@@ -11,18 +12,23 @@ enum RootFlowState {
     case authenticated
 }
 
+@Observable
 @MainActor
-final class AppViewModel: ObservableObject {
-    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+final class AppViewModel {
+    @ObservationIgnored
+    private var hasSeenOnboarding: Bool {
+        get { UserDefaults.standard.bool(forKey: "hasSeenOnboarding") }
+        set { UserDefaults.standard.set(newValue, forKey: "hasSeenOnboarding") }
+    }
 
-    @Published var flowState: RootFlowState = .splash
-    @Published var currentUser: User?
-    @Published var isAuthenticating = false
-    @Published var authErrorMessage: String?
+    var flowState: RootFlowState = .splash
+    var currentUser: User?
+    var isAuthenticating = false
+    var authErrorMessage: String?
 
-    @Published var organizationName = "NorthStar Logistics"
-    @Published var profileNotificationsEnabled = true
-    @Published var biometricUnlockEnabled = false
+    var organizationName = "NorthStar Logistics"
+    var profileNotificationsEnabled = true
+    var biometricUnlockEnabled = false
 
     let service = MockDataService()
     private var cancellables = Set<AnyCancellable>()
