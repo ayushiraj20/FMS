@@ -2,8 +2,8 @@ import SwiftUI
 
 struct DriverProfileView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @EnvironmentObject private var driverVM: DriverViewModel
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(DriverViewModel.self) private var driverVM
     @State private var showDefectSheet = false
     @State private var showChatSheet = false
     @State private var showLogoutAlert = false
@@ -50,11 +50,11 @@ struct DriverProfileView: View {
         .onAppear(perform: loadFields)
         .sheet(isPresented: $showDefectSheet) {
             DefectReportView()
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
         .sheet(isPresented: $showChatSheet) {
             MaintenanceChatView()
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
         .alert("Log Out", isPresented: $showLogoutAlert) {
             Button("Log Out", role: .destructive) {
@@ -241,8 +241,8 @@ struct DriverProfileView: View {
             NavigationLink {
                 // Navigate to safety score & trip history view
                 DriverSafetyView()
-                    .environmentObject(appViewModel)
-                    .environmentObject(driverVM)
+                    .environment(appViewModel)
+                    .environment(driverVM)
             } label: {
                 DriverGlassCard {
                     HStack(spacing: 16) {
@@ -349,6 +349,6 @@ struct DriverProfileView: View {
 
 #Preview {
     DriverProfileView()
-        .environmentObject(AppViewModel())
-        .environmentObject(DriverViewModel())
+        .environment(AppViewModel())
+        .environment(DriverViewModel())
 }

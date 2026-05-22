@@ -3,8 +3,8 @@ import Combine
 
 struct DriverShiftDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @EnvironmentObject private var driverVM: DriverViewModel
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(DriverViewModel.self) private var driverVM
 
     private var currentUser: User? { appViewModel.currentUser }
     private var assignedVehicle: Vehicle? { appViewModel.service.vehicle(for: currentUser?.assignedVehicleID) }
@@ -23,8 +23,6 @@ struct DriverShiftDetailView: View {
             set: { newValue in
                 guard let user = currentUser else { return }
                 appViewModel.service.toggleDutyStatus(for: user.id)
-                // Trigger view model refresh if needed
-                driverVM.objectWillChange.send()
             }
         )
     }
@@ -303,8 +301,8 @@ struct DriverShiftDetailView: View {
 #Preview {
     NavigationStack {
         DriverShiftDetailView()
-            .environmentObject(AppViewModel())
-            .environmentObject(driverVMPreview)
+            .environment(AppViewModel())
+            .environment(driverVMPreview)
     }
 }
 

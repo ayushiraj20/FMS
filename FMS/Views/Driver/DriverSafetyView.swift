@@ -4,8 +4,8 @@ import MapKit
 // Force indexing refresh
 struct DriverSafetyView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @EnvironmentObject private var driverVM: DriverViewModel
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(DriverViewModel.self) private var driverVM
 
     private var currentUser: User? { appViewModel.currentUser }
 
@@ -468,7 +468,7 @@ struct DriverSafetyView: View {
 #Preview {
     NavigationStack {
         DriverSafetyView()
-            .environmentObject(AppViewModel())
-            .environmentObject(DriverViewModel())
+            .environment(AppViewModel())
+            .environment(DriverViewModel())
     }
 }

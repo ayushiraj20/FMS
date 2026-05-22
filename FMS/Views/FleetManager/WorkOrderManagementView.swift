@@ -12,7 +12,9 @@ struct WorkOrderManagementView: View {
             ForEach(viewModel.filteredOrders) { order in
                 GlassCard {
                     VStack(alignment: .leading, spacing: 8) {
-                        HStack {
+
+                        // MARK: Top row: title + vehicle + priority
+                        HStack(alignment: .top) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(order.title)
                                     .font(.headline)
@@ -22,6 +24,15 @@ struct WorkOrderManagementView: View {
                                     .foregroundStyle(AppTheme.textSecondary)
                             }
                             Spacer()
+                            if order.isOverdue {
+                                Text("Overdue")
+                                    .font(.footnote.weight(.bold))
+                                    .foregroundStyle(AppTheme.error)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(AppTheme.error.opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
                             Text(order.priority.rawValue)
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(priorityColor(order.priority))
@@ -31,6 +42,7 @@ struct WorkOrderManagementView: View {
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.textSecondary)
 
+                        // MARK: Bottom row: status + manage button
                         HStack {
                             Text(order.status.rawValue)
                                 .font(.footnote.weight(.semibold))
@@ -44,6 +56,10 @@ struct WorkOrderManagementView: View {
                         }
                     }
                 }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(order.isOverdue ? AppTheme.error : Color.clear, lineWidth: 2)
+                )
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
@@ -71,13 +87,15 @@ struct WorkOrderManagementView: View {
 
     private func priorityColor(_ priority: WorkOrderPriority) -> Color {
         switch priority {
-        case .low: AppTheme.success
-        case .medium: AppTheme.brand
-        case .high: AppTheme.warning
+        case .low:      AppTheme.success
+        case .medium:   AppTheme.brand
+        case .high:     AppTheme.warning
         case .critical: AppTheme.error
         }
     }
 }
+
+// MARK: - Create Sheet
 
 private struct CreateWorkOrderSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -121,12 +139,18 @@ private struct CreateWorkOrderSheet: View {
                         viewModel.createWorkOrder()
                         dismiss()
                     }
-                    .disabled(viewModel.createVehicleID == nil || viewModel.createTitle.isEmpty || viewModel.createDetails.isEmpty)
+                    .disabled(
+                        viewModel.createVehicleID == nil ||
+                        viewModel.createTitle.isEmpty ||
+                        viewModel.createDetails.isEmpty
+                    )
                 }
             }
         }
     }
 }
+
+// MARK: - Detail / Edit Sheet
 
 private struct WorkOrderDetailSheet: View {
     @Environment(\.dismiss) private var dismiss

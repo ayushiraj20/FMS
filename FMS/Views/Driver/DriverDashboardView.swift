@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct DriverDashboardView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @EnvironmentObject private var driverVM: DriverViewModel
+    @Environment(AppViewModel.self) private var appViewModel: AppViewModel
+    @Environment(DriverViewModel.self) private var driverVM: DriverViewModel
 
     private var currentUser: User? { appViewModel.currentUser }
     private var assignedVehicle: Vehicle? { appViewModel.service.vehicle(for: currentUser?.assignedVehicleID) }
@@ -21,6 +21,7 @@ struct DriverDashboardView: View {
     }
 
     var body: some View {
+        @Bindable var driverVM = driverVM
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 20) {
                 if driverVM.isLoading {
@@ -49,16 +50,16 @@ struct DriverDashboardView: View {
         }
         .sheet(isPresented: $driverVM.showFuelReceiptSheet) {
             FuelReceiptView()
-                .environmentObject(appViewModel)
-                .environmentObject(driverVM)
+                .environment(appViewModel)
+                .environment(driverVM)
         }
         .sheet(isPresented: $driverVM.showBreakLogSheet) {
             BreakLogSheet()
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
         .sheet(item: $driverVM.showAlertDetail) { alert in
             VehicleAlertDetailSheet(alert: alert)
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
         .overlay(alignment: .top) {
             if driverVM.showToast, let message = driverVM.toastMessage {
@@ -76,8 +77,8 @@ struct DriverDashboardView: View {
             // Profile Avatar Button
             NavigationLink {
                 DriverProfileView()
-                    .environmentObject(appViewModel)
-                    .environmentObject(driverVM)
+                    .environment(appViewModel)
+                    .environment(driverVM)
             } label: {
                 ZStack {
                     Circle()
@@ -123,7 +124,9 @@ struct DriverDashboardView: View {
 
     // MARK: - Greeting Row
 
+    @ViewBuilder
     private var greetingRow: some View {
+        @Bindable var driverVM = driverVM
         HStack(alignment: .center) {
             Text("Hello, \(driverVM.driverFirstName(currentUser))")
                 .font(.system(size: 34, weight: .bold))
@@ -211,8 +214,8 @@ struct DriverDashboardView: View {
             // Vehicle Card
             NavigationLink {
                 DriverVehicleTripDetailView()
-                    .environmentObject(appViewModel)
-                    .environmentObject(driverVM)
+                    .environment(appViewModel)
+                    .environment(driverVM)
             } label: {
                 CustomDarkCard {
                     VStack(alignment: .leading, spacing: 8) {
@@ -249,8 +252,8 @@ struct DriverDashboardView: View {
             // Shift Card
             NavigationLink {
                 DriverShiftDetailView()
-                    .environmentObject(appViewModel)
-                    .environmentObject(driverVM)
+                    .environment(appViewModel)
+                    .environment(driverVM)
             } label: {
                 CustomDarkCard {
                     VStack(spacing: 8) {
@@ -299,7 +302,7 @@ struct DriverDashboardView: View {
         Group {
             if let user = currentUser {
                 if let activeTrip = appViewModel.service.activeTrip(for: user.id) {
-                    NavigationLink(destination: TripDetailView(trip: activeTrip).environmentObject(appViewModel)) {
+                    NavigationLink(destination: TripDetailView(trip: activeTrip).environment(appViewModel)) {
                         CustomDarkCard {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Active Trip")
@@ -336,7 +339,7 @@ struct DriverDashboardView: View {
                 } else {
                     let upcoming = appViewModel.service.upcomingTrips(for: user.id)
                     if let nextTrip = upcoming.first {
-                        NavigationLink(destination: TripDetailView(trip: nextTrip).environmentObject(appViewModel)) {
+                        NavigationLink(destination: TripDetailView(trip: nextTrip).environment(appViewModel)) {
                             CustomDarkCard {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Start Trip")
@@ -652,7 +655,7 @@ private struct ShiftProgressRing: View {
 
 struct BreakLogSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel: AppViewModel
     @State private var breakType = "Tea Break"
     let breakTypes = ["Tea Break", "Lunch Break", "Rest Break", "Personal Break"]
 
@@ -701,7 +704,7 @@ struct BreakLogSheet: View {
 
 struct VehicleAlertDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel: AppViewModel
     let alert: VehicleAlert
 
     var body: some View {
@@ -772,7 +775,7 @@ struct VehicleAlertDetailSheet: View {
 #Preview {
     NavigationStack {
         DriverDashboardView()
-            .environmentObject(AppViewModel())
-            .environmentObject(DriverViewModel())
+            .environment(AppViewModel())
+            .environment(DriverViewModel())
     }
 }

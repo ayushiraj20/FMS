@@ -47,6 +47,8 @@ final class MockDataService {
         breakLogs = seed.breakLogs
         driverDutyStatus = seed.dutyStatuses
         
+        checkOverdueCriticalWorkOrders()
+        
         // Asynchronously sync database if credentials are present
         if SupabaseConfig.isConfigured {
             Task {
@@ -396,6 +398,16 @@ final class MockDataService {
         }
     }
 
+    func updateUser(_ user: User) {
+        if let index = users.firstIndex(where: { $0.id == user.id }) {
+            users[index] = user
+        }
+    }
+
+    func deleteUser(_ user: User) {
+        users.removeAll { $0.id == user.id }
+    }
+
     func addVehicle(_ vehicle: Vehicle) {
         vehicles.insert(vehicle, at: 0)
         
@@ -590,6 +602,29 @@ final class MockDataService {
             }
         }
     }
+    func addNotification(
+        userID: UUID?,
+        roleTarget: UserRole?,
+        title: String,
+        message: String,
+        category: NotificationCategory
+    ) {
+        let notification = AppNotification(
+            id: UUID(),
+            userID: userID,
+            roleTarget: roleTarget,
+            title: title,
+            message: message,
+            date: .now,
+            isRead: false,
+            category: category
+        )
+        notifications.insert(notification, at: 0)
+
+        if SupabaseConfig.isConfigured {
+            Task { try? await SupabaseService.shared.addNotification(notification) }
+        }
+    }
 
     private func syncDriverAssignments(using vehicle: Vehicle) {
         for index in users.indices where users[index].role == .driver {
@@ -597,6 +632,48 @@ final class MockDataService {
                 users[index].assignedVehicleID = vehicle.id
             } else if users[index].assignedVehicleID == vehicle.id {
                 users[index].assignedVehicleID = nil
+            }
+        }
+    }
+    
+    func checkOverdueCriticalWorkOrders() {
+        for order in workOrders where order.isOverdue {
+            let title = "Delayed Critical Work Order: \(order.title)"
+            
+            // Prevent duplicate notifications
+            if !notifications.contains(where: { $0.title == title }) {
+                guard let vehicle = self.vehicle(for: order.vehicleID) else { continue }
+                
+                let vehicleDetails = "\(vehicle.displayName) (\(vehicle.plateNumber))"
+                let message = "Work Order '\(order.title)' for \(vehicleDetails) is \(order.overdueDurationString)."
+                
+                // 1. Notify Technician
+                if let techID = order.assignedMaintenanceID {
+                    let techNotification = AppNotification(
+                        id: UUID(),
+                        userID: techID,
+                        roleTarget: nil,
+                        title: title,
+                        message: message,
+                        date: .now,
+                        isRead: false,
+                        category: .critical
+                    )
+                    notifications.insert(techNotification, at: 0)
+                }
+                
+                // 2. Notify Fleet Manager
+                let managerNotification = AppNotification(
+                    id: UUID(),
+                    userID: nil,
+                    roleTarget: .fleetManager,
+                    title: title,
+                    message: message,
+                    date: .now,
+                    isRead: false,
+                    category: .critical
+                )
+                notifications.insert(managerNotification, at: 0)
             }
         }
     }
@@ -674,7 +751,7 @@ enum DemoSeed {
         ]
 
         let trips = [
-            Trip(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, origin: "Mumbai", destination: "Nashik", startDate: .now.addingTimeInterval(-86400), endDate: .now.addingTimeInterval(-82000), distanceKM: 168, status: .completed),
+            Trip(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, origin: "Mumbai", destination: "Nashik", startDate: .now.addingTimeInterval(-86400), endDate: .now.addingTimeInterval(-82000), distanceKM: 168, status: .completed, safetyScore: 94),
             Trip(id: activeTripID, driverID: driver1ID, vehicleID: vehicle1ID, origin: "Mumbai", destination: "Pune Warehouse", startDate: .now.addingTimeInterval(-7200), endDate: nil, distanceKM: 148, status: .inProgress),
             Trip(id: scheduledTrip1ID, driverID: driver1ID, vehicleID: vehicle1ID, origin: "Pune", destination: "Kolhapur", startDate: .now.addingTimeInterval(86400), endDate: nil, distanceKM: 232, status: .scheduled),
             Trip(id: scheduledTrip2ID, driverID: driver1ID, vehicleID: vehicle1ID, origin: "Mumbai", destination: "Surat", startDate: .now.addingTimeInterval(86400 * 2), endDate: nil, distanceKM: 284, status: .scheduled),

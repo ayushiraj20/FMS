@@ -2,8 +2,8 @@ import SwiftUI
 
 struct DriverVehicleTripDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @EnvironmentObject private var driverVM: DriverViewModel
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(DriverViewModel.self) private var driverVM
 
     private var currentUser: User? { appViewModel.currentUser }
     private var assignedVehicle: Vehicle? { appViewModel.service.vehicle(for: currentUser?.assignedVehicleID) }
@@ -215,7 +215,7 @@ struct DriverVehicleTripDetailView: View {
 #Preview {
     NavigationStack {
         DriverVehicleTripDetailView()
-            .environmentObject(AppViewModel())
-            .environmentObject(DriverViewModel())
+            .environment(AppViewModel())
+            .environment(DriverViewModel())
     }
 }

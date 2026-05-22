@@ -196,6 +196,7 @@ struct Trip: Identifiable, Codable, Hashable {
     var endDate: Date?
     var distanceKM: Double
     var status: TripStatus
+    var safetyScore: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -207,6 +208,7 @@ struct Trip: Identifiable, Codable, Hashable {
         case endDate = "end_date"
         case distanceKM = "distance_km"
         case status
+        case safetyScore = "safety_score"
     }
 }
 
@@ -301,6 +303,14 @@ struct WorkOrder: Identifiable, Codable, Hashable {
     var completedDate: Date?
     var estimatedCost: Double
     var repairSummary: String
+    var overdueAlertFired: Bool = false
+
+    // MARK: - Computed
+    var isOverdue: Bool {
+        priority == .critical &&
+        status != .completed &&
+        scheduledDate < Date.now
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -314,9 +324,23 @@ struct WorkOrder: Identifiable, Codable, Hashable {
         case completedDate = "completed_date"
         case estimatedCost = "estimated_cost"
         case repairSummary = "repair_summary"
+        case overdueAlertFired = "overdue_alert_fired"
+    }
+    
+    
+    var overdueDurationString: String {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.day, .hour, .minute]
+        formatter.unitsStyle = .full
+        formatter.maximumUnitCount = 1
+        
+        let timeInterval = Date.now.timeIntervalSince(scheduledDate)
+        if let durationString = formatter.string(from: timeInterval) {
+            return "\(durationString) overdue"
+        }
+        return "overdue"
     }
 }
-
 struct MaintenanceSchedule: Identifiable, Codable, Hashable {
     let id: UUID
     var vehicleID: UUID

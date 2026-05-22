@@ -9,7 +9,7 @@ struct VehicleManagementView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            ScrollView {
+            List {
                 VStack(spacing: 20) {
                     // Custom Search Bar
                     HStack {
@@ -20,7 +20,7 @@ struct VehicleManagementView: View {
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
                         .padding(12)
-                        .background(Color(hex: "#1A1A1A"))
+                        .background(AppTheme.surfaceSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         
                         Button(action: {}) {
@@ -41,33 +41,48 @@ struct VehicleManagementView: View {
                         }
                         .padding(.horizontal)
                     }
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
 
-                    // Vehicle List
-                    LazyVStack(spacing: 16) {
-                        ForEach(viewModel.filteredVehicles) { vehicle in
-                            NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id)) {
-                                VehicleCardView(vehicle: vehicle)
-                            }
-                            .buttonStyle(.plain)
-                            .contextMenu {
-                                Button(role: .destructive) {
-                                    viewModel.deleteVehicle(vehicle)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                                Button {
-                                    viewModel.prepareForEdit(vehicle)
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                            }
+                // Vehicle List
+                ForEach(viewModel.filteredVehicles) { vehicle in
+                    ZStack {
+                        VehicleCardView(vehicle: vehicle)
+                        NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id)) {
+                            EmptyView()
+                        }
+                        .opacity(0)
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            viewModel.deleteVehicle(vehicle)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 100) // Space for FAB
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        Button {
+                            viewModel.prepareForEdit(vehicle)
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        .tint(AppTheme.brand)
+                    }
                 }
-                .padding(.top, 10)
+                
+                Color.clear
+                    .frame(height: 100) // Space for FAB
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .padding(.top, 10)
 
             // Floating Action Button
             Button(action: {
@@ -109,7 +124,7 @@ struct VehicleManagementView: View {
             .frame(minWidth: 70)
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
-            .background(isSelected ? Color(hex: "#2A2A2A") : Color(hex: "#1A1A1A"))
+            .background(isSelected ? AppTheme.surfaceSecondary : AppTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -127,18 +142,18 @@ private struct VehicleCardView: View {
             // Image Placeholder
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(hex: "#252525"))
+                    .fill(AppTheme.surfaceSecondary)
                     .frame(width: 80, height: 80)
                 Image(systemName: "box.truck.fill")
                     .font(.largeTitle)
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(AppTheme.textSecondary)
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(vehicle.plateNumber)
                         .font(.headline.weight(.black))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.textPrimary)
                     Spacer()
                     Circle()
                         .fill(statusColor)
@@ -156,16 +171,16 @@ private struct VehicleCardView: View {
                     Spacer()
                     Text("\(vehicle.utilization)%")
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.textPrimary)
                 }
             }
         }
         .padding(16)
-        .background(Color(hex: "#121212"))
+        .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                .stroke(AppTheme.border, lineWidth: 1)
         )
     }
 
@@ -256,6 +271,13 @@ private struct VehicleDetailView: View {
     @Bindable var viewModel: VehicleManagementViewModel
     let vehicleID: UUID
 
+    enum VehicleActionSheet: String, Identifiable {
+        case liveView, tripDetails, ping, more
+        var id: String { rawValue }
+    }
+
+    @State private var activeSheet: VehicleActionSheet?
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -266,7 +288,7 @@ private struct VehicleDetailView: View {
                 }
                 Text("Vehicle Details")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.textPrimary)
                 Text("(AI Prioritized)")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.textSecondary)
@@ -279,27 +301,77 @@ private struct VehicleDetailView: View {
             } else {
                 Spacer()
                 Text("Vehicle not found")
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.textPrimary)
                 Spacer()
             }
 
             // Action Bar
             HStack(spacing: 12) {
-                actionButton(icon: "viewfinder", title: "Live View")
-                actionButton(icon: "doc.text", title: "Trip Details")
-                actionButton(icon: "antenna.radiowaves.left.and.right", title: "Ping")
-                actionButton(icon: "ellipsis", title: "More")
+                actionButton(icon: "viewfinder", title: "Live View") { activeSheet = .liveView }
+                actionButton(icon: "doc.text", title: "Trip Details") { activeSheet = .tripDetails }
+                actionButton(icon: "antenna.radiowaves.left.and.right", title: "Ping") { activeSheet = .ping }
+                actionButton(icon: "ellipsis", title: "More") { activeSheet = .more }
             }
             .padding(.horizontal)
             .padding(.top, 20)
             .padding(.bottom, 30)
         }
-        .background(Color.black.ignoresSafeArea())
+        .background(AppTheme.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $activeSheet) { sheet in
+            NavigationStack {
+                ZStack {
+                    AppTheme.background.ignoresSafeArea()
+                    VStack {
+                        Spacer()
+                        Image(systemName: sheetIcon(for: sheet))
+                            .font(.system(size: 60))
+                            .foregroundStyle(Color("AccentColor"))
+                            .padding(.bottom, 20)
+                        Text(sheetTitle(for: sheet))
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Text("Details coming soon.")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .padding(.top, 8)
+                        Spacer()
+                    }
+                }
+                .navigationTitle(sheetTitle(for: sheet))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") {
+                            activeSheet = nil
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 
-    private func actionButton(icon: String, title: String) -> some View {
-        Button(action: {}) {
+    private func sheetIcon(for sheet: VehicleActionSheet) -> String {
+        switch sheet {
+        case .liveView: return "viewfinder"
+        case .tripDetails: return "doc.text"
+        case .ping: return "antenna.radiowaves.left.and.right"
+        case .more: return "ellipsis"
+        }
+    }
+
+    private func sheetTitle(for sheet: VehicleActionSheet) -> String {
+        switch sheet {
+        case .liveView: return "Live View"
+        case .tripDetails: return "Trip Details"
+        case .ping: return "Ping Vehicle"
+        case .more: return "More Options"
+        }
+    }
+
+    private func actionButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.title3)
@@ -308,8 +380,8 @@ private struct VehicleDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(Color(hex: "#1A1A1A"))
-            .foregroundStyle(AppTheme.textSecondary)
+            .background(AppTheme.surfaceSecondary)
+            .foregroundStyle(AppTheme.textPrimary)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -326,15 +398,15 @@ private struct VehicleCarouselCard: View {
                 // Mock Image area
                 ZStack {
                     Rectangle()
-                        .fill(Color(hex: "#252525"))
+                        .fill(AppTheme.surfaceSecondary)
                     
                     Image(systemName: "box.truck.fill")
                         .font(.system(size: 60))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
                 }
                 .frame(height: geometry.size.height * 0.45)
                 .overlay(
-                    LinearGradient(colors: [Color.black.opacity(0.1), Color(hex: "#121212")], startPoint: .top, endPoint: .bottom)
+                    LinearGradient(colors: [Color.black.opacity(0.1), AppTheme.cardBackground], startPoint: .top, endPoint: .bottom)
                 )
 
                 // Content
@@ -343,7 +415,7 @@ private struct VehicleCarouselCard: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(vehicle.plateNumber)
                                 .font(.title2.weight(.bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(AppTheme.textPrimary)
                             Text("Driver \(viewModel.user(for: vehicle.assignedDriverID)?.name.components(separatedBy: " ").first ?? "Unassigned")")
                                 .font(.subheadline)
                                 .foregroundStyle(AppTheme.textSecondary)
@@ -368,7 +440,7 @@ private struct VehicleCarouselCard: View {
                                 .foregroundStyle(Color(hex: "#ff3b30"))
                             Text("ETA Delay 45 min")
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(AppTheme.textPrimary)
                         }
                         HStack(spacing: 8) {
                             Image(systemName: "exclamationmark.circle")
@@ -386,11 +458,11 @@ private struct VehicleCarouselCard: View {
                         HStack {
                             Text("Fuel")
                                 .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(AppTheme.textPrimary)
                             Spacer()
                             Text("\(vehicle.fuelLevel)%")
                                 .font(.subheadline.weight(.bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(AppTheme.textPrimary)
                         }
                         
                         GeometryReader { barGeo in
@@ -407,11 +479,11 @@ private struct VehicleCarouselCard: View {
                 }
                 .padding(20)
             }
-            .background(Color(hex: "#121212"))
+            .background(AppTheme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 24))
             .overlay(
                 RoundedRectangle(cornerRadius: 24)
-                    .stroke(isSelected ? AppTheme.brand : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? AppTheme.brand : AppTheme.border, lineWidth: isSelected ? 2 : 1)
             )
             .shadow(color: isSelected ? AppTheme.brand.opacity(0.6) : .clear, radius: 15, y: 0)
             .padding(.horizontal, isSelected ? 20 : 40)

@@ -2,7 +2,7 @@ import SwiftUI
 import MapKit
 
 struct TripDetailView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @Environment(\.dismiss) private var dismiss
     let trip: Trip
 
@@ -391,6 +391,6 @@ struct TripDetailView: View {
             distanceKM: 148,
             status: .inProgress
         ))
-        .environmentObject(AppViewModel())
+        .environment(AppViewModel())
     }
 }
