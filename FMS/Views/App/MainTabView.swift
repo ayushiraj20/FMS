@@ -58,21 +58,37 @@ private struct DriverTabView: View {
 }
 
 private struct MaintenanceTabView: View {
+    @State private var selectedTab = 0
+
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack { MaintenanceDashboardView() }
                 .tabItem { Label("Dashboard", systemImage: "wrench.adjustable.fill") }
+                .tag(0)
 
             NavigationStack { MaintenanceWorkOrdersView() }
                 .tabItem { Label("Orders", systemImage: "list.clipboard.fill") }
+                .tag(1)
 
-            NavigationStack { MaintenanceScheduleView() }
-                .tabItem { Label("Schedules", systemImage: "calendar") }
+            // Previous third tab kept for rollback:
+            // NavigationStack { MaintenanceScheduleView() }
+            //     .tabItem { Label("Schedules", systemImage: "calendar") }
+            NavigationStack { MaintenanceInventoryView() }
+                .tabItem { Label("Inventory", systemImage: "shippingbox.fill") }
+                .tag(2)
 
             NavigationStack { ProfileSettingsView() }
                 .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
+                .tag(3)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .maintenanceDashboardRequested)) { _ in
+            selectedTab = 0
         }
     }
+}
+
+extension Notification.Name {
+    static let maintenanceDashboardRequested = Notification.Name("maintenanceDashboardRequested")
 }
 
 #Preview {
