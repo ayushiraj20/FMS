@@ -4,8 +4,6 @@
 # gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
 
 ## User settings
-xcuserdata/
-FMS.xcodeproj/project.xcworkspace/xcuserdata/mac.xcuserdatad/UserInterfaceState.xcuserstate
 
 ## compatibility with Xcode 8 and earlier (ignoring not required starting Xcode 9)
 *.xcscmblueprint
@@ -90,7 +88,3 @@ iOSInjectionProject/
 #claude
 CLAUDE.md
 /.claude
-
-Fleet.xcodeproj/project.xcworkspace/xcshareddata/
-FMS.xcodeproj/project.xcworkspace/xcuserdata/mac.xcuserdatad/UserInterfaceState.xcuserstate
-FMS.xcodeproj/project.xcworkspace/xcuserdata/
