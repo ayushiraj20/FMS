@@ -17,14 +17,14 @@ final class MockDataService {
     var notifications: [AppNotification]
 
     // Driver-specific data
-    @Published var shifts: [ShiftInfo]
-    @Published var fuelReceipts: [FuelReceipt]
-    @Published var sosAlerts: [SOSAlert]
-    @Published var chatMessages: [ChatMessage]
-    @Published var tripCheckpoints: [TripCheckpoint]
-    @Published var vehicleAlerts: [VehicleAlert]
-    @Published var breakLogs: [BreakLogEntry]
-    @Published var driverDutyStatus: [UUID: DutyStatus]
+    var shifts: [ShiftInfo]
+    var fuelReceipts: [FuelReceipt]
+    var sosAlerts: [SOSAlert]
+    var chatMessages: [ChatMessage]
+    var tripCheckpoints: [TripCheckpoint]
+    var vehicleAlerts: [VehicleAlert]
+    var breakLogs: [BreakLogEntry]
+    var driverDutyStatus: [UUID: DutyStatus]
 
     init() {
         let seed = DemoSeed.make()

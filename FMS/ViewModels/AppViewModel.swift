@@ -14,7 +14,7 @@ enum RootFlowState {
 
 @Observable
 @MainActor
-final class AppViewModel {
+final class AppViewModel: ObservableObject {
     @ObservationIgnored
     private var hasSeenOnboarding: Bool {
         get { UserDefaults.standard.bool(forKey: "hasSeenOnboarding") }
@@ -31,17 +31,6 @@ final class AppViewModel {
     var biometricUnlockEnabled = false
 
     let service = MockDataService()
-    private var cancellables = Set<AnyCancellable>()
-
-    init() {
-        service.objectWillChange
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.objectWillChange.send()
-                }
-            }
-            .store(in: &cancellables)
-    }
 
     func startApp() async {
         try? await Task.sleep(for: .seconds(1.5))
