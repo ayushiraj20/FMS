@@ -9,6 +9,7 @@ final class VehicleManagementViewModel: ObservableObject {
 
     // List State
     @Published var searchText = ""
+    @Published var selectedStatusFilter: VehicleStatus? = nil
     @Published var selectedVehicle: Vehicle? = nil
     @Published var isPresentingForm = false
 
@@ -35,11 +36,31 @@ final class VehicleManagementViewModel: ObservableObject {
     }
 
     var filteredVehicles: [Vehicle] {
-        service.vehicles.filter {
-            searchText.isEmpty ||
-            $0.displayName.localizedCaseInsensitiveContains(searchText) ||
-            $0.plateNumber.localizedCaseInsensitiveContains(searchText)
+        service.vehicles.filter { vehicle in
+            let matchesSearch = searchText.isEmpty ||
+                vehicle.displayName.localizedCaseInsensitiveContains(searchText) ||
+                vehicle.plateNumber.localizedCaseInsensitiveContains(searchText)
+            
+            let matchesFilter = selectedStatusFilter == nil || vehicle.status == selectedStatusFilter
+            
+            return matchesSearch && matchesFilter
         }
+    }
+
+    var allCount: Int {
+        service.vehicles.count
+    }
+
+    var activeCount: Int {
+        service.vehicles.filter { $0.status == .active }.count
+    }
+
+    var inTransitCount: Int {
+        service.vehicles.filter { $0.status == .inService }.count
+    }
+
+    var idleCount: Int {
+        service.vehicles.filter { $0.status == .idle }.count
     }
 
     var drivers: [User] {

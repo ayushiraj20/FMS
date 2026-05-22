@@ -27,6 +27,7 @@ struct DriverDashboardView: View {
                     Image(systemName: "bell")
                         .foregroundStyle(AppTheme.textPrimary)
                 }
+                .buttonStyle(.plain)
             }
         }
         .task {

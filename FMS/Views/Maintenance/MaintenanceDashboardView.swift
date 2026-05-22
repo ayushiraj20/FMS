@@ -25,6 +25,7 @@ struct MaintenanceDashboardView: View {
                     Image(systemName: "bell")
                         .foregroundStyle(AppTheme.textPrimary)
                 }
+                .buttonStyle(.plain)
             }
         }
         .task {

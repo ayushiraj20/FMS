@@ -9,6 +9,7 @@ final class UserManagementViewModel: ObservableObject {
 
     // List State
     @Published var searchText = ""
+    @Published var selectedRoleFilter: UserRole? = nil
     @Published var isPresentingCreateUser = false
 
     // Form Fields
@@ -30,6 +31,12 @@ final class UserManagementViewModel: ObservableObject {
     var filteredUsers: [User] {
         service.users
             .filter { $0.role != .fleetManager }
+            .filter { user in
+                if let filter = selectedRoleFilter {
+                    return user.role == filter
+                }
+                return true
+            }
             .filter {
                 searchText.isEmpty ||
                 $0.name.localizedCaseInsensitiveContains(searchText) ||
