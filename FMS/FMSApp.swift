@@ -13,6 +13,7 @@ struct FMSApp: App {
 
     init() {
         ThemeConfigurator.configure()
+        NotificationManager.shared.requestPermission()
     }
 
     var body: some Scene {

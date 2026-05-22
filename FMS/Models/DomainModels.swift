@@ -361,3 +361,32 @@ struct KPIStat: Identifiable, Hashable {
     var detail: String
     var trend: String
 }
+
+
+//struct ChatMessage: Identifiable, Codable, Hashable {
+//
+//    let id: UUID
+//
+//    var senderID: UUID
+//    var receiverID: UUID
+//
+//    var vehicleID: UUID?
+//    var workOrderID: UUID?
+//
+//    var message: String
+//
+//    var sentAt: Date
+//
+//    var isRead: Bool
+//
+//    enum CodingKeys: String, CodingKey {
+//        case id
+//        case senderID = "sender_id"
+//        case receiverID = "receiver_id"
+//        case vehicleID = "vehicle_id"
+//        case workOrderID = "work_order_id"
+//        case message
+//        case sentAt = "sent_at"
+//        case isRead = "is_read"
+//    }
+//}
