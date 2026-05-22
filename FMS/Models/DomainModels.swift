@@ -301,6 +301,14 @@ struct WorkOrder: Identifiable, Codable, Hashable {
     var completedDate: Date?
     var estimatedCost: Double
     var repairSummary: String
+    var overdueAlertFired: Bool = false
+
+    // MARK: - Computed
+    var isOverdue: Bool {
+        priority == .critical &&
+        status != .completed &&
+        scheduledDate < Date.now
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -314,9 +322,9 @@ struct WorkOrder: Identifiable, Codable, Hashable {
         case completedDate = "completed_date"
         case estimatedCost = "estimated_cost"
         case repairSummary = "repair_summary"
+        case overdueAlertFired = "overdue_alert_fired"
     }
 }
-
 struct MaintenanceSchedule: Identifiable, Codable, Hashable {
     let id: UUID
     var vehicleID: UUID
