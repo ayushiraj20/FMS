@@ -129,25 +129,6 @@ struct LoginView: View {
                                 .shadow(color: AppTheme.cardShadowColor.opacity(0.05), radius: 20, x: 0, y: 10)
                         )
                         
-                        // Face ID Button
-                        Button {
-                            // Face ID action
-                        } label: {
-                            HStack {
-                                Image(systemName: "faceid")
-                                Text("LOGIN WITH FACE ID")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .kerning(1.2)
-                            }
-                            .foregroundStyle(AppTheme.textSecondary)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(
-                                Capsule()
-                                    .stroke(AppTheme.border, lineWidth: 1)
-                            )
-                        }
-                        .padding(.top, 8)
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 40)

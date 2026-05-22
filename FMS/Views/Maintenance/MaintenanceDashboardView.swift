@@ -3,7 +3,7 @@
 import SwiftUI
 
 struct MaintenanceDashboardView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     // Previous state owner kept for rollback:
     // @StateObject private var viewModel = MaintenanceDashboardViewModel()
     @State private var isLoading = true
@@ -475,6 +475,6 @@ private struct MaintenanceSchedulePreviewCard: View {
 #Preview {
     NavigationStack {
         MaintenanceDashboardView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

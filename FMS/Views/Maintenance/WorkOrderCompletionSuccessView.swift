@@ -2,7 +2,7 @@ import SwiftUI
 
 struct WorkOrderCompletionSuccessView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     let workOrder: WorkOrder
     let vehicle: Vehicle?
@@ -207,6 +207,6 @@ struct WorkOrderCompletionSuccessView: View {
             vehicle: MockDataService().vehicles[0],
             timeLogged: "1.5"
         )
-        .environmentObject(AppViewModel())
+        .environment(AppViewModel())
     }
 }

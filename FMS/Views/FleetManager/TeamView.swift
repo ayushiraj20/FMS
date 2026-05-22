@@ -10,48 +10,80 @@ struct TeamView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                // MARK: - Filter Chips
-                filterChips
+        ZStack(alignment: .bottomTrailing) {
+            ScrollView {
+                VStack(spacing: 16) {
+                    // MARK: - Custom Header
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text("Team")
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundStyle(.white)
+                        
+                        Text("\(viewModel.service.users.count) members")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color(white: 0.6))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color(white: 0.2))
+                            .clipShape(Capsule())
+                        
+                        Spacer()
+                    }
+                    .padding(.top, 10)
+                    
+                    // MARK: - Search Bar
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(Color(white: 0.6))
+                        TextField("Search", text: $viewModel.searchText)
+                            .foregroundStyle(.white)
+                    }
+                    .padding(12)
+                    .background(Color(white: 0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    
+                    // MARK: - Filter Chips
+                    filterChips
 
-                // MARK: - Team Members List
-                if viewModel.filteredMembers.isEmpty {
-                    EmptyStateView(
-                        icon: "person.2.slash",
-                        title: "No team members found",
-                        message: "Try adjusting your search or filters."
-                    )
-                    .padding(.top, 40)
-                } else {
-                    LazyVStack(spacing: 12) {
-                        ForEach(viewModel.filteredMembers) { member in
-                            NavigationLink(destination: TeamMemberDetailView(member: member, service: viewModel.service)) {
-                                teamMemberCard(member)
+                    // MARK: - Team Members List
+                    if viewModel.filteredMembers.isEmpty {
+                        EmptyStateView(
+                            icon: "person.2.slash",
+                            title: "No team members found",
+                            message: "Try adjusting your search or filters."
+                        )
+                        .padding(.top, 40)
+                    } else {
+                        LazyVStack(spacing: 16) {
+                            ForEach(viewModel.filteredMembers) { member in
+                                NavigationLink(destination: TeamMemberDetailView(member: member, service: viewModel.service)) {
+                                    teamMemberCard(member)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 100)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-        }
-        .background(AppTheme.background)
-        .searchable(text: $viewModel.searchText, prompt: "Search team members...")
-        .navigationTitle("Team")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    viewModel.showAddMember = true
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus")
-                    }
-                    .font(.subheadline.weight(.semibold))
+            .background(AppTheme.background)
+            .navigationBarHidden(true)
+            
+            // MARK: - Floating Add Button
+            Button {
+                viewModel.showAddMember = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.semibold))
                     .foregroundStyle(.white)
-                    
-                }
+                    .frame(width: 56, height: 56)
+                    .background(AppTheme.brand)
+                    .clipShape(Circle())
+                    .shadow(color: AppTheme.brand.opacity(0.4), radius: 10, y: 4)
             }
+            .padding(.trailing, 24)
+            .padding(.bottom, 24)
         }
         .sheet(isPresented: $viewModel.showAddMember) {
             AddTeamMemberSheet(viewModel: viewModel)
@@ -79,35 +111,81 @@ struct TeamView: View {
 
     // MARK: - Team Member Card
     private func teamMemberCard(_ member: User) -> some View {
-        GlassCard {
-            HStack(spacing: 14) {
-                AvatarView(name: member.name, size: 48)
-
-                VStack(alignment: .leading, spacing: 4) {
+        VStack(spacing: 16) {
+            HStack(alignment: .top, spacing: 12) {
+                // Profile Avatar
+                Image(systemName: "person.crop.circle.fill")
+                    .resizable()
+                    .frame(width: 50, height: 50)
+                    .foregroundStyle(Color(white: 0.6), Color(white: 0.9))
+                    .clipShape(Circle())
+                
+                VStack(alignment: .leading, spacing: 6) {
                     Text(member.name)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(AppTheme.textPrimary)
-                    Text(member.title)
-                        .font(.caption)
-                        .foregroundStyle(AppTheme.textSecondary)
-
-                    // Role Tags
-                    HStack(spacing: 6) {
-                        roleTags(for: member)
-                    }
-                    .padding(.top, 2)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.black)
+                    
+                    Text(member.role.rawValue.capitalized)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(AppTheme.brand)
+                        .clipShape(Capsule())
                 }
-
+                
                 Spacer()
-
-                VStack(alignment: .trailing, spacing: 6) {
-                    statusBadge(for: member)
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(AppTheme.textSecondary)
+                
+                // Status
+                let statusInfo = memberStatus(member)
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(statusInfo.1)
+                        .frame(width: 6, height: 6)
+                    Text(statusInfo.0)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(statusInfo.1)
+                }
+            }
+            
+            HStack(alignment: .bottom) {
+                Text(getVehiclePlate(for: member))
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.black)
+                
+                Spacer()
+                
+                // Actions
+                HStack(spacing: 12) {
+                    Button(action: {}) {
+                        Image(systemName: "phone")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.black)
+                            .frame(width: 36, height: 36)
+                            .background(Color(white: 0.95))
+                            .clipShape(Circle())
+                    }
+                    Button(action: {}) {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.black)
+                            .frame(width: 36, height: 36)
+                            .background(Color(white: 0.95))
+                            .clipShape(Circle())
+                    }
                 }
             }
         }
+        .padding(16)
+        .background(.white)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+    
+    private func getVehiclePlate(for member: User) -> String {
+        if let vid = member.assignedVehicleID, let vehicle = viewModel.service.vehicle(for: vid) {
+            return vehicle.plateNumber
+        }
+        return "Unassigned"
     }
 
     // MARK: - Status Badge
@@ -136,15 +214,15 @@ struct TeamView: View {
     private func memberStatus(_ member: User) -> (String, Color) {
         if member.role == .driver {
             if member.assignedVehicleID != nil {
-                return ("On Shift", AppTheme.success)
+                return ("On Duty", AppTheme.success)
             } else {
-                return ("Available", AppTheme.brand)
+                return ("Off Duty", Color(white: 0.5))
             }
         } else if member.role == .maintenance {
             let hasActiveWork = viewModel.service.workOrders.contains {
                 $0.assignedMaintenanceID == member.id && $0.status != .completed
             }
-            return hasActiveWork ? ("On Shift", AppTheme.success) : ("Available", AppTheme.brand)
+            return hasActiveWork ? ("On Duty", AppTheme.success) : ("Off Duty", Color(white: 0.5))
         }
         return ("Active", AppTheme.success)
     }
@@ -391,9 +469,9 @@ private struct AddTeamMemberSheet: View {
 // MARK: - Filter Enum
 enum TeamFilter: String, CaseIterable {
     case all = "All"
-    case available = "Available"
-    case onShift = "On Shift"
-    case offDuty = "Off Duty"
+    case managers = "Managers"
+    case drivers = "Drivers"
+    case maintenance = "Maintenance"
 
     var displayName: String { rawValue }
 }
@@ -424,7 +502,7 @@ final class TeamViewModel {
     }
 
     var filteredMembers: [User] {
-        var members = service.users.filter { $0.role != .fleetManager }
+        var members = service.users
 
         if !searchText.isEmpty {
             members = members.filter {
@@ -437,12 +515,12 @@ final class TeamViewModel {
         switch selectedFilter {
         case .all:
             break
-        case .available:
-            members = members.filter { memberIsAvailable($0) }
-        case .onShift:
-            members = members.filter { memberIsOnShift($0) }
-        case .offDuty:
-            members = members.filter { !memberIsAvailable($0) && !memberIsOnShift($0) }
+        case .managers:
+            members = service.users.filter { $0.role == .fleetManager }
+        case .drivers:
+            members = members.filter { $0.role == .driver }
+        case .maintenance:
+            members = members.filter { $0.role == .maintenance }
         }
 
         return members

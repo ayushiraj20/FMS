@@ -8,7 +8,7 @@ struct VehicleManagementView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack(alignment: .bottomTrailing) {
             ScrollView {
                 VStack(spacing: 20) {
                     // Custom Search Bar
@@ -82,6 +82,7 @@ struct VehicleManagementView: View {
                     .shadow(color: AppTheme.brand.opacity(0.7), radius: 15, y: 0)
             }
             .padding(.bottom, 24)
+            .padding(.trailing, 24)
         }
         .background(AppTheme.background)
         .navigationTitle("Vehicles")

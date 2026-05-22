@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MaintenanceWorkOrdersView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var searchText = ""
     @State private var selectedOrder: WorkOrder?
     @State private var selectedFilter: MaintenanceOrderProgressFilter = .all
@@ -34,7 +34,7 @@ struct MaintenanceWorkOrdersView: View {
         .searchable(text: $searchText, prompt: "Search work orders")
         .sheet(item: $selectedOrder) { order in
             MaintenanceOrderUpdateSheet(workOrder: order)
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
     }
 
@@ -86,7 +86,7 @@ struct MaintenanceWorkOrdersView: View {
                     // selectedOrder = order
                     NavigationLink {
                         MaintenanceWorkOrderDetailView(workOrder: order)
-                            .environmentObject(appViewModel)
+                            .environment(appViewModel)
                     } label: {
                         MaintenanceWorkOrderCard(
                             order: order,
@@ -321,7 +321,7 @@ private struct MaintenanceWorkOrderCard: View {
 
 private struct MaintenanceWorkOrderDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var workOrder: WorkOrder
     @State private var progress: Int
     @State private var repairStartedAt: Date?
@@ -374,7 +374,7 @@ private struct MaintenanceWorkOrderDetailView: View {
                 labourHoursText: labourTotalText,
                 partName: partName
             )
-            .environmentObject(appViewModel)
+            .environment(appViewModel)
         }
     }
 
@@ -876,7 +876,7 @@ private struct DetailChatBubble: View {
 
 private struct MaintenanceOrderUpdateSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State var workOrder: WorkOrder
 
     var body: some View {
@@ -913,6 +913,6 @@ private struct MaintenanceOrderUpdateSheet: View {
 #Preview {
     NavigationStack {
         MaintenanceWorkOrdersView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }
