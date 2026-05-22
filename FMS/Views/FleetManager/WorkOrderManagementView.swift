@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct WorkOrderManagementView: View {
-    @StateObject private var viewModel: WorkOrderManagementViewModel
+    @State private var viewModel: WorkOrderManagementViewModel
 
     init(service: MockDataService, currentOrgID: UUID?) {
-        _viewModel = StateObject(wrappedValue: WorkOrderManagementViewModel(service: service, currentOrgID: currentOrgID))
+        _viewModel = State(wrappedValue: WorkOrderManagementViewModel(service: service, currentOrgID: currentOrgID))
     }
 
     var body: some View {
@@ -81,7 +81,7 @@ struct WorkOrderManagementView: View {
 
 private struct CreateWorkOrderSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: WorkOrderManagementViewModel
+    @Bindable var viewModel: WorkOrderManagementViewModel
 
     var body: some View {
         NavigationStack {
@@ -130,7 +130,7 @@ private struct CreateWorkOrderSheet: View {
 
 private struct WorkOrderDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: WorkOrderManagementViewModel
+    @Bindable var viewModel: WorkOrderManagementViewModel
 
     var body: some View {
         NavigationStack {

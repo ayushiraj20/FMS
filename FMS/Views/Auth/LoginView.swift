@@ -6,7 +6,7 @@ struct LoginView: View {
         case password
     }
 
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var email = "admin@fleetos.com"
     @State private var password = "demo"
     @State private var showPassword = false
@@ -211,5 +211,5 @@ struct AuthTextField: View {
 
 #Preview {
     LoginView()
-        .environmentObject(AppViewModel())
+        .environment(AppViewModel())
 }

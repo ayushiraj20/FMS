@@ -162,9 +162,8 @@ struct AvatarView: View {
     var body: some View {
         let initials = name.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined()
         ZStack {
-            Circle()
-                .fill(AppTheme.brand.opacity(0.15))
-            Text(initials)
+//            Text(initials)
+            Image(systemName: "person.circle.fill")
                 .font(.system(size: size * 0.35, weight: .semibold, design: .rounded))
                 .foregroundStyle(AppTheme.brand)
         }

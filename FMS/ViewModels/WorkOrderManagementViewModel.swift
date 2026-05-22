@@ -1,29 +1,31 @@
 import Foundation
 import SwiftUI
 import Combine
+import Observation
 
+@Observable
 @MainActor
-final class WorkOrderManagementViewModel: ObservableObject {
+final class WorkOrderManagementViewModel {
     private let service: MockDataService
     private let currentOrgID: UUID?
 
     // List State
-    @Published var searchText = ""
-    @Published var selectedWorkOrder: WorkOrder? = nil
-    @Published var isPresentingCreateSheet = false
+    var searchText = ""
+    var selectedWorkOrder: WorkOrder? = nil
+    var isPresentingCreateSheet = false
 
     // Create Form Fields
-    @Published var createVehicleID: UUID? = nil
-    @Published var createMaintenanceID: UUID? = nil
-    @Published var createTitle = ""
-    @Published var createDetails = ""
-    @Published var createPriority: WorkOrderPriority = .medium
-    @Published var createScheduledDate = Date.now
+    var createVehicleID: UUID? = nil
+    var createMaintenanceID: UUID? = nil
+    var createTitle = ""
+    var createDetails = ""
+    var createPriority: WorkOrderPriority = .medium
+    var createScheduledDate = Date.now
 
     // Detail/Edit Form Fields
-    @Published var editStatus: WorkOrderStatus = .open
-    @Published var editRepairSummary = ""
-    @Published var editCompletedDate = Date.now
+    var editStatus: WorkOrderStatus = .open
+    var editRepairSummary = ""
+    var editCompletedDate = Date.now
 
     init(service: MockDataService, currentOrgID: UUID?) {
         self.service = service

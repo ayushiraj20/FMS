@@ -1,9 +1,11 @@
 import Foundation
 import Combine
+import Observation
 
+@Observable
 @MainActor
-final class FleetManagerDashboardViewModel: ObservableObject {
-    @Published var isLoading = true
+final class FleetManagerDashboardViewModel {
+    var isLoading = true
 
     func load() async {
         guard isLoading else { return }
@@ -63,9 +65,10 @@ final class FleetManagerDashboardViewModel: ObservableObject {
     }
 }
 
+@Observable
 @MainActor
-final class DriverDashboardViewModel: ObservableObject {
-    @Published var isLoading = true
+final class DriverDashboardViewModel {
+    var isLoading = true
 
     func load() async {
         guard isLoading else { return }
@@ -74,9 +77,10 @@ final class DriverDashboardViewModel: ObservableObject {
     }
 }
 
+@Observable
 @MainActor
-final class MaintenanceDashboardViewModel: ObservableObject {
-    @Published var isLoading = true
+final class MaintenanceDashboardViewModel {
+    var isLoading = true
 
     func load() async {
         guard isLoading else { return }

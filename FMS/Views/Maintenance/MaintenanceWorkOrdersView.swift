@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MaintenanceWorkOrdersView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var searchText = ""
     @State private var selectedOrder: WorkOrder?
 
@@ -50,14 +50,14 @@ struct MaintenanceWorkOrdersView: View {
         .navigationTitle("Assigned Orders")
         .sheet(item: $selectedOrder) { order in
             MaintenanceOrderUpdateSheet(workOrder: order)
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
     }
 }
 
 private struct MaintenanceOrderUpdateSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State var workOrder: WorkOrder
 
     var body: some View {
@@ -94,6 +94,6 @@ private struct MaintenanceOrderUpdateSheet: View {
 #Preview {
     NavigationStack {
         MaintenanceWorkOrdersView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

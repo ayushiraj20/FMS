@@ -2,35 +2,35 @@ import SwiftUI
 import MapKit
 
 struct FleetManagerDashboardView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @StateObject private var viewModel = FleetManagerDashboardViewModel()
-
+    @Environment(AppViewModel.self) private var appViewModel
+    @State private var viewModel = FleetManagerDashboardViewModel()
+    
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // MARK: - Header
                     headerSection
-
+                    
                     if viewModel.isLoading {
                         LoadingStateView(title: "Loading live fleet KPIs...")
                             .frame(height: 280)
                     } else {
                         // MARK: - KPI Grid
                         kpiGrid
-
+                        
                         // MARK: - Priority Alerts
                         alertsSection
-
+                        
                         // MARK: - Live Fleet Map
                         liveFleetMapSection
-
+                        
                         // MARK: - Fleet Utilization
                         fleetUtilizationSection
-
+                        
                         // MARK: - Needs Attention
                         needsAttentionSection
-
+                        
                         // MARK: - Quick Access
                         quickAccessSection
                     }
@@ -38,7 +38,7 @@ struct FleetManagerDashboardView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 80)
             }
-
+            
             // MARK: - FAB
             NavigationLink(destination: AIPredictionDashboardView()) {
                 Image(systemName: "sparkles")
@@ -67,9 +67,7 @@ struct FleetManagerDashboardView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: NotificationsView()) {
                     ZStack {
-                        Circle()
-                            .fill(AppTheme.surfaceSecondary)
-                            .frame(width: 36, height: 36)
+                        
                         notificationBadge
                     }
                 }
@@ -80,7 +78,7 @@ struct FleetManagerDashboardView: View {
             await viewModel.load()
         }
     }
-
+    
     // MARK: - Header Section
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -93,7 +91,7 @@ struct FleetManagerDashboardView: View {
         }
         .padding(.top, 8)
     }
-
+    
     // MARK: - KPI Grid
     private var kpiGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
@@ -102,7 +100,7 @@ struct FleetManagerDashboardView: View {
             }
         }
     }
-
+    
     // MARK: - Priority Alerts
     private var alertsSection: some View {
         GlassCard {
@@ -130,7 +128,7 @@ struct FleetManagerDashboardView: View {
             }
         }
     }
-
+    
     private func alertIconItem(icon: String, color: Color, count: Int, label: String) -> some View {
         VStack(spacing: 8) {
             ZStack(alignment: .topTrailing) {
@@ -138,7 +136,7 @@ struct FleetManagerDashboardView: View {
                     .font(.system(size: 26, weight: .regular))
                     .foregroundStyle(color)
                     .frame(width: 40, height: 40)
-                    
+                
                 if count > 0 {
                     Text("\(count)")
                         .font(.system(size: 11, weight: .bold))
@@ -160,7 +158,7 @@ struct FleetManagerDashboardView: View {
         }
         .frame(maxWidth: .infinity)
     }
-
+    
     // MARK: - Live Fleet Map
     private var liveFleetMapSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -175,7 +173,7 @@ struct FleetManagerDashboardView: View {
                         .foregroundStyle(AppTheme.brand)
                 }
             }
-
+            
             FleetMapPreview(vehicles: appViewModel.service.vehicles)
                 .frame(height: 240)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -185,7 +183,7 @@ struct FleetManagerDashboardView: View {
                 )
         }
     }
-
+    
     // MARK: - Fleet Utilization
     private var fleetUtilizationSection: some View {
         GlassCard {
@@ -201,7 +199,7 @@ struct FleetManagerDashboardView: View {
                             .foregroundStyle(AppTheme.brand)
                     }
                 }
-
+                
                 HStack(spacing: 24) {
                     // Gauge
                     VStack(spacing: 8) {
@@ -227,7 +225,7 @@ struct FleetManagerDashboardView: View {
                             .font(.caption)
                             .foregroundStyle(AppTheme.textSecondary)
                     }
-
+                    
                     // Stats
                     VStack(spacing: 12) {
                         utilizationRow(color: .green, label: "Active", value: 78)
@@ -238,7 +236,7 @@ struct FleetManagerDashboardView: View {
             }
         }
     }
-
+    
     private func utilizationRow(color: Color, label: String, value: Int) -> some View {
         HStack(spacing: 8) {
             Circle()
@@ -268,7 +266,7 @@ struct FleetManagerDashboardView: View {
                 .frame(width: 35, alignment: .trailing)
         }
     }
-
+    
     // MARK: - Needs Attention
     private var needsAttentionSection: some View {
         GlassCard {
@@ -285,7 +283,7 @@ struct FleetManagerDashboardView: View {
             }
         }
     }
-
+    
     private func needsAttentionCard(count: Int, label: String, color: Color) -> some View {
         VStack(spacing: 6) {
             Text("\(count)")
@@ -303,31 +301,31 @@ struct FleetManagerDashboardView: View {
                 .fill(color.opacity(0.1))
         )
     }
-
+    
     // MARK: - Quick Access
     private var quickAccessSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(title: "Quick Access", subtitle: "Navigate to key management modules")
-
+            
             NavigationLink(destination: UserManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
                 quickLink(title: "User Management", subtitle: "Create and manage accounts", icon: "person.2.fill")
             }
-
+            
             NavigationLink(destination: VehicleManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
                 quickLink(title: "Vehicle Management", subtitle: "Track assets and assignments", icon: "truck.box.fill")
             }
-
+            
             NavigationLink(destination: WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
                 quickLink(title: "Work Orders", subtitle: "Create and monitor tasks", icon: "wrench.and.screwdriver.fill")
             }
         }
     }
-
+    
     // MARK: - Helpers
     private var priorityAlerts: [AppNotification] {
         appViewModel.service.notifications(for: appViewModel.currentUser).prefix(3).map { $0 }
     }
-
+    
     private func alertColor(_ category: NotificationCategory) -> Color {
         switch category {
         case .critical: return AppTheme.error
@@ -336,7 +334,7 @@ struct FleetManagerDashboardView: View {
         case .info: return AppTheme.brand
         }
     }
-
+    
     private func quickLink(title: String, subtitle: String, icon: String) -> some View {
         GlassCard {
             HStack(spacing: 14) {
@@ -346,7 +344,7 @@ struct FleetManagerDashboardView: View {
                     .frame(width: 42, height: 42)
                     .background(AppTheme.brand.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
+                
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
                         .foregroundStyle(AppTheme.textPrimary)
@@ -355,7 +353,7 @@ struct FleetManagerDashboardView: View {
                         .foregroundStyle(AppTheme.textSecondary)
                         .font(.caption)
                 }
-
+                
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
@@ -363,16 +361,14 @@ struct FleetManagerDashboardView: View {
             }
         }
     }
-
+    
     private var notificationBadge: some View {
         ZStack(alignment: .topTrailing) {
             Image(systemName: "bell")
                 .foregroundStyle(AppTheme.textPrimary)
             if appViewModel.unreadNotificationsCount > 0 {
-                Circle()
-                    .fill(AppTheme.brand)
-                    .frame(width: 8, height: 8)
-                    .offset(x: 2, y: -2)
+                
+                
             }
         }
     }
@@ -397,7 +393,7 @@ private func mockVehiclePins(for vehicles: [Vehicle]) -> [VehicleMapPin] {
         CLLocationCoordinate2D(latitude: 12.3150, longitude: 76.6600),    // Mysuru
         CLLocationCoordinate2D(latitude: 12.2700, longitude: 76.6100),    // Mysuru
     ]
-
+    
     return vehicles.enumerated().map { index, vehicle in
         let coord = mockCoordinates[index % mockCoordinates.count]
         return VehicleMapPin(
@@ -414,18 +410,18 @@ private func mockVehiclePins(for vehicles: [Vehicle]) -> [VehicleMapPin] {
 
 struct FleetMapPreview: View {
     let vehicles: [Vehicle]
-
+    
     var body: some View {
         let pins = mockVehiclePins(for: vehicles)
         let region = mapRegion(for: pins)
-
+        
         Map(initialPosition: .region(region), interactionModes: []) {
             ForEach(pins) { pin in
                 Annotation("", coordinate: pin.coordinate) {
                     VehiclePinView(pin: pin, isCompact: true)
                 }
             }
-
+            
             // Route polyline connecting all pins
             let allCoords = pins.map(\.coordinate)
             if allCoords.count >= 2 {
@@ -437,7 +433,7 @@ struct FleetMapPreview: View {
         .colorScheme(.light)
         .allowsHitTesting(false)
     }
-
+    
     private func mapRegion(for pins: [VehicleMapPin]) -> MKCoordinateRegion {
         guard !pins.isEmpty else {
             return MKCoordinateRegion(
@@ -464,14 +460,14 @@ struct FleetMapPreview: View {
 struct VehiclePinView: View {
     let pin: VehicleMapPin
     var isCompact: Bool = false
-
+    
     private var rotation: Double {
         // Vary tilt per pin for a natural look
         let hash = abs(pin.id.hashValue)
         let angles: [Double] = [-35, -20, 15, -40, 25, -10]
         return angles[hash % angles.count]
     }
-
+    
     var body: some View {
         Image(systemName: "car.fill")
             .font(.system(size: isCompact ? 24 : 32))
@@ -487,7 +483,7 @@ struct FleetMapFullView: View {
     let vehicles: [Vehicle]
     @State private var selectedPin: VehicleMapPin?
     @State private var mapPosition: MapCameraPosition
-
+    
     init(vehicles: [Vehicle]) {
         self.vehicles = vehicles
         let pins = mockVehiclePins(for: vehicles)
@@ -511,10 +507,10 @@ struct FleetMapFullView: View {
             )))
         }
     }
-
+    
     var body: some View {
         let pins = mockVehiclePins(for: vehicles)
-
+        
         ZStack(alignment: .bottom) {
             Map(position: $mapPosition) {
                 ForEach(pins) { pin in
@@ -528,7 +524,7 @@ struct FleetMapFullView: View {
                         }
                     }
                 }
-
+                
                 // Route connecting all vehicles
                 let allCoords = pins.map(\.coordinate)
                 if allCoords.count >= 2 {
@@ -538,7 +534,7 @@ struct FleetMapFullView: View {
             }
             .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll, showsTraffic: false))
             .colorScheme(.light)
-
+            
             // Vehicle detail card
             if let pin = selectedPin {
                 vehicleDetailCard(pin)
@@ -550,7 +546,7 @@ struct FleetMapFullView: View {
         .navigationTitle("Live Fleet Map")
         .navigationBarTitleDisplayMode(.inline)
     }
-
+    
     private func vehicleDetailCard(_ pin: VehicleMapPin) -> some View {
         HStack(spacing: 14) {
             ZStack {
@@ -561,7 +557,7 @@ struct FleetMapFullView: View {
                     .font(.title3)
                     .foregroundStyle(statusColor(pin.status))
             }
-
+            
             VStack(alignment: .leading, spacing: 3) {
                 Text(pin.name)
                     .font(.subheadline.weight(.semibold))
@@ -571,9 +567,9 @@ struct FleetMapFullView: View {
                     .foregroundStyle(.white.opacity(0.7))
                 StatusBadgeView(text: pin.status.rawValue, color: statusColor(pin.status))
             }
-
+            
             Spacer()
-
+            
             Button {
                 withAnimation { selectedPin = nil }
             } label: {
@@ -593,7 +589,7 @@ struct FleetMapFullView: View {
                 .stroke(.white.opacity(0.12), lineWidth: 0.5)
         )
     }
-
+    
     private func statusColor(_ status: VehicleStatus) -> Color {
         switch status {
         case .active: return AppTheme.brand
@@ -607,6 +603,6 @@ struct FleetMapFullView: View {
 #Preview {
     NavigationStack {
         FleetManagerDashboardView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

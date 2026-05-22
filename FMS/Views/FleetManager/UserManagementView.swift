@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct UserManagementView: View {
-    @StateObject private var viewModel: UserManagementViewModel
+    @State private var viewModel: UserManagementViewModel
 
     init(service: MockDataService, currentOrgID: UUID?) {
-        _viewModel = StateObject(wrappedValue: UserManagementViewModel(service: service, currentOrgID: currentOrgID))
+        _viewModel = State(wrappedValue: UserManagementViewModel(service: service, currentOrgID: currentOrgID))
     }
 
     var body: some View {
@@ -194,7 +194,7 @@ private struct TeamMemberCard: View {
 
 private struct CreateUserSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: UserManagementViewModel
+    @Bindable var viewModel: UserManagementViewModel
 
     var body: some View {
         NavigationStack {

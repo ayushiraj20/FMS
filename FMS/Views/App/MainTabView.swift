@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         Group {
@@ -20,7 +20,7 @@ struct MainTabView: View {
 }
 
 private struct FleetManagerTabView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         TabView {
@@ -77,5 +77,5 @@ private struct MaintenanceTabView: View {
 
 #Preview {
     MainTabView()
-        .environmentObject(AppViewModel())
+        .environment(AppViewModel())
 }

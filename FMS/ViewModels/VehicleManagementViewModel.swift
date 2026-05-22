@@ -1,34 +1,36 @@
 import Foundation
 import SwiftUI
 import Combine
+import Observation
 
+@Observable
 @MainActor
-final class VehicleManagementViewModel: ObservableObject {
+final class VehicleManagementViewModel {
     private let service: MockDataService
     private let currentOrgID: UUID?
 
     // List State
-    @Published var searchText = ""
-    @Published var selectedStatusFilter: VehicleStatus? = nil
-    @Published var selectedVehicle: Vehicle? = nil
-    @Published var isPresentingForm = false
+    var searchText = ""
+    var selectedStatusFilter: VehicleStatus? = nil
+    var selectedVehicle: Vehicle? = nil
+    var isPresentingForm = false
 
     // Form Fields
-    @Published var displayName = ""
-    @Published var plateNumber = ""
-    @Published var model = ""
-    @Published var status: VehicleStatus = .active
-    @Published var fuelLevel = 50.0
-    @Published var odometer = ""
-    @Published var assignedDriverID: UUID? = nil
-    @Published var nextServiceDate = Date.now.addingTimeInterval(86400 * 10)
-    @Published var utilization = 70.0
+    var displayName = ""
+    var plateNumber = ""
+    var model = ""
+    var status: VehicleStatus = .active
+    var fuelLevel = 50.0
+    var odometer = ""
+    var assignedDriverID: UUID? = nil
+    var nextServiceDate = Date.now.addingTimeInterval(86400 * 10)
+    var utilization = 70.0
 
     // Detail/Document State
-    @Published var isPresentingDocumentSheet = false
-    @Published var docType: DocumentType = .rc
-    @Published var docNumber = ""
-    @Published var docExpiryDate = Date.now.addingTimeInterval(86400 * 120)
+    var isPresentingDocumentSheet = false
+    var docType: DocumentType = .rc
+    var docNumber = ""
+    var docExpiryDate = Date.now.addingTimeInterval(86400 * 120)
 
     init(service: MockDataService, currentOrgID: UUID?) {
         self.service = service

@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct MaintenanceDashboardView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @StateObject private var viewModel = MaintenanceDashboardViewModel()
+    @Environment(AppViewModel.self) private var appViewModel
+    @State private var viewModel = MaintenanceDashboardViewModel()
 
     var body: some View {
         ScrollView {
@@ -95,6 +95,6 @@ struct MaintenanceDashboardView: View {
 #Preview {
     NavigationStack {
         MaintenanceDashboardView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

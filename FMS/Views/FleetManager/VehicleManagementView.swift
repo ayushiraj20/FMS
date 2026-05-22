@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct VehicleManagementView: View {
-    @StateObject private var viewModel: VehicleManagementViewModel
+    @State private var viewModel: VehicleManagementViewModel
 
     init(service: MockDataService, currentOrgID: UUID?) {
-        _viewModel = StateObject(wrappedValue: VehicleManagementViewModel(service: service, currentOrgID: currentOrgID))
+        _viewModel = State(wrappedValue: VehicleManagementViewModel(service: service, currentOrgID: currentOrgID))
     }
 
     var body: some View {
@@ -198,7 +198,7 @@ private struct VehicleCardView: View {
 
 private struct VehicleFormSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: VehicleManagementViewModel
+    @Bindable var viewModel: VehicleManagementViewModel
 
     var body: some View {
         NavigationStack {
@@ -252,7 +252,7 @@ private struct VehicleFormSheet: View {
 }
 
 private struct VehicleDetailView: View {
-    @ObservedObject var viewModel: VehicleManagementViewModel
+    @Bindable var viewModel: VehicleManagementViewModel
     let initialVehicleID: UUID
 
     @State private var selectedVehicleID: UUID
@@ -341,7 +341,7 @@ private struct VehicleDetailView: View {
 }
 
 private struct VehicleCarouselCard: View {
-    @ObservedObject var viewModel: VehicleManagementViewModel
+    @Bindable var viewModel: VehicleManagementViewModel
     let vehicle: Vehicle
     let isSelected: Bool
 
@@ -449,7 +449,7 @@ private struct VehicleCarouselCard: View {
 
 private struct DocumentUploadSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: VehicleManagementViewModel
+    @Bindable var viewModel: VehicleManagementViewModel
     let vehicleID: UUID
 
     var body: some View {

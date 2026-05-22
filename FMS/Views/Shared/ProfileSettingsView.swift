@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ProfileSettingsView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         ZStack {
@@ -153,6 +153,6 @@ struct ProfileSettingsView: View {
 #Preview {
     NavigationStack {
         ProfileSettingsView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MaintenanceTabContentView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
         ScrollView {
@@ -267,6 +267,6 @@ struct MaintenanceTabContentView: View {
 #Preview {
     NavigationStack {
         MaintenanceTabContentView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

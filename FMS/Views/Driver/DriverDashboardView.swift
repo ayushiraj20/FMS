@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct DriverDashboardView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @StateObject private var viewModel = DriverDashboardViewModel()
+    @Environment(AppViewModel.self) private var appViewModel
+    @State private var viewModel = DriverDashboardViewModel()
 
     var body: some View {
         ScrollView {
@@ -165,6 +165,6 @@ struct DriverDashboardView: View {
 #Preview {
     NavigationStack {
         DriverDashboardView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

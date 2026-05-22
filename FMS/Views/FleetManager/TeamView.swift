@@ -1,11 +1,12 @@
 import SwiftUI
 import Combine
+import Observation
 
 struct TeamView: View {
-    @StateObject private var viewModel: TeamViewModel
+    @State private var viewModel: TeamViewModel
 
     init(service: MockDataService, currentOrgID: UUID?) {
-        _viewModel = StateObject(wrappedValue: TeamViewModel(service: service, currentOrgID: currentOrgID))
+        _viewModel = State(wrappedValue: TeamViewModel(service: service, currentOrgID: currentOrgID))
     }
 
     var body: some View {
@@ -45,13 +46,10 @@ struct TeamView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
-                        Text("Add")
                     }
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(Capsule().fill(AppTheme.brand))
+                    
                 }
             }
         }
@@ -322,7 +320,7 @@ private struct TeamMemberDetailView: View {
 // MARK: - Add Team Member Sheet
 private struct AddTeamMemberSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: TeamViewModel
+    @Bindable var viewModel: TeamViewModel
 
     var body: some View {
         NavigationStack {
@@ -401,23 +399,24 @@ enum TeamFilter: String, CaseIterable {
 }
 
 // MARK: - Team View Model
+@Observable
 @MainActor
-final class TeamViewModel: ObservableObject {
+final class TeamViewModel {
     let service: MockDataService
     let currentOrgID: UUID?
 
-    @Published var searchText = ""
-    @Published var selectedFilter: TeamFilter = .all
-    @Published var showAddMember = false
+    var searchText = ""
+    var selectedFilter: TeamFilter = .all
+    var showAddMember = false
 
     // Form fields
-    @Published var newName = ""
-    @Published var newEmail = ""
-    @Published var newPhone = ""
-    @Published var newTitle = ""
-    @Published var newRole: UserRole = .driver
-    @Published var isCreating = false
-    @Published var errorMessage: String?
+    var newName = ""
+    var newEmail = ""
+    var newPhone = ""
+    var newTitle = ""
+    var newRole: UserRole = .driver
+    var isCreating = false
+    var errorMessage: String?
 
     init(service: MockDataService, currentOrgID: UUID?) {
         self.service = service
