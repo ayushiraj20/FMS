@@ -26,7 +26,9 @@ struct MaintenanceWorkOrdersView: View {
                  (appViewModel.service.vehicle(for: $0.vehicleID)?.plateNumber.localizedCaseInsensitiveContains(searchText) ?? false))
             }
             .sorted {
-                priorityValue($0.priority) > priorityValue($1.priority) ||
+                // Overdue critical orders always float to the very top
+                if $0.isOverdue != $1.isOverdue { return $0.isOverdue }
+                return priorityValue($0.priority) > priorityValue($1.priority) ||
                 (priorityValue($0.priority) == priorityValue($1.priority) && $0.scheduledDate < $1.scheduledDate)
             }
     }
@@ -248,6 +250,8 @@ struct MaintenanceWorkOrdersView: View {
         
         var body: some View {
             VStack(alignment: .leading, spacing: 12) {
+                
+                // MARK: Top row: WO ID + priority/overdue badges
                 HStack(alignment: .top) {
                     Text("#WO-\(String(order.id.uuidString.prefix(4)))")
                         .font(.caption.monospaced().weight(.bold))
@@ -263,18 +267,31 @@ struct MaintenanceWorkOrdersView: View {
                             .padding(.vertical, 6)
                             .background(priorityBackgroundColor, in: Capsule())
                         
-                        if order.priority == .critical {
+                        if order.isOverdue {
+                            // AC3: Red background + text label so colour-blind users
+                            // are never relying on colour alone.
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.clock.fill")
+                                    .font(.caption2.bold())
+                                Text("OVERDUE")
+                                    .font(.caption2.bold())
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.red, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        } else if order.priority == .critical {
                             Text("URGENT")
                                 .font(.caption2.bold())
+                                .foregroundStyle(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color.red)
-                                .foregroundStyle(.white)
-                                .cornerRadius(8)
+                                .background(Color.red, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                         }
                     }
                 }
                 
+                // MARK: Vehicle + title + details
                 VStack(alignment: .leading, spacing: 8) {
                     Text(vehicle?.displayName ?? "Assigned Vehicle")
                         .font(.title3.weight(.bold))
@@ -295,6 +312,7 @@ struct MaintenanceWorkOrdersView: View {
                 Divider()
                     .overlay(Color.dynamic(light: "#E6D8D2", dark: "#33343A"))
                 
+                // MARK: Footer: scheduled time + status
                 HStack(spacing: 8) {
                     Label(order.scheduledDate.formatted(date: .omitted, time: .shortened), systemImage: "clock")
                         .labelStyle(.titleAndIcon)
@@ -312,8 +330,13 @@ struct MaintenanceWorkOrdersView: View {
             .padding(20)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.dynamic(light: "#FFFFFF", dark: "#191A20").opacity(0.96))
+                    // AC3: Tint the card background red when overdue so it stands
+                    // out visually even before the badge is read.
+                    .fill(order.isOverdue
+                          ? Color.red.opacity(0.06)
+                          : Color.dynamic(light: "#FFFFFF", dark: "#191A20").opacity(0.96))
                     .overlay(alignment: .leading) {
+                        // AC3: Left stripe is solid red for overdue orders.
                         Rectangle()
                             .fill(priorityStripeColor)
                             .frame(width: 8)
@@ -321,22 +344,33 @@ struct MaintenanceWorkOrdersView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(
-                                order.priority == .critical || order.priority == .high
-                                ? Color.red
-                                : Color.dynamic(light: "#E6D8D2", dark: "#3B3841"),
-                                lineWidth: order.priority == .critical || order.priority == .high ? 3 : 1
-                            )
+                            .stroke(borderColor, lineWidth: borderWidth)
                     )
             )
         }
         
+        // MARK: - Derived style helpers
+        
+        /// AC3: Overdue orders always get a solid red border regardless of priority.
+        private var borderColor: Color {
+            if order.isOverdue { return Color.red }
+            return order.priority == .critical || order.priority == .high
+                ? Color.red
+                : Color.dynamic(light: "#E6D8D2", dark: "#3B3841")
+        }
+        
+        private var borderWidth: CGFloat {
+            order.isOverdue ? 2 : (order.priority == .critical || order.priority == .high ? 3 : 1)
+        }
+        
+        /// AC3: Overdue orders get a solid red left stripe.
         private var priorityStripeColor: Color {
+            if order.isOverdue { return Color.red }
             switch order.priority {
-            case .low:      AppTheme.success
-            case .medium:   Color(hex: "#FFE436")
-            case .high:     Color(hex: "#FF5A1F")
-            case .critical: Color(hex: "#FFB0A3")
+            case .low:      return AppTheme.success
+            case .medium:   return Color(hex: "#FFE436")
+            case .high:     return Color(hex: "#FF5A1F")
+            case .critical: return Color(hex: "#FFB0A3")
             }
         }
         
@@ -450,12 +484,26 @@ struct MaintenanceWorkOrdersView: View {
                     
                     Spacer()
                     
-                    Text(workOrder.status.rawValue.uppercased())
-                        .font(.caption2.monospaced().weight(.bold))
+                    // AC3: Show OVERDUE badge in the detail hero card too.
+                    if workOrder.isOverdue {
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.clock.fill")
+                                .font(.caption2.bold())
+                            Text("OVERDUE")
+                                .font(.caption2.monospaced().weight(.bold))
+                        }
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(Color.white.opacity(0.16), in: Capsule())
+                        .background(Color.red, in: Capsule())
+                    } else {
+                        Text(workOrder.status.rawValue.uppercased())
+                            .font(.caption2.monospaced().weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(0.16), in: Capsule())
+                    }
                 }
                 
                 Text(workOrder.title)
@@ -478,13 +526,18 @@ struct MaintenanceWorkOrdersView: View {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(
                         LinearGradient(
-                            colors: [dangerAccent, accent],
+                            // AC3: Pure red gradient when overdue, standard danger otherwise.
+                            colors: workOrder.isOverdue
+                                ? [Color.red, Color(hex: "#FF5A1F")]
+                                : [dangerAccent, accent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                     .overlay(alignment: .topTrailing) {
-                        Image(systemName: "exclamationmark.triangle.fill")
+                        Image(systemName: workOrder.isOverdue
+                              ? "exclamationmark.clock.fill"
+                              : "exclamationmark.triangle.fill")
                             .font(.system(size: 52))
                             .foregroundStyle(.white.opacity(0.16))
                             .padding(.trailing, 12)

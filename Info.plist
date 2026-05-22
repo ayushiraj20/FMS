@@ -12,5 +12,7 @@
 	<string>We need photo library access to attach defect photos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>We need to save inspection photos to your library.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>FMS sends alerts when critical work orders become overdue.</string>
 </dict>
 </plist>

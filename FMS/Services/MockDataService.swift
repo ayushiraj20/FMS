@@ -590,6 +590,29 @@ final class MockDataService {
             }
         }
     }
+    func addNotification(
+        userID: UUID?,
+        roleTarget: UserRole?,
+        title: String,
+        message: String,
+        category: NotificationCategory
+    ) {
+        let notification = AppNotification(
+            id: UUID(),
+            userID: userID,
+            roleTarget: roleTarget,
+            title: title,
+            message: message,
+            date: .now,
+            isRead: false,
+            category: category
+        )
+        notifications.insert(notification, at: 0)
+
+        if SupabaseConfig.isConfigured {
+            Task { try? await SupabaseService.shared.addNotification(notification) }
+        }
+    }
 
     private func syncDriverAssignments(using vehicle: Vehicle) {
         for index in users.indices where users[index].role == .driver {
