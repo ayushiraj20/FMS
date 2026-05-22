@@ -5,6 +5,7 @@ struct FleetManagerDashboardView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @State private var viewModel = FleetManagerDashboardViewModel()
     @State private var selectedStat: KPIStat?
+    @State private var showBroadcast = false
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -65,18 +66,43 @@ struct FleetManagerDashboardView: View {
                 }
                 .buttonStyle(.plain)
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: NotificationsView()) {
-                    ZStack {
-                        
-                        notificationBadge
-                    }
+            ToolbarItemGroup(
+                placement: .topBarTrailing
+            ) {
+
+                NavigationLink(
+                    destination: NotificationsView()
+                ) {
+
+                    notificationBadge
                 }
                 .buttonStyle(.plain)
+
+                Button {
+
+                    showBroadcast = true
+
+                } label: {
+
+                    Image(
+                        systemName:
+                        "megaphone.fill"
+                    )
+                    .foregroundStyle(
+                        AppTheme.textPrimary
+                    )
+                }
             }
         }
         .task {
             await viewModel.load()
+        }
+        .sheet(
+            isPresented:
+            $showBroadcast
+        ) {
+
+            BroadcastComposeView()
         }
     }
     

@@ -78,7 +78,14 @@ struct DriverProfileView: View {
 
     private func saveFields() {
         if let user = currentUser {
-            appViewModel.updateProfile(name: editName, email: editEmail, phone: editPhone)
+            Task {
+                await appViewModel.updateProfile(
+                    name: editName,
+                    phone: editPhone,
+                    title: user.title,
+                    email: editEmail
+                )
+            }
             UserDefaults.standard.set(editLicense, forKey: "driver_license_\(user.id)")
         }
     }
