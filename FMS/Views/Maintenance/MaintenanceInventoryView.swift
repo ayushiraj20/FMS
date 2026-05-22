@@ -8,16 +8,21 @@ struct MaintenanceInventoryView: View {
     @State private var selectedPartForUsage: InventoryPart?
     @State private var sortLowStockFirst = true
     @State private var reorderMessage: String?
+    @State private var selectedCategory = "All"
 
     private var accent: Color { Color(hex: "#FF5A1F") }
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
     private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
     private var visibleParts: [InventoryPart] {
-        let filtered = parts.filter {
-            searchText.isEmpty ||
-            $0.name.localizedCaseInsensitiveContains(searchText) ||
-            $0.partNumber.localizedCaseInsensitiveContains(searchText) ||
-            $0.category.localizedCaseInsensitiveContains(searchText)
+        let filtered = parts.filter { part in
+            let matchesSearch = searchText.isEmpty ||
+                part.name.localizedCaseInsensitiveContains(searchText) ||
+                part.partNumber.localizedCaseInsensitiveContains(searchText) ||
+                part.category.localizedCaseInsensitiveContains(searchText)
+            
+            let matchesCategory = selectedCategory == "All" || part.category == selectedCategory
+            
+            return matchesSearch && matchesCategory
         }
 
         if sortLowStockFirst {
@@ -36,12 +41,11 @@ struct MaintenanceInventoryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
-                summaryStrip
-                forecastEntry
+                cardsGrid
                 searchField
+                bubbleFilter
                 activeInventoryHeader
                 inventoryList
-                cancellationEntry
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
@@ -72,9 +76,6 @@ struct MaintenanceInventoryView: View {
 
     private var header: some View {
         HStack(spacing: 16) {
-            Image(systemName: "line.3.horizontal")
-                .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
-
             Text("Inventory")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
@@ -92,68 +93,159 @@ struct MaintenanceInventoryView: View {
             Button {
                 selectedPartForUsage = parts.first
             } label: {
-                Image(systemName: "plus.circle")
+                Image(systemName: "plus")
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(accent)
                     .frame(width: 34, height: 34)
             }
             .buttonStyle(.plain)
-
-            Text(userInitials)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 34, height: 34)
-                .background(Circle().fill(accent))
-                .overlay(Circle().stroke(Color.dynamic(light: "#E6D8D2", dark: "#58372B"), lineWidth: 1))
         }
     }
 
-    private var summaryStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+    private var cardsGrid: some View {
+        VStack(spacing: 12) {
             HStack(spacing: 12) {
-                InventorySummaryCard(icon: "clipboard", label: "Live", value: "\(totalStock)", title: "Total Parts", tint: Color.dynamic(light: "#3A424D", dark: "#C8D1E0"))
-                InventorySummaryCard(icon: "exclamationmark.triangle.fill", label: "Low", value: "\(lowStockCount)", title: "Low Stock", tint: Color(hex: "#FFB0A3"))
-                InventorySummaryCard(icon: "brain.head.profile", label: "AI", value: "\(forecastRiskCount)", title: "Forecast Risks", tint: accent)
+                // Card 1: Total Parts
+                NavigationLink {
+                    InventoryFilteredPartsView(
+                        title: "Total Parts",
+                        parts: parts,
+                        affectedOrders: { affectedOrders(for: $0) },
+                        onReorder: { reorder(partID: $0) },
+                        onNotify: { reorderMessage = "Manager notified about \($0.name)." },
+                        onConsume: { selectedPartForUsage = $0 }
+                    )
+                } label: {
+                    gridCard(
+                        icon: "shippingbox.fill",
+                        title: "Total Parts",
+                        subtitle: "Live stock",
+                        value: "\(totalStock)",
+                        badgeCount: nil,
+                        iconBg: Color.blue.opacity(0.15),
+                        iconColor: .blue
+                    )
+                }
+                .buttonStyle(.plain)
+
+                // Card 2: Low Stock
+                NavigationLink {
+                    InventoryFilteredPartsView(
+                        title: "Low Stock Parts",
+                        parts: parts.filter { $0.quantity <= $0.minimumRequired },
+                        affectedOrders: { affectedOrders(for: $0) },
+                        onReorder: { reorder(partID: $0) },
+                        onNotify: { reorderMessage = "Manager notified about \($0.name)." },
+                        onConsume: { selectedPartForUsage = $0 }
+                    )
+                } label: {
+                    gridCard(
+                        icon: "exclamationmark.triangle.fill",
+                        title: "Low Stock",
+                        subtitle: "\(lowStockCount) items low",
+                        value: "\(lowStockCount)",
+                        badgeCount: nil,
+                        iconBg: Color.red.opacity(0.15),
+                        iconColor: .red
+                    )
+                }
+                .buttonStyle(.plain)
             }
-            .padding(.vertical, 2)
+
+            HStack(spacing: 12) {
+                // Card 3: AI Forecast
+                NavigationLink {
+                    InventoryForecastView(parts: parts, upcomingTaskCount: appViewModel.service.schedules().count)
+                } label: {
+                    gridCard(
+                        icon: "brain.head.profile",
+                        title: "AI Forecast",
+                        subtitle: "Shortage risk",
+                        value: nil,
+                        badgeCount: forecastRiskCount > 0 ? forecastRiskCount : nil,
+                        iconBg: Color.orange.opacity(0.15),
+                        iconColor: .orange
+                    )
+                }
+                .buttonStyle(.plain)
+
+                // Card 4: Cancelled WO
+                NavigationLink {
+                    InventoryReconciliationView(onConfirm: { returnedParts in
+                        for item in returnedParts {
+                            restock(partID: item.partID, quantity: item.quantity)
+                        }
+                        reorderMessage = "Cancelled work order parts reconciled."
+                    })
+                } label: {
+                    gridCard(
+                        icon: "xmark.octagon.fill",
+                        title: "Cancelled WO",
+                        subtitle: "Reconcile parts",
+                        value: nil,
+                        badgeCount: nil,
+                        iconBg: Color.purple.opacity(0.15),
+                        iconColor: .purple
+                    )
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
-    private var forecastEntry: some View {
-        NavigationLink {
-            InventoryForecastView(parts: parts, upcomingTaskCount: appViewModel.service.schedules().count)
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: "brain.head.profile")
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(Color.dynamic(light: "#431300", dark: "#240900"))
-                    .frame(width: 54, height: 54)
-                    .background(Circle().fill(accent))
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("AI Parts Forecast")
-                        .font(.headline.weight(.bold))
+    private func gridCard(
+        icon: String,
+        title: String,
+        subtitle: String,
+        value: String?,
+        badgeCount: Int?,
+        iconBg: Color,
+        iconColor: Color
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(iconColor)
+                    .frame(width: 38, height: 38)
+                    .background(iconBg, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                
+                Spacer()
+                
+                if let badgeCount = badgeCount {
+                    Text("\(badgeCount)")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.red, in: Capsule())
+                } else if let value = value {
+                    Text(value)
+                        .font(.title3.weight(.bold))
                         .foregroundStyle(headingText)
-                    Text("Predicts shortage risk from upcoming maintenance tasks.")
+                } else {
+                    Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundStyle(detailText)
                 }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(headingText)
+                Text(subtitle)
+                    .font(.caption2)
                     .foregroundStyle(detailText)
             }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22").opacity(0.96))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1)
-                    )
-            )
         }
-        .buttonStyle(.plain)
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1)
+        )
     }
 
     private var searchField: some View {
@@ -173,24 +265,43 @@ struct MaintenanceInventoryView: View {
         )
     }
 
-    private var activeInventoryHeader: some View {
-        HStack {
-            Text("Active Inventory")
-                .font(.headline.weight(.bold))
-                .foregroundStyle(headingText)
-            Spacer()
-            Button {
-                sortLowStockFirst.toggle()
-            } label: {
-                HStack(spacing: 4) {
-                    Text("Sort")
-                    Image(systemName: sortLowStockFirst ? "arrow.up.arrow.down.circle.fill" : "textformat.abc")
+    private var bubbleFilter: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                let categories = ["All"] + Array(Set(parts.map { $0.category })).sorted()
+                ForEach(categories, id: \.self) { category in
+                    let isSelected = selectedCategory == category
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            selectedCategory = category
+                        }
+                    } label: {
+                        Text(category)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(isSelected ? .white : Color.dynamic(light: "#715B54", dark: "#E3C8BE"))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(isSelected ? accent : Color.dynamic(light: "#FFFFFF", dark: "#202127"))
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(isSelected ? Color.clear : Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
                 }
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
             }
-            .buttonStyle(.plain)
+            .padding(.vertical, 2)
         }
+    }
+
+    private var activeInventoryHeader: some View {
+        Text("Active Inventory")
+            .font(.headline.weight(.bold))
+            .foregroundStyle(headingText)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var inventoryList: some View {
@@ -213,47 +324,6 @@ struct MaintenanceInventoryView: View {
                 .buttonStyle(.plain)
             }
         }
-    }
-
-    private var cancellationEntry: some View {
-        NavigationLink {
-            InventoryReconciliationView(onConfirm: { returnedParts in
-                for item in returnedParts {
-                    restock(partID: item.partID, quantity: item.quantity)
-                }
-                reorderMessage = "Cancelled work order parts reconciled."
-            })
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "xmark.octagon.fill")
-                    .font(.title3)
-                    .foregroundStyle(Color(hex: "#FFB0A3"))
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Cancelled Work Order")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(headingText)
-                    Text("Reconcile recorded spare parts before the next count.")
-                        .font(.caption)
-                        .foregroundStyle(detailText)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(detailText)
-            }
-            .padding(16)
-            .background(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.dynamic(light: "#E6D8D2", dark: "#58372B"), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var userInitials: String {
-        guard let name = appViewModel.currentUser?.name else { return "MS" }
-        let initials = name.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined()
-        return initials.isEmpty ? "MS" : initials.uppercased()
     }
 
     private var totalStock: Int { parts.reduce(0) { $0 + $1.quantity } }
@@ -381,26 +451,31 @@ private struct InventoryPartRow: View {
                     .font(.headline.weight(.bold))
                     .foregroundStyle(statusColor)
             }
+            .padding(.vertical, 12)
 
             Spacer()
 
             Button(action: onAdd) {
-                Image(systemName: "plus.square.fill")
-                    .font(.title3)
-                    .foregroundStyle(accent)
+                Image(systemName: "plus")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 34, height: 34)
+                    .background(accent, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .buttonStyle(.plain)
 
             Image(systemName: "chevron.right")
-                .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(Color.dynamic(light: "#D0C8C5", dark: "#5E5552"))
+                .padding(.trailing, 14)
         }
-        .frame(minHeight: 76)
-        .background(backgroundColor, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .frame(minHeight: 82)
+        .background(backgroundColor)
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#58372B"), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(strokeColor, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var stockText: String {
@@ -410,14 +485,33 @@ private struct InventoryPartRow: View {
     }
 
     private var statusColor: Color {
-        if part.isOutOfStock || part.isLowStock { return Color(hex: "#FFB0A3") }
-        return AppTheme.success
+        if part.isOutOfStock {
+            return Color.dynamic(light: "#BA1A1A", dark: "#FF8989")
+        }
+        if part.isLowStock {
+            return Color.dynamic(light: "#8F4E00", dark: "#FFB874")
+        }
+        return Color.dynamic(light: "#1E5BE4", dark: "#7EA5FF")
     }
 
     private var backgroundColor: Color {
-        if part.isOutOfStock { return Color(hex: "#3A0D12").opacity(0.7) }
-        if part.isLowStock { return Color(hex: "#322016").opacity(0.65) }
+        if part.isOutOfStock {
+            return Color.dynamic(light: "#FFF1F1", dark: "#2C1416")
+        }
+        if part.isLowStock {
+            return Color.dynamic(light: "#FFF9F6", dark: "#2A1810")
+        }
         return Color.dynamic(light: "#FFFFFF", dark: "#1B1C22")
+    }
+
+    private var strokeColor: Color {
+        if part.isOutOfStock {
+            return Color.dynamic(light: "#F5C2C2", dark: "#5E292C")
+        }
+        if part.isLowStock {
+            return Color.dynamic(light: "#F7D8BF", dark: "#5C3822")
+        }
+        return Color.dynamic(light: "#D8E1F7", dark: "#2A3C63")
     }
 }
 
@@ -940,6 +1034,55 @@ private struct InventoryReconciliationView: View {
                 .background(Color(hex: "#FF5A1F"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct InventoryFilteredPartsView: View {
+    let title: String
+    let parts: [InventoryPart]
+    let affectedOrders: (InventoryPart) -> [WorkOrder]
+    let onReorder: (UUID) -> Void
+    let onNotify: (InventoryPart) -> Void
+    let onConsume: (InventoryPart) -> Void
+
+    private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                if parts.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "archivebox")
+                            .font(.system(size: 44))
+                            .foregroundStyle(Color.gray.opacity(0.6))
+                        Text("No parts to display")
+                            .font(.headline)
+                            .foregroundStyle(headingText)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 60)
+                } else {
+                    ForEach(parts) { part in
+                        NavigationLink {
+                            StockAlertView(
+                                part: part,
+                                affectedOrders: affectedOrders(part),
+                                onReorder: { onReorder(part.id) },
+                                onNotify: { onNotify(part) }
+                            )
+                        } label: {
+                            InventoryPartRow(part: part) {
+                                onConsume(part)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(16)
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
