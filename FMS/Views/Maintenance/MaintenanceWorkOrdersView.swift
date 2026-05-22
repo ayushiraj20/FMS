@@ -5,13 +5,9 @@ struct MaintenanceWorkOrdersView: View {
     @State private var searchText = ""
     @State private var selectedOrder: WorkOrder?
     @State private var selectedFilter: MaintenanceOrderProgressFilter = .all
+    @State private var isShowingCalendar = false
     
-    enum TaskViewMode: String, CaseIterable {
-        case list = "List"
-        case calendar = "Calendar"
-    }
-    
-    @State private var viewMode: TaskViewMode = .list
+
     
     private var currentUser: User? { appViewModel.currentUser }
     private var orders: [WorkOrder] {
@@ -46,32 +42,30 @@ struct MaintenanceWorkOrdersView: View {
         VStack(spacing: 0) {
             filterBar
             
-            Picker("", selection: $viewMode) {
-                ForEach(TaskViewMode.allCases, id: \.self) {
-                    Text($0.rawValue)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding()
-            
-            if viewMode == .list {
-                ordersList
-            } else {
-                calendarView
-            }
+            ordersList
         }
         .navigationTitle("Work Orders")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Image(systemName: "line.3.horizontal.decrease")
-                    .foregroundStyle(ordersAccent)
+                Button {
+                    isShowingCalendar = true
+                } label: {
+                    Image(systemName: "calendar")
+                        .foregroundStyle(ordersAccent)
+                }
             }
         }
         .searchable(text: $searchText, prompt: "Search work orders")
         .sheet(item: $selectedOrder) { order in
             MaintenanceOrderUpdateSheet(workOrder: order)
                 .environment(appViewModel)
+        }
+        .sheet(isPresented: $isShowingCalendar) {
+            NavigationStack {
+                MaintenanceCalendarView(orders: appViewModel.service.workOrders(for: currentUser?.id))
+                    .environment(appViewModel)
+            }
         }
     }
     
@@ -186,9 +180,7 @@ struct MaintenanceWorkOrdersView: View {
     private var ordersAccent: Color { Color(hex: "#FF5A1F") }
     private var warmSecondaryText: Color { Color.dynamic(light: "#715B54", dark: "#D7B8AC") }
     
-    private var calendarView: some View {
-        MaintenanceCalendarView(orders: orders)
-    }
+
     
     private func markOrderDone(_ order: WorkOrder) {
         var updatedOrder = order
@@ -244,7 +236,7 @@ struct MaintenanceWorkOrdersView: View {
     
     // MARK: - Card
     
-    private struct MaintenanceWorkOrderCard: View {
+    struct MaintenanceWorkOrderCard: View {
         let order: WorkOrder
         let vehicle: Vehicle?
         
@@ -413,7 +405,7 @@ struct MaintenanceWorkOrdersView: View {
     
     // MARK: - Detail View
     
-    private struct MaintenanceWorkOrderDetailView: View {
+    struct MaintenanceWorkOrderDetailView: View {
         @Environment(\.dismiss) private var dismiss
         @Environment(AppViewModel.self) private var appViewModel
         @State private var workOrder: WorkOrder

@@ -107,9 +107,6 @@ private struct MaintenanceTabView: View {
                 .tabItem { Label("Inventory", systemImage: "shippingbox.fill") }
                 .tag(2)
 
-            NavigationStack { ProfileSettingsView() }
-                .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
-                .tag(3)
         }
         .onReceive(NotificationCenter.default.publisher(for: .maintenanceDashboardRequested)) { _ in
             selectedTab = 0

@@ -198,21 +198,25 @@ final class AppViewModel {
         flowState = .authenticated
     }
 
-    func updateProfile(name: String, email: String, phone: String) {
+    func updateProfile(name: String, phone: String, title: String) async {
         guard var user = currentUser else { return }
         user.name = name
-        user.email = email
         user.phone = phone
+        user.title = title
+        
+        if let idx = service.users.firstIndex(where: { $0.id == user.id }) {
+            service.users[idx] = user
+        }
         currentUser = user
         
-        service.updateUser(user)
-        
         if SupabaseConfig.isConfigured {
-            Task {
-                try? await SupabaseService.shared.client.from("profiles")
+            do {
+                try await SupabaseService.shared.client.from("profiles")
                     .update(user)
-                    .eq("id", value: user.id)
+                    .eq("id", value: user.id.uuidString)
                     .execute()
+            } catch {
+                print("Failed to sync profile update to Supabase: \(error)")
             }
         }
     }

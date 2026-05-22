@@ -74,6 +74,8 @@ struct DriverDashboardView: View {
 
     private var topBar: some View {
         HStack {
+            Spacer()
+
             // Profile Avatar Button
             NavigationLink {
                 DriverProfileView()
@@ -90,8 +92,6 @@ struct DriverDashboardView: View {
                 }
             }
             .accessibilityIdentifier("PROFILE_BUTTON")
-
-            Spacer()
 
             // Bell Button
             NavigationLink(destination: NotificationsView()) {
