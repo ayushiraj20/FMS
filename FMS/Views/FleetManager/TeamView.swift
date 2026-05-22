@@ -17,14 +17,14 @@ struct TeamView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text("Team")
                             .font(.system(size: 34, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.textPrimary)
                         
                         Text("\(viewModel.service.users.count) members")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Color(white: 0.6))
+                            .foregroundStyle(AppTheme.textSecondary)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
-                            .background(Color(white: 0.2))
+                            .background(AppTheme.surfaceSecondary)
                             .clipShape(Capsule())
                         
                         Spacer()
@@ -34,12 +34,12 @@ struct TeamView: View {
                     // MARK: - Search Bar
                     HStack {
                         Image(systemName: "magnifyingglass")
-                            .foregroundStyle(Color(white: 0.6))
+                            .foregroundStyle(AppTheme.textSecondary)
                         TextField("Search", text: $viewModel.searchText)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.textPrimary)
                     }
                     .padding(12)
-                    .background(Color(white: 0.15))
+                    .background(AppTheme.surfaceSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     
                     // MARK: - Filter Chips
@@ -117,13 +117,13 @@ struct TeamView: View {
                 Image(systemName: "person.crop.circle.fill")
                     .resizable()
                     .frame(width: 50, height: 50)
-                    .foregroundStyle(Color(white: 0.6), Color(white: 0.9))
+                    .foregroundStyle(AppTheme.textSecondary, AppTheme.surfaceSecondary)
                     .clipShape(Circle())
                 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(member.name)
                         .font(.headline.weight(.bold))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(AppTheme.textPrimary)
                     
                     Text(member.role.rawValue.capitalized)
                         .font(.system(size: 11, weight: .bold))
@@ -151,7 +151,7 @@ struct TeamView: View {
             HStack(alignment: .bottom) {
                 Text(getVehiclePlate(for: member))
                     .font(.title3.weight(.bold))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(AppTheme.textPrimary)
                 
                 Spacer()
                 
@@ -160,24 +160,24 @@ struct TeamView: View {
                     Button(action: {}) {
                         Image(systemName: "phone")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(.black)
+                            .foregroundStyle(AppTheme.textPrimary)
                             .frame(width: 36, height: 36)
-                            .background(Color(white: 0.95))
+                            .background(AppTheme.surfaceSecondary)
                             .clipShape(Circle())
                     }
                     Button(action: {}) {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(.black)
+                            .foregroundStyle(AppTheme.textPrimary)
                             .frame(width: 36, height: 36)
-                            .background(Color(white: 0.95))
+                            .background(AppTheme.surfaceSecondary)
                             .clipShape(Circle())
                     }
                 }
             }
         }
         .padding(16)
-        .background(.white)
+        .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
     

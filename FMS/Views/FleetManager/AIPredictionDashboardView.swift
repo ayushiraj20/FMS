@@ -35,16 +35,18 @@ struct AIPredictionDashboardView: View {
                     }
                 }
                 
+                
                 GlassCard {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Route Optimization")
                             .font(.title3.weight(.semibold))
                             .foregroundStyle(AppTheme.textPrimary)
-                        
+
                         Text("AI suggestions for optimal routing will appear here.")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.textSecondary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
                 Spacer(minLength: 40)

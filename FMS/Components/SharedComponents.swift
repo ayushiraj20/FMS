@@ -24,11 +24,17 @@ struct GlassCard<Content: View>: View {
 
     var body: some View {
         content
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(AppTheme.cardBackground)
-                    .shadow(color: AppTheme.cardShadowColor.opacity(0.06), radius: 8, x: 0, y: 2)
+                    .shadow(
+                        color: AppTheme.cardShadowColor.opacity(0.06),
+                        radius: 8,
+                        x: 0,
+                        y: 2
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
