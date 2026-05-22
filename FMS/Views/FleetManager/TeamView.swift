@@ -11,8 +11,8 @@ struct TeamView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            ScrollView {
-                VStack(spacing: 16) {
+            List {
+                Group {
                     // MARK: - Custom Header
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text("Team")
@@ -44,29 +44,58 @@ struct TeamView: View {
                     
                     // MARK: - Filter Chips
                     filterChips
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
 
-                    // MARK: - Team Members List
-                    if viewModel.filteredMembers.isEmpty {
-                        EmptyStateView(
-                            icon: "person.2.slash",
-                            title: "No team members found",
-                            message: "Try adjusting your search or filters."
-                        )
-                        .padding(.top, 40)
-                    } else {
-                        LazyVStack(spacing: 16) {
-                            ForEach(viewModel.filteredMembers) { member in
-                                NavigationLink(destination: TeamMemberDetailView(member: member, service: viewModel.service)) {
-                                    teamMemberCard(member)
-                                }
-                                .buttonStyle(.plain)
+                // MARK: - Team Members List
+                if viewModel.filteredMembers.isEmpty {
+                    EmptyStateView(
+                        icon: "person.2.slash",
+                        title: "No team members found",
+                        message: "Try adjusting your search or filters."
+                    )
+                    .padding(.top, 40)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                } else {
+                    ForEach(viewModel.filteredMembers) { member in
+                        ZStack {
+                            teamMemberCard(member)
+                            NavigationLink(destination: TeamMemberDetailView(member: member, service: viewModel.service)) {
+                                EmptyView()
                             }
+                            .opacity(0)
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                viewModel.deleteMember(member)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                viewModel.prepareForEdit(member)
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(AppTheme.brand)
                         }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 100)
+                
+                Color.clear
+                    .frame(height: 100)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .navigationBarHidden(true)
             
@@ -159,14 +188,6 @@ struct TeamView: View {
                 HStack(spacing: 12) {
                     Button(action: {}) {
                         Image(systemName: "phone")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(AppTheme.textPrimary)
-                            .frame(width: 36, height: 36)
-                            .background(AppTheme.surfaceSecondary)
-                            .clipShape(Circle())
-                    }
-                    Button(action: {}) {
-                        Image(systemName: "ellipsis")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(AppTheme.textPrimary)
                             .frame(width: 36, height: 36)
@@ -524,6 +545,19 @@ final class TeamViewModel {
         }
 
         return members
+    }
+
+    func deleteMember(_ member: User) {
+        service.deleteUser(member)
+    }
+
+    func prepareForEdit(_ member: User) {
+        newName = member.name
+        newRole = member.role
+        newEmail = member.email
+        newPhone = member.phone
+        newTitle = member.title
+        showAddMember = true
     }
 
     func createMember() async -> Bool {

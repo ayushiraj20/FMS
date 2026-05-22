@@ -22,6 +22,15 @@ struct WorkOrderManagementView: View {
                                     .foregroundStyle(AppTheme.textSecondary)
                             }
                             Spacer()
+                            if order.isOverdue {
+                                Text("Overdue")
+                                    .font(.footnote.weight(.bold))
+                                    .foregroundStyle(AppTheme.error)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(AppTheme.error.opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
                             Text(order.priority.rawValue)
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(priorityColor(order.priority))
@@ -44,6 +53,10 @@ struct WorkOrderManagementView: View {
                         }
                     }
                 }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(order.isOverdue ? AppTheme.error : Color.clear, lineWidth: 2)
+                )
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }

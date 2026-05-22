@@ -9,7 +9,7 @@ struct VehicleManagementView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            ScrollView {
+            List {
                 VStack(spacing: 20) {
                     // Custom Search Bar
                     HStack {
@@ -41,33 +41,48 @@ struct VehicleManagementView: View {
                         }
                         .padding(.horizontal)
                     }
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
 
-                    // Vehicle List
-                    LazyVStack(spacing: 16) {
-                        ForEach(viewModel.filteredVehicles) { vehicle in
-                            NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id)) {
-                                VehicleCardView(vehicle: vehicle)
-                            }
-                            .buttonStyle(.plain)
-                            .contextMenu {
-                                Button(role: .destructive) {
-                                    viewModel.deleteVehicle(vehicle)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                                Button {
-                                    viewModel.prepareForEdit(vehicle)
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                            }
+                // Vehicle List
+                ForEach(viewModel.filteredVehicles) { vehicle in
+                    ZStack {
+                        VehicleCardView(vehicle: vehicle)
+                        NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id)) {
+                            EmptyView()
+                        }
+                        .opacity(0)
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            viewModel.deleteVehicle(vehicle)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 100) // Space for FAB
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        Button {
+                            viewModel.prepareForEdit(vehicle)
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        .tint(AppTheme.brand)
+                    }
                 }
-                .padding(.top, 10)
+                
+                Color.clear
+                    .frame(height: 100) // Space for FAB
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .padding(.top, 10)
 
             // Floating Action Button
             Button(action: {

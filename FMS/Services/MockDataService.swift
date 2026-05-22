@@ -29,6 +29,8 @@ final class MockDataService {
         maintenanceSchedules = seed.maintenanceSchedules
         notifications = seed.notifications
         
+        checkOverdueCriticalWorkOrders()
+        
         // Asynchronously sync database if credentials are present
         if SupabaseConfig.isConfigured {
             Task {
@@ -152,6 +154,16 @@ final class MockDataService {
         } else {
             users.insert(user, at: 0)
         }
+    }
+
+    func updateUser(_ user: User) {
+        if let index = users.firstIndex(where: { $0.id == user.id }) {
+            users[index] = user
+        }
+    }
+
+    func deleteUser(_ user: User) {
+        users.removeAll { $0.id == user.id }
     }
 
     func addVehicle(_ vehicle: Vehicle) {
@@ -333,6 +345,48 @@ final class MockDataService {
                 users[index].assignedVehicleID = vehicle.id
             } else if users[index].assignedVehicleID == vehicle.id {
                 users[index].assignedVehicleID = nil
+            }
+        }
+    }
+    
+    func checkOverdueCriticalWorkOrders() {
+        for order in workOrders where order.isOverdue {
+            let title = "Delayed Critical Work Order: \(order.title)"
+            
+            // Prevent duplicate notifications
+            if !notifications.contains(where: { $0.title == title }) {
+                guard let vehicle = self.vehicle(for: order.vehicleID) else { continue }
+                
+                let vehicleDetails = "\(vehicle.displayName) (\(vehicle.plateNumber))"
+                let message = "Work Order '\(order.title)' for \(vehicleDetails) is \(order.overdueDurationString)."
+                
+                // 1. Notify Technician
+                if let techID = order.assignedMaintenanceID {
+                    let techNotification = AppNotification(
+                        id: UUID(),
+                        userID: techID,
+                        roleTarget: nil,
+                        title: title,
+                        message: message,
+                        date: .now,
+                        isRead: false,
+                        category: .critical
+                    )
+                    notifications.insert(techNotification, at: 0)
+                }
+                
+                // 2. Notify Fleet Manager
+                let managerNotification = AppNotification(
+                    id: UUID(),
+                    userID: nil,
+                    roleTarget: .fleetManager,
+                    title: title,
+                    message: message,
+                    date: .now,
+                    isRead: false,
+                    category: .critical
+                )
+                notifications.insert(managerNotification, at: 0)
             }
         }
     }
