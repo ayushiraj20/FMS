@@ -413,9 +413,9 @@ struct FleetManagerDashboardView: View {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.title3)
-                    .foregroundStyle(AppTheme.brand)
+                    .foregroundStyle(Color("AccentColor"))
                     .frame(width: 42, height: 42)
-                    .background(AppTheme.brand.opacity(0.12))
+                    .background(Color("AccentColor").opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 
                 VStack(alignment: .leading, spacing: 3) {

@@ -24,41 +24,18 @@ struct WorkOrderManagementView: View {
                                     .foregroundStyle(AppTheme.textSecondary)
                             }
                             Spacer()
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text(order.priority.rawValue)
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(priorityColor(order.priority))
-
-                                // AC3: OVERDUE badge — red background + text label
-                                // so colour-blind users are never relying on
-                                // colour alone.
-                                if order.isOverdue {
-                                    HStack(spacing: 3) {
-                                        Image(systemName: "exclamationmark.clock.fill")
-                                            .font(.caption2.bold())
-                                        Text("OVERDUE")
-                                            .font(.caption2.bold())
-                                    }
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.red, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                                }
+                            if order.isOverdue {
+                                Text("Overdue")
+                                    .font(.footnote.weight(.bold))
+                                    .foregroundStyle(AppTheme.error)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(AppTheme.error.opacity(0.15))
+                                    .clipShape(Capsule())
                             }
-                        }
-
-                        // AC4: Show vehicle make/model/plate when overdue so the
-                        // fleet manager sees all required details at a glance.
-                        if order.isOverdue, let vehicle = viewModel.vehicle(for: order.vehicleID) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "truck.box.fill")
-                                    .font(.caption2)
-                                Text([vehicle.displayName, vehicle.model, vehicle.plateNumber]
-                                    .filter { !$0.isEmpty }
-                                    .joined(separator: " · "))
-                                    .font(.caption.weight(.medium))
-                            }
-                            .foregroundStyle(Color.red.opacity(0.85))
+                            Text(order.priority.rawValue)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(priorityColor(order.priority))
                         }
 
                         Text(order.details)
@@ -79,17 +56,9 @@ struct WorkOrderManagementView: View {
                         }
                     }
                 }
-                // AC3: Red border overlay when overdue.
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(order.isOverdue ? Color.red : Color.clear, lineWidth: 2)
-                )
-                // AC3: Subtle red tint on the card background when overdue.
-                .background(
-                    order.isOverdue
-                        ? Color.red.opacity(0.04)
-                        : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(order.isOverdue ? AppTheme.error : Color.clear, lineWidth: 2)
                 )
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)

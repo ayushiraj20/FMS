@@ -324,6 +324,23 @@ struct WorkOrder: Identifiable, Codable, Hashable {
         case repairSummary = "repair_summary"
         case overdueAlertFired = "overdue_alert_fired"
     }
+    
+    var isOverdue: Bool {
+        return priority == .critical && status != .completed && scheduledDate < Date.now
+    }
+    
+    var overdueDurationString: String {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.day, .hour, .minute]
+        formatter.unitsStyle = .full
+        formatter.maximumUnitCount = 1
+        
+        let timeInterval = Date.now.timeIntervalSince(scheduledDate)
+        if let durationString = formatter.string(from: timeInterval) {
+            return "\(durationString) overdue"
+        }
+        return "overdue"
+    }
 }
 struct MaintenanceSchedule: Identifiable, Codable, Hashable {
     let id: UUID
