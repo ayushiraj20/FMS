@@ -325,9 +325,6 @@ struct WorkOrder: Identifiable, Codable, Hashable {
         case overdueAlertFired = "overdue_alert_fired"
     }
     
-    var isOverdue: Bool {
-        return priority == .critical && status != .completed && scheduledDate < Date.now
-    }
     
     var overdueDurationString: String {
         let formatter = DateComponentsFormatter()
