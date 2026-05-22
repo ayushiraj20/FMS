@@ -203,6 +203,40 @@ final class SupabaseService {
         return schedules
     }
     
+    func fetchBroadcastMessages(
+        orgID: UUID
+    ) async throws -> [BroadcastMessage] {
+
+        let rows:[BroadcastMessage] =
+        try await client
+            .from("broadcast_messages")
+            .select("""
+            id,
+            organization_id,
+            sender_id,
+            sender_name:profiles(name),
+            title,
+            message,
+            sent_at
+            """)
+            .eq("organization_id", value: orgID)
+            .order("sent_at", ascending: false)
+            .execute()
+            .value
+
+        return rows
+    }
+
+    func addBroadcastMessage(
+        _ message: BroadcastMessage
+    ) async throws {
+
+        try await client
+            .from("broadcast_messages")
+            .insert(message)
+            .execute()
+    }
+    
     // Notifications
     func fetchNotifications() async throws -> [AppNotification] {
         let alerts: [AppNotification] = try await client.from("notifications").select().execute().value

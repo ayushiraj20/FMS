@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct InspectionsView: View {
-    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(AppViewModel.self) private var appViewModel: AppViewModel
     @State private var isPresentingInspectionSheet = false
     @State private var isPresentingDefectSheet = false
 
@@ -72,7 +72,7 @@ struct InspectionsView: View {
 
 private struct NewInspectionSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(AppViewModel.self) private var appViewModel: AppViewModel
 
     @State private var inspectionType: InspectionType = .preTrip
     @State private var notes = ""
@@ -125,7 +125,7 @@ private struct NewInspectionSheet: View {
 
 private struct DefectReportSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(AppViewModel.self) private var appViewModel: AppViewModel
 
     @State private var severity: WorkOrderPriority = .medium
     @State private var description = ""

@@ -7,8 +7,8 @@ struct LoginView: View {
     }
 
     @Environment(AppViewModel.self) private var appViewModel
-    @State private var email = "admin@fleetos.com"
-    @State private var password = "demo"
+    @State private var email = "maintenance@northstar.com"
+    @State private var password = "demo123"
     @State private var showPassword = false
     @FocusState private var focusedField: FocusField?
 

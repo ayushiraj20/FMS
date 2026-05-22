@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import Combine
+
 import Observation
 
 @Observable
@@ -43,7 +43,16 @@ final class VehicleManagementViewModel {
                 vehicle.displayName.localizedCaseInsensitiveContains(searchText) ||
                 vehicle.plateNumber.localizedCaseInsensitiveContains(searchText)
             
-            let matchesFilter = selectedStatusFilter == nil || vehicle.status == selectedStatusFilter
+            let matchesFilter: Bool
+            if let filter = selectedStatusFilter {
+                if filter == .idle {
+                    matchesFilter = (vehicle.status == .idle || vehicle.status == .outOfService)
+                } else {
+                    matchesFilter = (vehicle.status == filter)
+                }
+            } else {
+                matchesFilter = true
+            }
             
             return matchesSearch && matchesFilter
         }
@@ -62,7 +71,7 @@ final class VehicleManagementViewModel {
     }
 
     var idleCount: Int {
-        service.vehicles.filter { $0.status == .idle }.count
+        service.vehicles.filter { $0.status == .idle || $0.status == .outOfService }.count
     }
 
     var drivers: [User] {
