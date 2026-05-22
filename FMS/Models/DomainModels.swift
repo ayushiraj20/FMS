@@ -361,3 +361,88 @@ struct KPIStat: Identifiable, Hashable {
     var detail: String
     var trend: String
 }
+
+enum RouteStatus: String, Codable, CaseIterable, Identifiable {
+    case assigned = "Assigned"
+    case active = "Active"
+    case completed = "Completed"
+
+    var id: String { rawValue }
+}
+
+struct RouteStop: Identifiable, Codable, Hashable {
+    let id: UUID
+    var name: String
+    var address: String
+    var order: Int
+    var estimatedArrival: Date
+    var isCompleted: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, address, order
+        case estimatedArrival = "estimated_arrival"
+        case isCompleted = "is_completed"
+    }
+}
+
+struct Route: Identifiable, Codable, Hashable {
+    let id: UUID
+    var driverID: UUID
+    var vehicleID: UUID
+    var name: String
+    var origin: String
+    var destination: String
+    var stops: [RouteStop]
+    var estimatedDurationMinutes: Int
+    var distanceKM: Double
+    var status: RouteStatus
+    var assignedDate: Date
+    var scheduledStart: Date
+    var notes: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case driverID = "driver_id"
+        case vehicleID = "vehicle_id"
+        case name, origin, destination, stops
+        case estimatedDurationMinutes = "estimated_duration_minutes"
+        case distanceKM = "distance_km"
+        case status
+        case assignedDate = "assigned_date"
+        case scheduledStart = "scheduled_start"
+        case notes
+    }
+
+    init(id: UUID, driverID: UUID, vehicleID: UUID, name: String, origin: String, destination: String, stops: [RouteStop], estimatedDurationMinutes: Int, distanceKM: Double, status: RouteStatus, assignedDate: Date, scheduledStart: Date, notes: String) {
+        self.id = id
+        self.driverID = driverID
+        self.vehicleID = vehicleID
+        self.name = name
+        self.origin = origin
+        self.destination = destination
+        self.stops = stops
+        self.estimatedDurationMinutes = estimatedDurationMinutes
+        self.distanceKM = distanceKM
+        self.status = status
+        self.assignedDate = assignedDate
+        self.scheduledStart = scheduledStart
+        self.notes = notes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        driverID = try container.decode(UUID.self, forKey: .driverID)
+        vehicleID = try container.decode(UUID.self, forKey: .vehicleID)
+        name = try container.decode(String.self, forKey: .name)
+        origin = try container.decode(String.self, forKey: .origin)
+        destination = try container.decode(String.self, forKey: .destination)
+        stops = try container.decodeIfPresent([RouteStop].self, forKey: .stops) ?? []
+        estimatedDurationMinutes = try container.decode(Int.self, forKey: .estimatedDurationMinutes)
+        distanceKM = try container.decode(Double.self, forKey: .distanceKM)
+        status = try container.decode(RouteStatus.self, forKey: .status)
+        assignedDate = try container.decode(Date.self, forKey: .assignedDate)
+        scheduledStart = try container.decode(Date.self, forKey: .scheduledStart)
+        notes = try container.decode(String.self, forKey: .notes)
+    }
+}

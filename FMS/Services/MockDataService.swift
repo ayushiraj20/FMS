@@ -13,6 +13,7 @@ final class MockDataService: ObservableObject {
     @Published var workOrders: [WorkOrder]
     @Published var maintenanceSchedules: [MaintenanceSchedule]
     @Published var notifications: [AppNotification]
+    @Published var routes: [Route]
 
     init() {
         let seed = DemoSeed.make()
@@ -26,6 +27,7 @@ final class MockDataService: ObservableObject {
         workOrders = seed.workOrders
         maintenanceSchedules = seed.maintenanceSchedules
         notifications = seed.notifications
+        routes = seed.routes
         
         // Asynchronously sync database if credentials are present
         if SupabaseConfig.isConfigured {
@@ -112,6 +114,25 @@ final class MockDataService: ObservableObject {
             $0.userID == user.id || $0.roleTarget == user.role || ($0.userID == nil && $0.roleTarget == nil)
         }
         .sorted { $0.date > $1.date }
+    }
+
+    func routes(for driverID: UUID) -> [Route] {
+        routes.filter { $0.driverID == driverID }
+            .sorted { $0.scheduledStart < $1.scheduledStart }
+    }
+
+    func activeRoute(for driverID: UUID) -> Route? {
+        routes.first { $0.driverID == driverID && $0.status == .active }
+    }
+    
+    func updateRouteAndNotify(routeID: UUID, newNotes: String) {
+        if let index = routes.firstIndex(where: { $0.id == routeID }) {
+            routes[index].notes = newNotes
+            NotificationManager.shared.sendRouteUpdateNotification(
+                title: "Route Updated",
+                message: "Your route '\(routes[index].name)' has been updated with new instructions."
+            )
+        }
     }
 
     func vehicle(for id: UUID?) -> Vehicle? {
@@ -342,6 +363,7 @@ enum DemoSeed {
         users: [User],
         vehicles: [Vehicle],
         documents: [VehicleDocument],
+        routes: [Route],
         trips: [Trip],
         inspections: [InspectionRecord],
         defects: [DefectReport],
@@ -431,8 +453,66 @@ enum DemoSeed {
             MaintenanceSchedule(id: UUID(), vehicleID: vehicle4ID, serviceType: "Quarterly preventive maintenance", dueDate: .now.addingTimeInterval(86400 * 24), status: .upcoming)
         ]
 
+        let routes = [
+            Route(
+                id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID,
+                name: "Bay Area Distribution",
+                origin: "Oakland Distribution Center",
+                destination: "Sacramento Hub",
+                stops: [
+                    RouteStop(id: UUID(), name: "Stockton Depot", address: "Stockton, CA", order: 1, estimatedArrival: .now.addingTimeInterval(3600), isCompleted: true),
+                    RouteStop(id: UUID(), name: "Lodi Transfer Point", address: "Lodi, CA", order: 2, estimatedArrival: .now.addingTimeInterval(5400), isCompleted: false),
+                    RouteStop(id: UUID(), name: "Elk Grove Terminal", address: "Elk Grove, CA", order: 3, estimatedArrival: .now.addingTimeInterval(7200), isCompleted: false)
+                ],
+                estimatedDurationMinutes: 195, distanceKM: 192, status: .active,
+                assignedDate: .now.addingTimeInterval(-86400), scheduledStart: .now.addingTimeInterval(-3600),
+                notes: "Standard distribution run. Check for updated load manifest at Stockton Depot."
+            ),
+            Route(
+                id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID,
+                name: "Central Valley Express",
+                origin: "San Jose Warehouse",
+                destination: "Fresno Distribution Center",
+                stops: [
+                    RouteStop(id: UUID(), name: "Gilroy Pickup", address: "Gilroy, CA", order: 1, estimatedArrival: .now.addingTimeInterval(86400 + 3600), isCompleted: false),
+                    RouteStop(id: UUID(), name: "Los Banos Rest Stop", address: "Los Banos, CA", order: 2, estimatedArrival: .now.addingTimeInterval(86400 + 7200), isCompleted: false),
+                    RouteStop(id: UUID(), name: "Merced Depot", address: "Merced, CA", order: 3, estimatedArrival: .now.addingTimeInterval(86400 + 10800), isCompleted: false)
+                ],
+                estimatedDurationMinutes: 240, distanceKM: 248, status: .assigned,
+                assignedDate: .now.addingTimeInterval(-3600), scheduledStart: .now.addingTimeInterval(86400),
+                notes: "Refrigerated cargo. Maintain cold chain protocol at all stops."
+            ),
+            Route(
+                id: UUID(), driverID: driver2ID, vehicleID: vehicle2ID,
+                name: "Southwest Corridor Run",
+                origin: "Phoenix Yard",
+                destination: "Tucson Terminal",
+                stops: [
+                    RouteStop(id: UUID(), name: "Casa Grande Checkpoint", address: "Casa Grande, AZ", order: 1, estimatedArrival: .now.addingTimeInterval(86400 * 2 + 3600), isCompleted: false),
+                    RouteStop(id: UUID(), name: "Marana Transfer Hub", address: "Marana, AZ", order: 2, estimatedArrival: .now.addingTimeInterval(86400 * 2 + 7200), isCompleted: false)
+                ],
+                estimatedDurationMinutes: 165, distanceKM: 184, status: .assigned,
+                assignedDate: .now.addingTimeInterval(-1800), scheduledStart: .now.addingTimeInterval(86400 * 2),
+                notes: "New route assignment. Confirm load weight at Phoenix before departure."
+            ),
+            Route(
+                id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID,
+                name: "Coast Highway Delivery",
+                origin: "San Francisco Depot",
+                destination: "Santa Cruz Fulfillment",
+                stops: [
+                    RouteStop(id: UUID(), name: "Pacifica Drop", address: "Pacifica, CA", order: 1, estimatedArrival: .now.addingTimeInterval(-86400 * 3 + 2400), isCompleted: true),
+                    RouteStop(id: UUID(), name: "Half Moon Bay", address: "Half Moon Bay, CA", order: 2, estimatedArrival: .now.addingTimeInterval(-86400 * 3 + 4800), isCompleted: true)
+                ],
+                estimatedDurationMinutes: 130, distanceKM: 122, status: .completed,
+                assignedDate: .now.addingTimeInterval(-86400 * 4), scheduledStart: .now.addingTimeInterval(-86400 * 3),
+                notes: "Completed on schedule. No issues reported."
+            )
+        ]
+
         let notifications = [
             AppNotification(id: UUID(), userID: managerID, roleTarget: nil, title: "Insurance renewal due", message: "Two policies will expire within the next 90 days. Review documents dashboard.", date: .now.addingTimeInterval(-1800), isRead: false, category: .warning),
+            AppNotification(id: UUID(), userID: nil, roleTarget: .driver, title: "Route updated", message: "Your assigned route 'Bay Area Distribution' has been updated with a new stop at Elk Grove Terminal.", date: .now.addingTimeInterval(-1200), isRead: false, category: .info),
             AppNotification(id: UUID(), userID: nil, roleTarget: .driver, title: "Pre-trip inspection required", message: "Complete the inspection checklist before starting your next trip.", date: .now.addingTimeInterval(-2400), isRead: false, category: .info),
             AppNotification(id: UUID(), userID: nil, roleTarget: .maintenance, title: "Critical work order assigned", message: "Brake line inspection for Ashok Leyland 4220 is now in progress.", date: .now.addingTimeInterval(-4000), isRead: false, category: .critical),
             AppNotification(id: UUID(), userID: nil, roleTarget: nil, title: "Compliance score improved", message: "NorthStar Logistics reached 96% documentation compliance this week.", date: .now.addingTimeInterval(-8600), isRead: true, category: .success)
@@ -443,6 +523,7 @@ enum DemoSeed {
             users: users,
             vehicles: vehicles,
             documents: documents,
+            routes: routes,
             trips: trips,
             inspections: inspections,
             defects: defects,

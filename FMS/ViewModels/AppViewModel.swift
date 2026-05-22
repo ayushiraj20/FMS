@@ -27,6 +27,7 @@ final class AppViewModel: ObservableObject {
     let service = MockDataService()
 
     func startApp() async {
+        NotificationManager.shared.requestAuthorization()
         try? await Task.sleep(for: .seconds(1.5))
         flowState = hasSeenOnboarding ? .login : .onboarding
     }

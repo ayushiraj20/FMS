@@ -45,11 +45,14 @@ private struct DriverTabView: View {
             NavigationStack { DriverDashboardView() }
                 .tabItem { Label("Dashboard", systemImage: "steeringwheel") }
 
+            NavigationStack { AssignedRoutesView() }
+                .tabItem { Label("Routes", systemImage: "map.fill") }
+
             NavigationStack { InspectionsView() }
                 .tabItem { Label("Inspections", systemImage: "checklist") }
 
             NavigationStack { DriverTripsView() }
-                .tabItem { Label("Trips", systemImage: "map.fill") }
+                .tabItem { Label("Trips", systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill") }
 
             NavigationStack { ProfileSettingsView() }
                 .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }

@@ -12,6 +12,7 @@ struct DriverDashboardView: View {
                         .frame(height: 320)
                 } else {
                     header
+                    activeRouteCard
                     assignedVehicleCard
                     documentsSection
                     latestTripCard
@@ -114,14 +115,58 @@ struct DriverDashboardView: View {
         }
     }
 
+    private var activeRouteCard: some View {
+        Group {
+            if let user = currentUser, let route = appViewModel.service.activeRoute(for: user.id) {
+                NavigationLink(destination: RouteDetailView(route: route)) {
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SectionTitle(title: "Active Route", subtitle: route.status.rawValue)
+                            Text(route.name)
+                                .font(.title3.weight(.bold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.triangle.swap")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.brand)
+                                Text("\(route.origin) → \(route.destination)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                    .lineLimit(1)
+                            }
+                            HStack {
+                                infoPill(title: "Stops", value: "\(route.stops.count)")
+                                infoPill(title: "Distance", value: "\(route.distanceKM.formatted(.number.precision(.fractionLength(0)))) km")
+                                infoPill(title: "Est. Time", value: formattedRouteDuration(route.estimatedDurationMinutes))
+                            }
+                        }
+                    }
+                }
+            } else {
+                EmptyStateView(icon: "map.circle", title: "No active route", message: "Check your assigned routes for upcoming journeys.")
+            }
+        }
+    }
+
+    private func formattedRouteDuration(_ minutes: Int) -> String {
+        let hours = minutes / 60
+        let mins = minutes % 60
+        if hours > 0 && mins > 0 { return "\(hours)h \(mins)m" }
+        if hours > 0 { return "\(hours)h" }
+        return "\(mins)m"
+    }
+
     private var quickActions: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(title: "Quick Actions", subtitle: "Daily driver workflows")
+            NavigationLink(destination: AssignedRoutesView()) {
+                quickLink(title: "View Assigned Routes", subtitle: "Follow planned journeys with stops and navigation", icon: "map.circle.fill")
+            }
             NavigationLink(destination: InspectionsView()) {
                 quickLink(title: "Run Inspection", subtitle: "Pre-trip and post-trip checklist capture", icon: "checkmark.shield.fill")
             }
             NavigationLink(destination: DriverTripsView()) {
-                quickLink(title: "Manage Trips", subtitle: "Start or end trips and review route history", icon: "map.fill")
+                quickLink(title: "Manage Trips", subtitle: "Start or end trips and review route history", icon: "point.topleft.down.to.point.bottomright.curvepath.fill")
             }
         }
     }
