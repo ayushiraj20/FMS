@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AssignedRoutesView: View {
-    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(AppViewModel.self) private var appViewModel: AppViewModel
 
     private var currentUser: User? { appViewModel.currentUser }
 

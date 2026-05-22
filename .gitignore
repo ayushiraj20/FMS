@@ -5,7 +5,7 @@
 
 ## User settings
 xcuserdata/
-FMS.xcodeproj/project.xcworkspace/xcuserdata/mac.xcuserdatad/UserInterfaceState.xcuserstate
+
 ## compatibility with Xcode 8 and earlier (ignoring not required starting Xcode 9)
 *.xcscmblueprint
 *.xccheckout
@@ -89,7 +89,3 @@ iOSInjectionProject/
 #claude
 CLAUDE.md
 /.claude
-
-FMS.xcodeproj/project.xcworkspace/xcuserdata/mac.xcuserdatad/UserInterfaceState.xcuserstate
-Fleet.xcodeproj/project.xcworkspace/xcshareddata/
-FMS.xcodeproj/project.xcworkspace/xcuserdata/xcuserdatad/UserInterfaceState.xcuserstate

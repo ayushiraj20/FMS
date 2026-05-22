@@ -3,7 +3,10 @@ import MapKit
 
 struct TripDetailView: View {
     @Environment(AppViewModel.self) private var appViewModel
+    @Environment(\.dismiss) private var dismiss
     let trip: Trip
+
+    private var currentUser: User? { appViewModel.currentUser }
 
     private var checkpoints: [TripCheckpoint] {
         appViewModel.service.checkpoints(for: trip.id)
@@ -17,27 +20,38 @@ struct TripDetailView: View {
         appViewModel.service.user(for: trip.driverID)
     }
 
-    // Demo coordinates
+    // Coordinates mapping Mumbai to Pune
     private let routeCoordinates: [CLLocationCoordinate2D] = [
-        CLLocationCoordinate2D(latitude: 19.0760, longitude: 72.8777),
-        CLLocationCoordinate2D(latitude: 19.0330, longitude: 73.0297),
-        CLLocationCoordinate2D(latitude: 18.7557, longitude: 73.4091),
-        CLLocationCoordinate2D(latitude: 18.5204, longitude: 73.8567)
+        CLLocationCoordinate2D(latitude: 19.0760, longitude: 72.8777), // Mumbai
+        CLLocationCoordinate2D(latitude: 19.0330, longitude: 73.0297), // Panvel
+        CLLocationCoordinate2D(latitude: 18.7557, longitude: 73.4091), // Lonavala
+        CLLocationCoordinate2D(latitude: 18.5204, longitude: 73.8567)  // Pune
     ]
 
     @State private var cameraPosition: MapCameraPosition = .automatic
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                mapSection
-                detailSection
-            }
+        ZStack(alignment: .bottom) {
+            // 1. Map Background taking full screen
+            mapSection
+                .ignoresSafeArea(edges: .top)
+
+            // 2. Sliding sheet overlay
+            sheetOverlaySection
         }
         .background(DriverTheme.background.ignoresSafeArea())
         .navigationTitle("Trip Details")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.visible, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    // Settings or gear option
+                }) {
+                    Image(systemName: "gearshape.fill")
+                        .foregroundStyle(.white)
+                }
+            }
+        }
         .onAppear {
             let center = CLLocationCoordinate2D(latitude: 18.8, longitude: 73.15)
             cameraPosition = .region(MKCoordinateRegion(
@@ -54,6 +68,7 @@ struct TripDetailView: View {
             MapPolyline(coordinates: routeCoordinates)
                 .stroke(DriverTheme.accent, lineWidth: 5)
 
+            // Start Location Dot
             Annotation("", coordinate: routeCoordinates.first ?? routeCoordinates[0]) {
                 Circle()
                     .fill(DriverTheme.successGreen)
@@ -61,6 +76,7 @@ struct TripDetailView: View {
                     .overlay(Circle().stroke(.white, lineWidth: 2))
             }
 
+            // End Location Dot
             Annotation("", coordinate: routeCoordinates.last ?? routeCoordinates[0]) {
                 Circle()
                     .fill(DriverTheme.criticalRed)
@@ -68,6 +84,7 @@ struct TripDetailView: View {
                     .overlay(Circle().stroke(.white, lineWidth: 2))
             }
 
+            // Real-time Vehicle position along the route (near Lonavala if in progress)
             if trip.status == .inProgress {
                 Annotation("", coordinate: CLLocationCoordinate2D(latitude: 18.9, longitude: 73.25)) {
                     Image(systemName: "truck.box.fill")
@@ -76,250 +93,287 @@ struct TripDetailView: View {
                         .padding(6)
                         .background(Circle().fill(DriverTheme.accent))
                         .overlay(Circle().stroke(.white, lineWidth: 2))
+                        .shadow(color: .black.opacity(0.3), radius: 3)
                 }
             }
         }
         .mapStyle(.standard(elevation: .realistic))
-        .frame(height: 280)
-        .clipShape(RoundedRectangle(cornerRadius: 0))
+        .frame(maxHeight: .infinity)
     }
 
-    // MARK: - Detail Section
+    // MARK: - Sheet Overlay Section
 
-    private var detailSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Trip header
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Trip")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(DriverTheme.accent)
-                    Text("\(trip.origin) → \(trip.destination)")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(DriverTheme.textPrimary)
-                }
+    private var sheetOverlaySection: some View {
+        VStack(spacing: 0) {
+            // Drag handle
+            Capsule()
+                .fill(Color.white.opacity(0.2))
+                .frame(width: 40, height: 5)
+                .padding(.vertical, 10)
 
-                Spacer()
-
-                StatusBadge(
-                    title: trip.status.rawValue,
-                    color: statusColor(for: trip.status),
-                    icon: "circle.fill"
-                )
-            }
-
-            // Completion progress
-            if trip.status == .inProgress {
-                let completedCheckpoints = checkpoints.filter { $0.status == .completed }.count
-                let totalCheckpoints = max(checkpoints.count, 1)
-                let progress = Double(completedCheckpoints) / Double(totalCheckpoints)
-
-                HStack(spacing: 16) {
-                    ZStack {
-                        CircularProgressRing(
-                            progress: progress,
-                            size: 80,
-                            strokeWidth: 8
-                        )
-                        Text("\(Int(progress * 100))%")
-                            .font(.system(size: 17, weight: .bold))
-                            .foregroundStyle(DriverTheme.textPrimary)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Trip Progress")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(DriverTheme.textPrimary)
-                        Text("\(completedCheckpoints)/\(totalCheckpoints) checkpoints")
-                            .font(.system(size: 13))
-                            .foregroundStyle(DriverTheme.textSecondary)
-                    }
-                }
-            }
-
-            // Stats row
-            statsRow
-
-            // Checkpoint Timeline
-            if !checkpoints.isEmpty {
-                checkpointTimeline
-            }
-
-            // Driver contact
-            if let driver = driver {
-                DriverGlassCard {
-                    HStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(DriverTheme.accent)
-                                .frame(width: 44, height: 44)
-                            let initials = driver.name.components(separatedBy: " ").prefix(2).compactMap { $0.first }.map(String.init).joined()
-                            Text(initials)
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(driver.name)
-                                .font(.system(size: 15, weight: .semibold))
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Header & Progress Ring
+                    HStack(alignment: .center) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Trip #\(String(trip.id.uuidString.prefix(4)).uppercased())")
+                                .font(.system(size: 26, weight: .bold))
                                 .foregroundStyle(DriverTheme.textPrimary)
-                            Text(driver.phone)
-                                .font(.system(size: 13))
+                            Text("\(trip.origin) → \(trip.destination)")
+                                .font(.system(size: 15))
                                 .foregroundStyle(DriverTheme.textSecondary)
                         }
-
+                        
                         Spacer()
-
-                        Button {
-                            guard let url = URL(string: "tel://\(driver.phone.replacingOccurrences(of: " ", with: ""))") else { return }
-                            UIApplication.shared.open(url)
-                        } label: {
-                            Image(systemName: "phone.fill")
-                                .font(.system(size: 18))
-                                .foregroundStyle(DriverTheme.accent)
-                                .frame(width: 44, height: 44)
-                                .background(
-                                    Circle()
-                                        .fill(DriverTheme.cardFill)
+                        
+                        let completedCheckpoints = checkpoints.filter { $0.status == .completed }.count
+                        let totalCheckpoints = max(checkpoints.count, 1)
+                        let displayProgress = trip.status == .completed ? 1.0 : (trip.status == .inProgress ? Double(completedCheckpoints) / Double(totalCheckpoints) : 0.0)
+                        
+                        ZStack {
+                            Circle()
+                                .stroke(Color.white.opacity(0.08), lineWidth: 8)
+                                .frame(width: 70, height: 70)
+                            
+                            Circle()
+                                .trim(from: 0, to: CGFloat(displayProgress))
+                                .stroke(
+                                    DriverTheme.accentGradient,
+                                    style: StrokeStyle(lineWidth: 8, lineCap: .round)
                                 )
+                                .rotationEffect(.degrees(-90))
+                                .frame(width: 70, height: 70)
+                            
+                            Text("\(Int(displayProgress * 100))%")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(DriverTheme.textPrimary)
                         }
                     }
+                    .padding(.top, 5)
+
+                    // 2. Checkpoints Timeline
+                    checkpointTimelineSection
+
+                    // 3. Driver card
+                    if let driver = driver {
+                        driverContactCard(driver: driver)
+                    }
+
+                    // 4. Metrics Bar
+                    metricsBarSection
+
+                    // 5. Actions
+                    actionButtonSection
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 30)
             }
         }
-        .padding(20)
-    }
-
-    // MARK: - Stats
-
-    private var statsRow: some View {
-        HStack(spacing: 0) {
-            statItem(icon: "road.lanes", label: "Distance", value: "\(Int(trip.distanceKM)) km")
-            
-            Rectangle()
-                .fill(DriverTheme.separator)
-                .frame(width: 1, height: 40)
-
-            statItem(icon: "clock.fill", label: "ETA", value: "2:15 PM")
-
-            Rectangle()
-                .fill(DriverTheme.separator)
-                .frame(width: 1, height: 40)
-
-            statItem(icon: "speedometer", label: "Avg Speed", value: "68 km/h")
-        }
-        .padding(.vertical, 16)
+        .frame(height: 520)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(DriverTheme.elevatedCard)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(DriverTheme.cardBorder, lineWidth: 0.5)
-                )
-                .shadow(color: DriverTheme.cardShadow, radius: 8, x: 0, y: 2)
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(Color(hex: "121217").opacity(0.96))
+                .shadow(color: .black.opacity(0.5), radius: 15, x: 0, y: -8)
         )
     }
 
-    private func statItem(icon: String, label: String, value: String) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundStyle(DriverTheme.accent)
-            Text(value)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(DriverTheme.textPrimary)
-            Text(label)
-                .font(.system(size: 12))
-                .foregroundStyle(DriverTheme.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
+    // MARK: - Checkpoints Timeline Section
 
-    // MARK: - Checkpoint Timeline
-
-    private var checkpointTimeline: some View {
+    private var checkpointTimelineSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Checkpoints")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(DriverTheme.textPrimary)
-                .padding(.bottom, 12)
-
             ForEach(Array(checkpoints.enumerated()), id: \.element.id) { index, checkpoint in
                 HStack(alignment: .top, spacing: 16) {
-                    // Timeline column
                     VStack(spacing: 0) {
-                        // Dot
-                        Circle()
-                            .fill(checkpointDotColor(checkpoint.status))
-                            .frame(width: 12, height: 12)
+                        // Check Circle
+                        if checkpoint.status == .completed {
+                            ZStack {
+                                Circle()
+                                    .fill(DriverTheme.accent)
+                                    .frame(width: 22, height: 22)
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.white)
+                            }
+                        } else if checkpoint.status == .inTransit {
+                            ZStack {
+                                Circle()
+                                    .fill(DriverTheme.accent.opacity(0.25))
+                                    .frame(width: 22, height: 22)
+                                Circle()
+                                    .fill(DriverTheme.accent)
+                                    .frame(width: 12, height: 12)
+                            }
+                        } else {
+                            Circle()
+                                .stroke(Color.white.opacity(0.2), lineWidth: 2)
+                                .frame(width: 22, height: 22)
+                        }
 
-                        // Line
+                        // Connecting vertical line
                         if index < checkpoints.count - 1 {
                             Rectangle()
-                                .fill(checkpoint.status == .completed ? DriverTheme.accent : DriverTheme.separator)
+                                .fill(checkpoint.status == .completed ? DriverTheme.accent : Color.white.opacity(0.08))
                                 .frame(width: 2)
-                                .frame(height: 50)
+                                .frame(height: 38)
                         }
                     }
 
-                    // Content
                     VStack(alignment: .leading, spacing: 4) {
                         Text(checkpoint.name)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(DriverTheme.textPrimary)
-
-                        if let arrival = checkpoint.arrivalTime {
-                            Text("Arrived: \(arrival.formatted(date: .omitted, time: .shortened))")
-                                .font(.system(size: 13))
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(checkpoint.status == .upcoming ? DriverTheme.textSecondary : DriverTheme.textPrimary)
+                        
+                        if checkpoint.status == .completed, let departure = checkpoint.departureTime {
+                            Text(departure.formatted(date: .omitted, time: .shortened))
+                                .font(.system(size: 12))
                                 .foregroundStyle(DriverTheme.textSecondary)
+                        } else if checkpoint.status == .inTransit {
+                            Text("In Transit")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(DriverTheme.accent)
                         }
-
-                        StatusBadge(
-                            title: checkpoint.status.rawValue,
-                            color: checkpointStatusColor(checkpoint.status),
-                            icon: checkpointStatusIcon(checkpoint.status)
-                        )
                     }
-                    .padding(.bottom, index < checkpoints.count - 1 ? 20 : 0)
-
                     Spacer()
                 }
             }
         }
+        .padding(.vertical, 8)
     }
 
-    // MARK: - Helpers
+    // MARK: - Driver Contact Card
 
-    private func statusColor(for status: TripStatus) -> Color {
-        switch status {
-        case .scheduled: return .gray
-        case .inProgress: return DriverTheme.accent
-        case .completed: return DriverTheme.successGreen
-        case .cancelled: return DriverTheme.criticalRed
+    private func driverContactCard(driver: User) -> some View {
+        HStack(spacing: 12) {
+            // Driver Profile Photo or Initials Icon
+            ZStack {
+                if driver.name.contains("Rajesh") {
+                    Image("driver_profile")
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 50, height: 50)
+                        .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(DriverTheme.accent.opacity(0.15))
+                        .frame(width: 50, height: 50)
+                    let initials = driver.name.components(separatedBy: " ").prefix(2).compactMap { $0.first }.map(String.init).joined()
+                    Text(initials)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(DriverTheme.accent)
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(driver.name)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(DriverTheme.textPrimary)
+                
+                // 5 stars rating
+                HStack(spacing: 3) {
+                    ForEach(0..<5) { _ in
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.yellow)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // Phone call button
+            Button {
+                guard let url = URL(string: "tel://\(driver.phone.replacingOccurrences(of: " ", with: ""))") else { return }
+                UIApplication.shared.open(url)
+            } label: {
+                Image(systemName: "phone.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Color.white.opacity(0.08)))
+            }
         }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.white.opacity(0.04)))
     }
 
-    private func checkpointDotColor(_ status: CheckpointStatus) -> Color {
-        switch status {
-        case .completed: return DriverTheme.successGreen
-        case .inTransit: return DriverTheme.accent
-        case .upcoming: return DriverTheme.separator
+    // MARK: - Metrics Bar Section
+
+    private var metricsBarSection: some View {
+        HStack(spacing: 0) {
+            VStack(spacing: 4) {
+                Text("Distance")
+                    .font(.system(size: 12))
+                    .foregroundStyle(DriverTheme.textSecondary)
+                Text("\(Int(trip.distanceKM))km")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(DriverTheme.textPrimary)
+            }
+            .frame(maxWidth: .infinity)
+            
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(width: 1, height: 30)
+            
+            VStack(spacing: 4) {
+                Text("ETA")
+                    .font(.system(size: 12))
+                    .foregroundStyle(DriverTheme.textSecondary)
+                Text("2:15 PM")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(DriverTheme.textPrimary)
+            }
+            .frame(maxWidth: .infinity)
+            
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(width: 1, height: 30)
+            
+            VStack(spacing: 4) {
+                Text("Speed")
+                    .font(.system(size: 12))
+                    .foregroundStyle(DriverTheme.textSecondary)
+                Text("72 km/h")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(DriverTheme.textPrimary)
+            }
+            .frame(maxWidth: .infinity)
         }
+        .padding(.vertical, 14)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white.opacity(0.03)))
     }
 
-    private func checkpointStatusColor(_ status: CheckpointStatus) -> Color {
-        switch status {
-        case .completed: return DriverTheme.successGreen
-        case .inTransit: return DriverTheme.accent
-        case .upcoming: return .gray
-        }
-    }
+    // MARK: - Action Button Section
 
-    private func checkpointStatusIcon(_ status: CheckpointStatus) -> String {
-        switch status {
-        case .completed: return "checkmark.circle.fill"
-        case .inTransit: return "truck.box.fill"
-        case .upcoming: return "circle"
+    @ViewBuilder
+    private var actionButtonSection: some View {
+        if trip.status == .scheduled {
+            let inspectionDone = currentUser.flatMap { appViewModel.service.todayInspection(for: $0.id) } != nil
+            
+            Button {
+                if inspectionDone {
+                    appViewModel.service.startScheduledTrip(id: trip.id)
+                }
+            } label: {
+                Text(inspectionDone ? "Start Trip" : "Complete Inspection First")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Capsule().fill(inspectionDone ? DriverTheme.accent : Color.gray))
+            }
+            .disabled(!inspectionDone)
+        } else if trip.status == .inProgress {
+            Button {
+                appViewModel.service.endTrip(trip)
+                dismiss()
+            } label: {
+                Text("End Trip")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Capsule().fill(DriverTheme.criticalRed))
+            }
         }
     }
 }
