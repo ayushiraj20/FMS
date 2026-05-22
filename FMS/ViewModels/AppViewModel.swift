@@ -25,6 +25,17 @@ final class AppViewModel: ObservableObject {
     @Published var biometricUnlockEnabled = false
 
     let service = MockDataService()
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        service.objectWillChange
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.objectWillChange.send()
+                }
+            }
+            .store(in: &cancellables)
+    }
 
     func startApp() async {
         try? await Task.sleep(for: .seconds(1.5))
@@ -104,7 +115,7 @@ final class AppViewModel: ObservableObject {
                     return
                 }
                 
-                let newUser = User(
+                var newUser = User(
                     id: authUser.id,
                     organizationID: finalOrg.id,
                     name: name,
@@ -115,6 +126,19 @@ final class AppViewModel: ObservableObject {
                     title: role == .fleetManager ? "Fleet Manager" : role == .driver ? "Driver" : "Maintenance Personnel",
                     assignedVehicleID: nil
                 )
+                
+                if role == .driver {
+                    if let availableVehicle = service.vehicles.first(where: { $0.assignedDriverID == nil }) {
+                        newUser.assignedVehicleID = availableVehicle.id
+                        
+                        var updatedVehicle = availableVehicle
+                        updatedVehicle.assignedDriverID = newUser.id
+                        updatedVehicle.status = .active
+                        
+                        // Link the vehicle in Supabase
+                        try? await SupabaseService.shared.updateVehicle(updatedVehicle)
+                    }
+                }
                 
                 try await SupabaseService.shared.addProfile(newUser)
                 

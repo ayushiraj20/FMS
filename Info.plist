@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to track your active trip and send SOS alerts.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need background location to track your trip when the app is minimised.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need camera access to scan fuel receipts and capture defect photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need photo library access to attach defect photos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need to save inspection photos to your library.</string>
+</dict>
+</plist>

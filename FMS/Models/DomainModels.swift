@@ -35,6 +35,7 @@ enum TripStatus: String, Codable, CaseIterable {
     case scheduled = "Scheduled"
     case inProgress = "In Progress"
     case completed = "Completed"
+    case cancelled = "Cancelled"
 }
 
 enum WorkOrderStatus: String, Codable, CaseIterable, Identifiable {
@@ -361,3 +362,232 @@ struct KPIStat: Identifiable, Hashable {
     var detail: String
     var trend: String
 }
+
+// MARK: - Driver-Specific Models
+
+enum DutyStatus: String, Codable, CaseIterable {
+    case onDuty = "On Duty"
+    case offDuty = "Off Duty"
+}
+
+struct ShiftInfo: Identifiable, Codable, Hashable {
+    let id: UUID
+    var driverID: UUID
+    var startTime: Date
+    var endTime: Date
+    var breakTime: Date?
+    var date: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case driverID = "driver_id"
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case breakTime = "break_time"
+        case date
+    }
+
+    var totalHours: Double {
+        endTime.timeIntervalSince(startTime) / 3600.0
+    }
+
+    var elapsedHours: Double {
+        let now = Date.now
+        guard now > startTime else { return 0 }
+        guard now < endTime else { return totalHours }
+        return now.timeIntervalSince(startTime) / 3600.0
+    }
+
+    var remainingHours: Double {
+        max(0, totalHours - elapsedHours)
+    }
+
+    var progress: Double {
+        guard totalHours > 0 else { return 0 }
+        return min(1.0, elapsedHours / totalHours)
+    }
+}
+
+struct FuelReceipt: Identifiable, Codable, Hashable {
+    let id: UUID
+    var driverID: UUID
+    var vehicleID: UUID
+    var date: Date
+    var stationName: String
+    var litres: Double
+    var amount: Double
+    var vehiclePlate: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case driverID = "driver_id"
+        case vehicleID = "vehicle_id"
+        case date
+        case stationName = "station_name"
+        case litres
+        case amount
+        case vehiclePlate = "vehicle_plate"
+    }
+}
+
+enum SOSStatus: String, Codable {
+    case triggered = "Triggered"
+    case confirmed = "Confirmed"
+    case resolved = "Resolved"
+    case cancelled = "Cancelled"
+}
+
+struct SOSAlert: Identifiable, Codable, Hashable {
+    let id: UUID
+    var driverID: UUID
+    var vehicleID: UUID
+    var latitude: Double
+    var longitude: Double
+    var timestamp: Date
+    var status: SOSStatus
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case driverID = "driver_id"
+        case vehicleID = "vehicle_id"
+        case latitude
+        case longitude
+        case timestamp
+        case status
+    }
+}
+
+struct ChatMessage: Identifiable, Codable, Hashable {
+    let id: UUID
+    var senderID: UUID
+    var receiverID: UUID
+    var message: String
+    var timestamp: Date
+    var isRead: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case senderID = "sender_id"
+        case receiverID = "receiver_id"
+        case message
+        case timestamp
+        case isRead = "is_read"
+    }
+}
+
+enum CheckpointStatus: String, Codable, CaseIterable {
+    case completed = "Completed"
+    case inTransit = "In Transit"
+    case upcoming = "Upcoming"
+}
+
+struct TripCheckpoint: Identifiable, Codable, Hashable {
+    let id: UUID
+    var tripID: UUID
+    var name: String
+    var status: CheckpointStatus
+    var arrivalTime: Date?
+    var departureTime: Date?
+    var sortOrder: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tripID = "trip_id"
+        case name
+        case status
+        case arrivalTime = "arrival_time"
+        case departureTime = "departure_time"
+        case sortOrder = "sort_order"
+    }
+}
+
+enum VehicleAlertType: String, Codable, CaseIterable {
+    case engine = "Engine"
+    case fuel = "Fuel"
+    case battery = "Battery"
+    case tire = "Tire"
+    case brake = "Brake"
+    case temperature = "Temperature"
+}
+
+enum AlertSeverity: String, Codable, CaseIterable {
+    case critical = "Critical"
+    case warning = "Warning"
+    case info = "Info"
+}
+
+struct VehicleAlert: Identifiable, Codable, Hashable {
+    let id: UUID
+    var vehicleID: UUID
+    var alertType: VehicleAlertType
+    var severity: AlertSeverity
+    var alertDescription: String
+    var recommendedAction: String
+    var isAcknowledged: Bool
+    var createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case vehicleID = "vehicle_id"
+        case alertType = "alert_type"
+        case severity
+        case alertDescription = "description"
+        case recommendedAction = "recommended_action"
+        case isAcknowledged = "is_acknowledged"
+        case createdAt = "created_at"
+    }
+}
+
+enum DefectIssueType: String, Codable, CaseIterable, Identifiable {
+    case engine = "Engine"
+    case brakes = "Brakes"
+    case tyres = "Tyres"
+    case lights = "Lights"
+    case body = "Body"
+    case fuelSystem = "Fuel System"
+    case electrical = "Electrical"
+    case other = "Other"
+
+    var id: String { rawValue }
+}
+
+enum InspectionItemStatus: String, Codable {
+    case unchecked = "Unchecked"
+    case passed = "Passed"
+    case failed = "Failed"
+}
+
+struct DriverInspectionItem: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var iconName: String
+    var status: InspectionItemStatus
+    var failureDescription: String
+    var isCritical: Bool
+
+    init(id: UUID = UUID(), title: String, iconName: String, status: InspectionItemStatus = .unchecked, failureDescription: String = "", isCritical: Bool = false) {
+        self.id = id
+        self.title = title
+        self.iconName = iconName
+        self.status = status
+        self.failureDescription = failureDescription
+        self.isCritical = isCritical
+    }
+}
+
+struct BreakLogEntry: Identifiable, Codable, Hashable {
+    let id: UUID
+    var driverID: UUID
+    var startTime: Date
+    var endTime: Date?
+    var breakType: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case driverID = "driver_id"
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case breakType = "break_type"
+    }
+}
+

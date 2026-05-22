@@ -40,19 +40,47 @@ private struct FleetManagerTabView: View {
 }
 
 private struct DriverTabView: View {
+    @EnvironmentObject private var appViewModel: AppViewModel
+    @StateObject private var driverVM = DriverViewModel()
+
     var body: some View {
-        TabView {
-            NavigationStack { DriverDashboardView() }
-                .tabItem { Label("Dashboard", systemImage: "steeringwheel") }
+        ZStack(alignment: .bottom) {
+            TabView(selection: $driverVM.selectedTab) {
+                NavigationStack { DriverDashboardView() }
+                    .tabItem { Label("Dashboard", systemImage: "house.fill") }
+                    .tag(0)
 
-            NavigationStack { InspectionsView() }
-                .tabItem { Label("Inspections", systemImage: "checklist") }
+                NavigationStack { DriverTripTabView() }
+                    .tabItem { Label("Trip", systemImage: "map.fill") }
+                    .tag(1)
+            }
+            .tint(DriverTheme.accent)
 
-            NavigationStack { DriverTripsView() }
-                .tabItem { Label("Trips", systemImage: "map.fill") }
-
-            NavigationStack { ProfileSettingsView() }
-                .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
+            // Persistent SOS button when active trip exists
+            if let user = appViewModel.currentUser,
+               appViewModel.service.activeTrip(for: user.id) != nil {
+                Button {
+                    driverVM.startSOSCountdown(service: appViewModel.service, user: appViewModel.currentUser)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sos")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("SOS")
+                            .font(.system(size: 14, weight: .bold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(DriverTheme.criticalRed))
+                }
+                .padding(.bottom, 60)
+            }
+        }
+        .environmentObject(driverVM)
+        .fullScreenCover(isPresented: $driverVM.showSOSSheet) {
+            SOSSheetView()
+                .environmentObject(appViewModel)
+                .environmentObject(driverVM)
         }
     }
 }

@@ -91,6 +91,14 @@ struct LoginView: View {
                                 .buttonStyle(PrimaryButtonStyle())
                                 .disabled(appViewModel.isAuthenticating)
                                 .padding(.top, 8)
+
+                                Button {
+                                    appViewModel.showDemoRoles()
+                                } label: {
+                                    Text("Explore Demo Roles")
+                                }
+                                .buttonStyle(SecondaryButtonStyle())
+                                .padding(.top, 8)
                             }
                         }
                     }

@@ -42,6 +42,7 @@ struct NotificationsView: View {
         }
         .appListStyle()
         .navigationTitle("Notifications")
+        .toolbar(.visible, for: .navigationBar)
     }
 
     private func color(for category: NotificationCategory) -> Color {
