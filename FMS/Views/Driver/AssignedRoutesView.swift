@@ -22,7 +22,7 @@ struct AssignedRoutesView: View {
                 if !activeRoutes.isEmpty {
                     Section {
                         ForEach(activeRoutes) { route in
-                            NavigationLink(destination: RouteDetailView(route: route)) {
+                            NavigationLink(destination: RouteDetailView(routeID: route.id)) {
                                 RouteCardView(route: route, service: appViewModel.service)
                             }
                             .listRowBackground(Color.clear)
@@ -38,7 +38,7 @@ struct AssignedRoutesView: View {
                 if !assignedRoutes.isEmpty {
                     Section {
                         ForEach(assignedRoutes) { route in
-                            NavigationLink(destination: RouteDetailView(route: route)) {
+                            NavigationLink(destination: RouteDetailView(routeID: route.id)) {
                                 RouteCardView(route: route, service: appViewModel.service)
                             }
                             .listRowBackground(Color.clear)
@@ -54,7 +54,7 @@ struct AssignedRoutesView: View {
                 if !completedRoutes.isEmpty {
                     Section {
                         ForEach(completedRoutes) { route in
-                            NavigationLink(destination: RouteDetailView(route: route)) {
+                            NavigationLink(destination: RouteDetailView(routeID: route.id)) {
                                 RouteCardView(route: route, service: appViewModel.service)
                             }
                             .listRowBackground(Color.clear)
@@ -165,7 +165,25 @@ struct RouteStatusBadge: View {
 
 struct RouteDetailView: View {
     @EnvironmentObject private var appViewModel: AppViewModel
-    let route: Route
+    let routeID: UUID
+
+    private var route: Route {
+        appViewModel.service.routes.first(where: { $0.id == routeID }) ?? Route(
+            id: routeID,
+            driverID: UUID(),
+            vehicleID: UUID(),
+            name: "Unknown Route",
+            origin: "",
+            destination: "",
+            stops: [],
+            estimatedDurationMinutes: 0,
+            distanceKM: 0,
+            status: .assigned,
+            assignedDate: .now,
+            scheduledStart: .now,
+            notes: ""
+        )
+    }
 
     var body: some View {
         ScrollView {
@@ -292,6 +310,30 @@ struct RouteDetailView: View {
                         }
                     }
                     .buttonStyle(PrimaryButtonStyle())
+                }
+
+                // Demo Actions (Simulate Real-time update)
+                SectionTitle(title: "Demo Actions", subtitle: "Test real-time dispatch updates")
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Simulate Dispatch Update")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Text("Simulates a live dispatch route change. This sends a native iOS alert banner/notification and updates the timeline in real-time.")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        
+                        Button {
+                            appViewModel.service.updateRouteAndNotify(
+                                routeID: route.id,
+                                newNotes: "⚠️ DISPATCH UPDATE: Route revised by dispatcher Brooks. High traffic reported near Lodi Depot. Take highway 99 bypass."
+                            )
+                        } label: {
+                            Label("Trigger Live Dispatch Update", systemImage: "bell.badge.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(SecondaryButtonStyle())
+                    }
                 }
             }
             .padding(20)

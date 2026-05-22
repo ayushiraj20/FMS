@@ -25,6 +25,16 @@ final class AppViewModel: ObservableObject {
     @Published var biometricUnlockEnabled = false
 
     let service = MockDataService()
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        service.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+    }
 
     func startApp() async {
         NotificationManager.shared.requestAuthorization()

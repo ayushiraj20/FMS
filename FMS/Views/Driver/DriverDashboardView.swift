@@ -118,7 +118,7 @@ struct DriverDashboardView: View {
     private var activeRouteCard: some View {
         Group {
             if let user = currentUser, let route = appViewModel.service.activeRoute(for: user.id) {
-                NavigationLink(destination: RouteDetailView(route: route)) {
+                NavigationLink(destination: RouteDetailView(routeID: route.id)) {
                     GlassCard {
                         VStack(alignment: .leading, spacing: 12) {
                             SectionTitle(title: "Active Route", subtitle: route.status.rawValue)

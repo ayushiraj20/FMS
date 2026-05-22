@@ -2,10 +2,10 @@ import Foundation
 import Combine
 import UserNotifications
 
-final class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
+final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
     
-    @Published var isAuthorized = false
+    var isAuthorized = false
     
     private override init() {
         super.init()
