@@ -329,7 +329,7 @@ struct FuelReceiptView: View {
             }
 
             // Vehicle auto-filled
-            if let vehicle = appViewModel.service.vehicle(for: appViewModel.currentUser?.assignedVehicleID) {
+            if let vehicle = appViewModel.assignedVehicle {
                 HStack {
                     Text("Vehicle")
                         .foregroundStyle(DriverTheme.textSecondary)
@@ -368,18 +368,17 @@ struct FuelReceiptView: View {
 
             Button("Save") {
                 guard let user = appViewModel.currentUser,
-                      let vehicleID = user.assignedVehicleID,
+                      let vehicle = appViewModel.assignedVehicle,
                       let litresVal = Double(litres),
                       let amountVal = Double(amount) else { return }
 
-                let vehicle = appViewModel.service.vehicle(for: vehicleID)
                 appViewModel.service.addFuelReceipt(
                     driverID: user.id,
-                    vehicleID: vehicleID,
+                    vehicleID: vehicle.id,
                     stationName: stationName,
                     litres: litresVal,
                     amount: amountVal,
-                    vehiclePlate: vehicle?.plateNumber ?? ""
+                    vehiclePlate: vehicle.plateNumber
                 )
                 driverVM.showToastMessage("Fuel receipt saved")
                 dismiss()

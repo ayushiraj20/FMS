@@ -19,7 +19,9 @@ final class OverdueWorkOrderMonitor {
         // Fire immediately, then repeat every 60s
         checkAndFireAlerts()
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.checkAndFireAlerts() }
+            MainActor.assumeIsolated {
+                self?.checkAndFireAlerts()
+            }
         }
     }
 

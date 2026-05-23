@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct WorkOrderManagementView: View {
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var viewModel: WorkOrderManagementViewModel
 
     init(service: MockDataService, currentOrgID: UUID?) {
@@ -43,11 +44,21 @@ struct WorkOrderManagementView: View {
                             .foregroundStyle(AppTheme.textSecondary)
 
                         // MARK: Bottom row: status + manage button
-                        HStack {
+                        HStack(spacing: 16) {
                             Text(order.status.rawValue)
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(order.status == .completed ? AppTheme.success : AppTheme.warning)
                             Spacer()
+                            
+                            NavigationLink(destination: WorkOrderChatView(workOrderID: order.id).environment(appViewModel)) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                                    Text("Repair Chat")
+                                }
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.brand)
+                            }
+                            
                             Button("Manage") {
                                 viewModel.prepareEditOrder(order)
                             }

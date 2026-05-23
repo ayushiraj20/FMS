@@ -18,6 +18,7 @@ final class BroadcastService {
     var isLoading = false
 
     private var channel: RealtimeChannelV2?
+    private var postgresChangeSubscription: RealtimeSubscription?
 
     private init() {}
 
@@ -56,7 +57,7 @@ final class BroadcastService {
         SupabaseService.shared.client
             .channel("broadcast-\(orgID)")
 
-        newChannel.onPostgresChange(
+        postgresChangeSubscription = newChannel.onPostgresChange(
             InsertAction.self,
             schema: "public",
             table: "broadcast_messages"
@@ -98,9 +99,11 @@ final class BroadcastService {
         }
 
         Task {
-
-            await newChannel.subscribe()
-
+            do {
+                try await newChannel.subscribeWithError()
+            } catch {
+                print("Realtime subscribe error:", error)
+            }
         }
 
         channel = newChannel
@@ -111,11 +114,11 @@ final class BroadcastService {
     func unsubscribe() {
 
         if let channel {
+            postgresChangeSubscription?.cancel()
+            postgresChangeSubscription = nil
 
             Task {
-
                 await channel.unsubscribe()
-
             }
         }
 

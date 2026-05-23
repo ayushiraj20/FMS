@@ -90,6 +90,14 @@ final class VehicleManagementViewModel {
         service.documents(for: vehicleID)
     }
 
+    func alerts(for vehicleID: UUID) -> [VehicleAlert] {
+        service.alerts(for: vehicleID)
+    }
+
+    func defects(for vehicleID: UUID) -> [DefectReport] {
+        service.defects.filter { $0.vehicleID == vehicleID }
+    }
+
     func deleteVehicle(_ vehicle: Vehicle) {
         service.deleteVehicle(vehicle)
     }
@@ -142,9 +150,22 @@ final class VehicleManagementViewModel {
         if selectedVehicle == nil {
             service.addVehicle(vehicle)
         } else {
+            let previousDriverID = selectedVehicle?.assignedDriverID
             service.updateVehicle(vehicle)
+
+            // If a new driver has been assigned, notify them personally using their UUID
+            if let newDriverID = assignedDriverID, newDriverID != previousDriverID {
+                service.addNotification(
+                    userID: newDriverID,    // notifications.user_id = profiles.id of the driver
+                    roleTarget: nil,        // personal notification, not a role broadcast
+                    title: "Vehicle Assigned to You",
+                    message: "\(displayName) (\(plateNumber)) has been assigned to you.",
+                    category: .info
+                )
+            }
         }
         isPresentingForm = false
+
     }
 
     // Documents

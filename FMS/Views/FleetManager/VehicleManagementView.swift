@@ -216,53 +216,250 @@ private struct VehicleFormSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var viewModel: VehicleManagementViewModel
 
+    private var isEditing: Bool { viewModel.selectedVehicle != nil }
+    private var canSave: Bool {
+        !viewModel.displayName.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !viewModel.plateNumber.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !viewModel.model.trimmingCharacters(in: .whitespaces).isEmpty &&
+        Int(viewModel.odometer) != nil
+    }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Vehicle Details") {
-                    TextField("Display Name", text: $viewModel.displayName)
-                    TextField("Plate Number", text: $viewModel.plateNumber)
-                    TextField("Model", text: $viewModel.model)
-                    Picker("Status", selection: $viewModel.status) {
-                        ForEach(VehicleStatus.allCases, id: \.self) { value in
-                            Text(value.rawValue).tag(value)
-                        }
-                    }
-                    TextField("Odometer", text: $viewModel.odometer)
-                        .keyboardType(.numberPad)
-                }
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
 
-                Section("Assignment") {
-                    Picker("Assigned Driver", selection: $viewModel.assignedDriverID) {
-                        Text("Unassigned").tag(Optional<UUID>.none)
-                        ForEach(viewModel.drivers) { driver in
-                            Text(driver.name).tag(Optional(driver.id))
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 24) {
+
+                        // Hero icon
+                        VStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(AppTheme.brand.opacity(0.15))
+                                    .frame(width: 72, height: 72)
+                                Image(systemName: isEditing ? "pencil.circle.fill" : "plus.circle.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundStyle(AppTheme.brand)
+                            }
+                            Text(isEditing ? "Edit Vehicle Info" : "Add New Vehicle")
+                                .font(.title3.weight(.bold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text(isEditing ? "Update the details below and tap Save." : "Fill in the details to register a new vehicle.")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 24)
                         }
+                        .padding(.top, 8)
+
+                        // ── Vehicle Details Card ──
+                        formSection(title: "Vehicle Details", icon: "car.fill") {
+                            formField(label: "Display Name", placeholder: "e.g. Truck Alpha", text: $viewModel.displayName)
+                            divider
+                            formField(label: "Plate Number", placeholder: "e.g. MH12AB1234", text: $viewModel.plateNumber)
+                            divider
+                            formField(label: "Model", placeholder: "e.g. Tata Ace", text: $viewModel.model)
+                            divider
+                            formField(label: "Odometer (km)", placeholder: "e.g. 52000", text: $viewModel.odometer, keyboard: .numberPad)
+                            divider
+
+                            // Status picker
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Status")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 10) {
+                                        ForEach(VehicleStatus.allCases, id: \.self) { s in
+                                            let selected = viewModel.status == s
+                                            Button { viewModel.status = s } label: {
+                                                Text(s.rawValue)
+                                                    .font(.caption.weight(.semibold))
+                                                    .foregroundStyle(selected ? .white : AppTheme.textSecondary)
+                                                    .padding(.horizontal, 14)
+                                                    .padding(.vertical, 8)
+                                                    .background(selected ? AppTheme.brand : AppTheme.surfaceSecondary)
+                                                    .clipShape(Capsule())
+                                                    .overlay(Capsule().stroke(selected ? AppTheme.brand : AppTheme.border, lineWidth: 1))
+                                                    .animation(.easeInOut(duration: 0.2), value: selected)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ── Assignment Card ──
+                        formSection(title: "Assignment & Metrics", icon: "person.badge.key.fill") {
+
+                            // Driver picker
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Assigned Driver")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 10) {
+                                        driverChip(name: "Unassigned", id: nil)
+                                        ForEach(viewModel.drivers) { d in
+                                            driverChip(name: d.name, id: d.id)
+                                        }
+                                    }
+                                }
+                            }
+                            divider
+
+                            // Next Service Date
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Next Service Date")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                DatePicker("", selection: $viewModel.nextServiceDate, displayedComponents: .date)
+                                    .datePickerStyle(.compact)
+                                    .labelsHidden()
+                                    .tint(AppTheme.brand)
+                            }
+                            divider
+
+                            // Fuel level slider
+                            sliderRow(
+                                label: "Fuel Level",
+                                icon: "fuelpump.fill",
+                                value: $viewModel.fuelLevel,
+                                color: viewModel.fuelLevel > 50 ? Color(hex: "#34c759") : viewModel.fuelLevel > 20 ? Color(hex: "#ffcc00") : Color(hex: "#ff3b30")
+                            )
+                            divider
+
+                            // Utilization slider
+                            sliderRow(
+                                label: "Utilization",
+                                icon: "chart.bar.fill",
+                                value: $viewModel.utilization,
+                                color: AppTheme.brand
+                            )
+                        }
+
+                        // Save button
+                        Button {
+                            viewModel.saveVehicle()
+                            dismiss()
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: isEditing ? "checkmark.circle.fill" : "plus.circle.fill")
+                                Text(isEditing ? "Save Changes" : "Add Vehicle")
+                                    .font(.system(size: 16, weight: .bold))
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                canSave
+                                ? LinearGradient(colors: [AppTheme.brand, AppTheme.brand.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
+                                : LinearGradient(colors: [AppTheme.surfaceSecondary, AppTheme.surfaceSecondary], startPoint: .leading, endPoint: .trailing)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .shadow(color: canSave ? AppTheme.brand.opacity(0.4) : .clear, radius: 10, y: 4)
+                            .animation(.easeInOut(duration: 0.2), value: canSave)
+                        }
+                        .disabled(!canSave)
+                        .padding(.bottom, 32)
                     }
-                    DatePicker("Next Service", selection: $viewModel.nextServiceDate, displayedComponents: .date)
-                    VStack(alignment: .leading) {
-                        Text("Fuel Level")
-                        Slider(value: $viewModel.fuelLevel, in: 0...100, step: 1)
-                    }
-                    VStack(alignment: .leading) {
-                        Text("Utilization")
-                        Slider(value: $viewModel.utilization, in: 0...100, step: 1)
-                    }
+                    .padding(.horizontal, 20)
                 }
             }
-            .navigationTitle(viewModel.selectedVehicle == nil ? "Add Vehicle" : "Edit Vehicle")
+            .navigationTitle(isEditing ? "Edit Vehicle" : "Add Vehicle")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(viewModel.selectedVehicle == nil ? "Add" : "Save") {
-                        viewModel.saveVehicle()
-                        dismiss()
-                    }
-                    .disabled(viewModel.displayName.isEmpty || viewModel.plateNumber.isEmpty || viewModel.model.isEmpty || Int(viewModel.odometer) == nil)
+                        .foregroundStyle(AppTheme.brand)
                 }
             }
+        }
+    }
+
+    // MARK: – Helpers
+
+    private var divider: some View {
+        Divider().background(AppTheme.border)
+    }
+
+    private func formSection<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.brand)
+                Text(title)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+            }
+            VStack(spacing: 14) {
+                content()
+            }
+            .padding(16)
+            .background(AppTheme.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.border, lineWidth: 1))
+        }
+    }
+
+    private func formField(label: String, placeholder: String, text: Binding<String>, keyboard: UIKeyboardType = .default) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
+            TextField(placeholder, text: text)
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.textPrimary)
+                .keyboardType(keyboard)
+                .autocorrectionDisabled()
+        }
+    }
+
+    private func driverChip(name: String, id: UUID?) -> some View {
+        let selected = viewModel.assignedDriverID == id
+        return Button { viewModel.assignedDriverID = id } label: {
+            HStack(spacing: 6) {
+                if id != nil {
+                    AvatarView(name: name, size: 20)
+                } else {
+                    Image(systemName: "person.slash")
+                        .font(.caption2)
+                        .foregroundStyle(selected ? .white : AppTheme.textSecondary)
+                }
+                Text(name)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(selected ? .white : AppTheme.textSecondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(selected ? AppTheme.brand : AppTheme.surfaceSecondary)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(selected ? AppTheme.brand : AppTheme.border, lineWidth: 1))
+            .animation(.easeInOut(duration: 0.2), value: selected)
+        }
+    }
+
+    private func sliderRow(label: String, icon: String, value: Binding<Double>, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(color)
+                Text(label)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+                Spacer()
+                Text("\(Int(value.wrappedValue))%")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .monospacedDigit()
+            }
+            Slider(value: value, in: 0...100, step: 1)
+                .tint(color)
         }
     }
 }
@@ -277,6 +474,7 @@ private struct VehicleDetailView: View {
     }
 
     @State private var activeSheet: VehicleActionSheet?
+    @State private var showEditSheet = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -318,6 +516,23 @@ private struct VehicleDetailView: View {
         }
         .background(AppTheme.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    if let vehicle = viewModel.vehicle(for: vehicleID) {
+                        viewModel.prepareForEdit(vehicle)
+                        showEditSheet = true
+                    }
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(AppTheme.brand)
+                }
+            }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            VehicleFormSheet(viewModel: viewModel)
+        }
         .sheet(item: $activeSheet) { sheet in
             NavigationStack {
                 ZStack {
@@ -433,21 +648,80 @@ private struct VehicleCarouselCard: View {
                         }
                     }
 
-                    // Mock AI Insights
+                    // Dynamic AI Insights & Alerts
                     VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "target")
-                                .foregroundStyle(Color(hex: "#ff3b30"))
-                            Text("ETA Delay 45 min")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(AppTheme.textPrimary)
-                        }
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.circle")
-                                .foregroundStyle(Color(hex: "#ff3b30"))
-                            Text("Route Deviation")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Color(hex: "#ff3b30"))
+                        let activeAlerts = viewModel.alerts(for: vehicle.id)
+                        let activeDefects = viewModel.defects(for: vehicle.id).filter { !$0.isResolved }
+                        
+                        if !activeAlerts.isEmpty || !activeDefects.isEmpty {
+                            ForEach(activeAlerts.prefix(2)) { alert in
+                                HStack(spacing: 8) {
+                                    Image(systemName: alert.severity == .critical ? "exclamationmark.triangle.fill" : "exclamationmark.circle.fill")
+                                        .foregroundStyle(alert.severity == .critical ? Color(hex: "#ff3b30") : Color(hex: "#ffcc00"))
+                                    Text(alert.alertDescription)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                        .lineLimit(1)
+                                }
+                            }
+                            ForEach(activeDefects.prefix(2 - activeAlerts.count)) { defect in
+                                HStack(spacing: 8) {
+                                    Image(systemName: "wrench.and.screwdriver.fill")
+                                        .foregroundStyle(defect.severity == .critical || defect.severity == .high ? Color(hex: "#ff3b30") : Color(hex: "#ff9500"))
+                                    Text(defect.title ?? defect.description)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                        .lineLimit(1)
+                                }
+                            }
+                        } else {
+                            switch vehicle.status {
+                            case .active, .inService:
+                                HStack(spacing: 8) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Color(hex: "#34c759"))
+                                    Text("On Route — Optimal Performance")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
+                                HStack(spacing: 8) {
+                                    Image(systemName: "leaf.fill")
+                                        .foregroundStyle(Color(hex: "#34c759"))
+                                    Text("Eco-Driving Style Detected")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
+                            case .idle:
+                                HStack(spacing: 8) {
+                                    Image(systemName: "clock.fill")
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    Text("Parked — Idle Status")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
+                                HStack(spacing: 8) {
+                                    Image(systemName: "battery.100percent")
+                                        .foregroundStyle(Color(hex: "#34c759"))
+                                    Text("Battery Health: 98% (Optimal)")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
+                            case .outOfService:
+                                HStack(spacing: 8) {
+                                    Image(systemName: "wrench.and.screwdriver.fill")
+                                        .foregroundStyle(Color(hex: "#ff3b30"))
+                                    Text("In Workshop for Diagnostics")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
+                                HStack(spacing: 8) {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .foregroundStyle(Color(hex: "#ffcc00"))
+                                    Text("Inspection Log Pending")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
+                            }
                         }
                     }
 
@@ -465,12 +739,18 @@ private struct VehicleCarouselCard: View {
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
                         
+                        let fuelColor: Color = {
+                            if vehicle.fuelLevel > 50 { return Color(hex: "#34c759") } // Green
+                            else if vehicle.fuelLevel > 20 { return Color(hex: "#ffcc00") } // Yellow
+                            else { return Color(hex: "#ff3b30") } // Red
+                        }()
+                        
                         GeometryReader { barGeo in
                             ZStack(alignment: .leading) {
                                 Capsule()
                                     .fill(Color(hex: "#2A2A2A"))
                                 Capsule()
-                                    .fill(Color(hex: "#ff3b30"))
+                                    .fill(fuelColor)
                                     .frame(width: barGeo.size.width * CGFloat(vehicle.fuelLevel) / 100.0)
                             }
                         }

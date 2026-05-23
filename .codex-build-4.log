@@ -1,0 +1,919 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project FMS.xcodeproj -scheme FMS -configuration Debug -destination generic/platform=iOS -derivedDataPath /Users/shashwatkumar/Desktop/FMS/.codex-derived-4 -clonedSourcePackagesDirPath /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages -disableAutomaticPackageResolution CODE_SIGNING_ALLOWED=NO SWIFT_EMIT_CONST_VALUE_PROTOCOLS= build
+
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    SWIFT_EMIT_CONST_VALUE_PROTOCOLS = 
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  swift-crypto: https://github.com/apple/swift-crypto.git @ 4.5.0
+  swift-asn1: https://github.com/apple/swift-asn1.git @ 1.7.0
+  swift-concurrency-extras: https://github.com/pointfreeco/swift-concurrency-extras @ 1.3.2
+  swift-clocks: https://github.com/pointfreeco/swift-clocks @ 1.0.6
+  swift-http-types: https://github.com/apple/swift-http-types.git @ 1.5.1
+  Supabase: https://github.com/supabase/supabase-swift @ 2.46.0
+  xctest-dynamic-overlay: https://github.com/pointfreeco/xctest-dynamic-overlay @ 1.9.0
+
+2026-05-24 05:08:25.278 xcodebuild[34671:5437590] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (28 targets)
+    Target 'FMS' in project 'FMS'
+        ➜ Explicit dependency on target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'Realtime' in project 'Supabase'
+    Target 'Realtime' in project 'Supabase'
+        ➜ Explicit dependency on target 'Realtime' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+    Target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Realtime' in project 'Supabase'
+        ➜ Explicit dependency on target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Realtime' in project 'Supabase'
+        ➜ Explicit dependency on target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Realtime' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+    Target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'swift-crypto_Crypto' in project 'swift-crypto'
+    Target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'swift-crypto_Crypto' in project 'swift-crypto'
+    Target 'swift-crypto_Crypto' in project 'swift-crypto' (no dependencies)
+    Target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'IssueReporting' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+    Target 'IssueReporting' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+    Target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay' (no dependencies)
+    Target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+    Target 'HTTPTypes' in project 'swift-http-types' (no dependencies)
+    Target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+    Target 'ConcurrencyExtras' in project 'swift-concurrency-extras' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/shashwatkumar/Desktop/FMS/FMS/Assets.xcassets
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+ReadFileContents /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/share/docc/features.json
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+Build description signature: cac05339cc2e787ac35216810362d830
+Build description path: /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/XCBuildData/cac05339cc2e787ac35216810362d830.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/SDKStatCaches.noindex/iphoneos26.5-23F73-32daed1954a7d5dd0789fcaf2a9bb78b.sdkstatcache
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -o /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/SDKStatCaches.noindex/iphoneos26.5-23F73-32daed1954a7d5dd0789fcaf2a9bb78b.sdkstatcache
+
+CreateBuildDirectory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-create-build-directory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products
+
+CreateBuildDirectory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-create-build-directory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex
+
+CreateBuildDirectory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-create-build-directory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos
+
+CreateBuildDirectory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/ExplicitPrecompiledModules
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-create-build-directory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+CreateBuildDirectory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-create-build-directory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+CreateBuildDirectory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphoneos
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-create-build-directory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS-09ac764f5f6a6aaea0b26801b5883ea5-VFS-iphoneos/all-product-headers.yaml
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS-09ac764f5f6a6aaea0b26801b5883ea5-VFS-iphoneos/all-product-headers.yaml
+
+CreateBuildDirectory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/PackageFrameworks
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-create-build-directory /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/PackageFrameworks
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/swift-crypto_Crypto.build/swift-crypto_Crypto.DependencyStaticMetadataFileList (in target 'swift-crypto_Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/swift-crypto_Crypto.build/swift-crypto_Crypto.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/swift-crypto_Crypto.build/swift-crypto_Crypto.DependencyMetadataFileList (in target 'swift-crypto_Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/swift-crypto_Crypto.build/swift-crypto_Crypto.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/swift-crypto_Crypto.build/empty-swift-crypto_Crypto.plist (in target 'swift-crypto_Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/swift-crypto_Crypto.build/empty-swift-crypto_Crypto.plist
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/XCTestDynamicOverlay.DependencyStaticMetadataFileList (in target 'XCTestDynamicOverlay' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/XCTestDynamicOverlay.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/XCTestDynamicOverlay.DependencyMetadataFileList (in target 'XCTestDynamicOverlay' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/XCTestDynamicOverlay.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/XCTestDynamicOverlay.modulemap (in target 'XCTestDynamicOverlay' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/XCTestDynamicOverlay.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay.SwiftFileList (in target 'XCTestDynamicOverlay' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay.SwiftFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay.SwiftConstValuesFileList (in target 'XCTestDynamicOverlay' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay.LinkFileList (in target 'XCTestDynamicOverlay' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay-OutputFileMap.json (in target 'XCTestDynamicOverlay' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Supabase.DependencyStaticMetadataFileList (in target 'Supabase' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Supabase.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Supabase.modulemap (in target 'Supabase' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Supabase.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Supabase.DependencyMetadataFileList (in target 'Supabase' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Supabase.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Objects-normal/arm64/Supabase.SwiftFileList (in target 'Supabase' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Objects-normal/arm64/Supabase.SwiftFileList
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/XCTestDynamicOverlay.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/XCTestDynamicOverlay.modulemap (in target 'XCTestDynamicOverlay' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/XCTestDynamicOverlay.build/XCTestDynamicOverlay.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Objects-normal/arm64/Supabase.SwiftConstValuesFileList (in target 'Supabase' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Objects-normal/arm64/Supabase.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Objects-normal/arm64/Supabase.LinkFileList (in target 'Supabase' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Objects-normal/arm64/Supabase.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Objects-normal/arm64/Supabase-OutputFileMap.json (in target 'Supabase' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Objects-normal/arm64/Supabase-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Storage.modulemap (in target 'Storage' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Storage.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Storage.DependencyStaticMetadataFileList (in target 'Storage' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Storage.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Storage.DependencyMetadataFileList (in target 'Storage' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Storage.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Objects-normal/arm64/Storage.SwiftFileList (in target 'Storage' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Objects-normal/arm64/Storage.SwiftFileList
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/Supabase.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Supabase.modulemap (in target 'Supabase' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Supabase.build/Supabase.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Objects-normal/arm64/Storage.SwiftConstValuesFileList (in target 'Storage' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Objects-normal/arm64/Storage.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Objects-normal/arm64/Storage.LinkFileList (in target 'Storage' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Objects-normal/arm64/Storage.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Objects-normal/arm64/Storage-OutputFileMap.json (in target 'Storage' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Objects-normal/arm64/Storage-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Realtime.modulemap (in target 'Realtime' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Realtime.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Realtime.DependencyStaticMetadataFileList (in target 'Realtime' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Realtime.DependencyStaticMetadataFileList
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/Storage.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Storage.modulemap (in target 'Storage' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Storage.build/Storage.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Realtime.DependencyMetadataFileList (in target 'Realtime' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Realtime.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Objects-normal/arm64/Realtime-OutputFileMap.json (in target 'Realtime' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Objects-normal/arm64/Realtime-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Objects-normal/arm64/Realtime.SwiftConstValuesFileList (in target 'Realtime' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Objects-normal/arm64/Realtime.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Objects-normal/arm64/Realtime.SwiftFileList (in target 'Realtime' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Objects-normal/arm64/Realtime.SwiftFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Objects-normal/arm64/Realtime.LinkFileList (in target 'Realtime' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Objects-normal/arm64/Realtime.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/PostgREST.modulemap (in target 'PostgREST' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/PostgREST.modulemap
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/Realtime.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Realtime.modulemap (in target 'Realtime' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Realtime.build/Realtime.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/PostgREST.DependencyStaticMetadataFileList (in target 'PostgREST' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/PostgREST.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/PostgREST.DependencyMetadataFileList (in target 'PostgREST' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/PostgREST.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/Objects-normal/arm64/PostgREST.SwiftFileList (in target 'PostgREST' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/Objects-normal/arm64/PostgREST.SwiftFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/Objects-normal/arm64/PostgREST.SwiftConstValuesFileList (in target 'PostgREST' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/Objects-normal/arm64/PostgREST.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/Objects-normal/arm64/PostgREST.LinkFileList (in target 'PostgREST' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/Objects-normal/arm64/PostgREST.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/Objects-normal/arm64/PostgREST-OutputFileMap.json (in target 'PostgREST' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/Objects-normal/arm64/PostgREST-OutputFileMap.json
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/PostgREST.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/PostgREST.modulemap (in target 'PostgREST' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/PostgREST.build/PostgREST.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.SwiftConstValuesFileList (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.LinkFileList (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.SwiftFileList (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.SwiftFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport-OutputFileMap.json (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/IssueReportingPackageSupport.modulemap (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/IssueReportingPackageSupport.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/IssueReportingPackageSupport.DependencyStaticMetadataFileList (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/IssueReportingPackageSupport.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/IssueReportingPackageSupport.DependencyMetadataFileList (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/IssueReportingPackageSupport.DependencyMetadataFileList
+
+MkDir /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/swift-crypto_Crypto.bundle (in target 'swift-crypto_Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    /bin/mkdir -p /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/swift-crypto_Crypto.bundle
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/IssueReportingPackageSupport.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/IssueReportingPackageSupport.modulemap (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/IssueReportingPackageSupport.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting.SwiftFileList (in target 'IssueReporting' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting.SwiftFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting.SwiftConstValuesFileList (in target 'IssueReporting' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting.LinkFileList (in target 'IssueReporting' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting-OutputFileMap.json (in target 'IssueReporting' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/IssueReporting.modulemap (in target 'IssueReporting' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/IssueReporting.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/IssueReporting.DependencyStaticMetadataFileList (in target 'IssueReporting' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/IssueReporting.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/IssueReporting.DependencyMetadataFileList (in target 'IssueReporting' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/IssueReporting.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Objects-normal/arm64/Helpers.SwiftFileList (in target 'Helpers' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Objects-normal/arm64/Helpers.SwiftFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Objects-normal/arm64/Helpers.SwiftConstValuesFileList (in target 'Helpers' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Objects-normal/arm64/Helpers.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Objects-normal/arm64/Helpers.LinkFileList (in target 'Helpers' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Objects-normal/arm64/Helpers.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Objects-normal/arm64/Helpers-OutputFileMap.json (in target 'Helpers' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Objects-normal/arm64/Helpers-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Helpers.modulemap (in target 'Helpers' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Helpers.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Helpers.DependencyStaticMetadataFileList (in target 'Helpers' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Helpers.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Helpers.DependencyMetadataFileList (in target 'Helpers' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Helpers.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes.SwiftConstValuesFileList (in target 'HTTPTypes' from project 'swift-http-types')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-http-types
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes.SwiftFileList (in target 'HTTPTypes' from project 'swift-http-types')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-http-types
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes.SwiftFileList
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/IssueReporting.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/IssueReporting.modulemap (in target 'IssueReporting' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/IssueReporting.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes.LinkFileList (in target 'HTTPTypes' from project 'swift-http-types')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-http-types
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes-OutputFileMap.json (in target 'HTTPTypes' from project 'swift-http-types')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-http-types
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/HTTPTypes.modulemap (in target 'HTTPTypes' from project 'swift-http-types')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-http-types
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/HTTPTypes.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/HTTPTypes.DependencyStaticMetadataFileList (in target 'HTTPTypes' from project 'swift-http-types')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-http-types
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/HTTPTypes.DependencyStaticMetadataFileList
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/Helpers.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Helpers.modulemap (in target 'Helpers' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Helpers.build/Helpers.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/HTTPTypes.DependencyMetadataFileList (in target 'HTTPTypes' from project 'swift-http-types')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-http-types
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/HTTPTypes.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Objects-normal/arm64/Functions.SwiftFileList (in target 'Functions' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Objects-normal/arm64/Functions.SwiftFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Objects-normal/arm64/Functions.SwiftConstValuesFileList (in target 'Functions' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Objects-normal/arm64/Functions.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Objects-normal/arm64/Functions.LinkFileList (in target 'Functions' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Objects-normal/arm64/Functions.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Objects-normal/arm64/Functions-OutputFileMap.json (in target 'Functions' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Objects-normal/arm64/Functions-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Functions.modulemap (in target 'Functions' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Functions.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Functions.DependencyStaticMetadataFileList (in target 'Functions' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Functions.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Functions.DependencyMetadataFileList (in target 'Functions' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Functions.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/Objects-normal/arm64/FMS.SwiftFileList (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/Objects-normal/arm64/FMS.SwiftFileList
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/HTTPTypes.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/HTTPTypes.modulemap (in target 'HTTPTypes' from project 'swift-http-types')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-http-types
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/HTTPTypes.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/Objects-normal/arm64/FMS.SwiftConstValuesFileList (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/Objects-normal/arm64/FMS.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/Objects-normal/arm64/FMS.LinkFileList (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/Objects-normal/arm64/FMS.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/Objects-normal/arm64/FMS-OutputFileMap.json (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/Objects-normal/arm64/FMS-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS.hmap (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS.hmap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS.DependencyStaticMetadataFileList (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS.DependencyMetadataFileList (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS.DependencyMetadataFileList
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/Functions.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Functions.modulemap (in target 'Functions' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Functions.build/Functions.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-project-headers.hmap (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-project-headers.hmap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-own-target-headers.hmap (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-own-target-headers.hmap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-generated-files.hmap (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-generated-files.hmap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-all-target-headers.hmap (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-all-target-headers.hmap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-all-non-framework-target-headers.hmap (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-all-non-framework-target-headers.hmap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-DebugDylibPath-normal-arm64.txt (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-DebugDylibPath-normal-arm64.txt
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-DebugDylibInstallName-normal-arm64.txt (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/FMS.build/Debug-iphoneos/FMS.build/FMS-DebugDylibInstallName-normal-arm64.txt
+
+MkDir /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/FMS.app (in target 'FMS' from project 'FMS')
+    cd /Users/shashwatkumar/Desktop/FMS
+    /bin/mkdir -p /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/FMS.app
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto.SwiftFileList (in target 'Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto.SwiftFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto.SwiftConstValuesFileList (in target 'Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto.LinkFileList (in target 'Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto-OutputFileMap.json (in target 'Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/DerivedSources/resource_bundle_accessor.swift (in target 'Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/DerivedSources/resource_bundle_accessor.swift
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Crypto.modulemap (in target 'Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Crypto.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Crypto.DependencyStaticMetadataFileList (in target 'Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Crypto.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Crypto.DependencyMetadataFileList (in target 'Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Crypto.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras.SwiftFileList (in target 'ConcurrencyExtras' from project 'swift-concurrency-extras')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-concurrency-extras
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras.SwiftFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras.SwiftConstValuesFileList (in target 'ConcurrencyExtras' from project 'swift-concurrency-extras')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-concurrency-extras
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras.LinkFileList (in target 'ConcurrencyExtras' from project 'swift-concurrency-extras')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-concurrency-extras
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras-OutputFileMap.json (in target 'ConcurrencyExtras' from project 'swift-concurrency-extras')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-concurrency-extras
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras-OutputFileMap.json
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/Crypto.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Crypto.modulemap (in target 'Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Crypto.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/ConcurrencyExtras.modulemap (in target 'ConcurrencyExtras' from project 'swift-concurrency-extras')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-concurrency-extras
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/ConcurrencyExtras.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/ConcurrencyExtras.DependencyStaticMetadataFileList (in target 'ConcurrencyExtras' from project 'swift-concurrency-extras')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-concurrency-extras
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/ConcurrencyExtras.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/ConcurrencyExtras.DependencyMetadataFileList (in target 'ConcurrencyExtras' from project 'swift-concurrency-extras')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-concurrency-extras
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/ConcurrencyExtras.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Objects-normal/arm64/Clocks.SwiftConstValuesFileList (in target 'Clocks' from project 'swift-clocks')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-clocks
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Objects-normal/arm64/Clocks.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Objects-normal/arm64/Clocks.SwiftFileList (in target 'Clocks' from project 'swift-clocks')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-clocks
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Objects-normal/arm64/Clocks.SwiftFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Objects-normal/arm64/Clocks.LinkFileList (in target 'Clocks' from project 'swift-clocks')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-clocks
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Objects-normal/arm64/Clocks.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Objects-normal/arm64/Clocks-OutputFileMap.json (in target 'Clocks' from project 'swift-clocks')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-clocks
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Objects-normal/arm64/Clocks-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Clocks.modulemap (in target 'Clocks' from project 'swift-clocks')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-clocks
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Clocks.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Clocks.DependencyStaticMetadataFileList (in target 'Clocks' from project 'swift-clocks')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-clocks
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Clocks.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Clocks.DependencyMetadataFileList (in target 'Clocks' from project 'swift-clocks')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-clocks
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Clocks.DependencyMetadataFileList
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/ConcurrencyExtras.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/ConcurrencyExtras.modulemap (in target 'ConcurrencyExtras' from project 'swift-concurrency-extras')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-concurrency-extras
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/ConcurrencyExtras.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Objects-normal/arm64/Auth.LinkFileList (in target 'Auth' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Objects-normal/arm64/Auth.LinkFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Objects-normal/arm64/Auth.SwiftFileList (in target 'Auth' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Objects-normal/arm64/Auth.SwiftFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Objects-normal/arm64/Auth.SwiftConstValuesFileList (in target 'Auth' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Objects-normal/arm64/Auth.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Objects-normal/arm64/Auth-OutputFileMap.json (in target 'Auth' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Objects-normal/arm64/Auth-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Auth.modulemap (in target 'Auth' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Auth.modulemap
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Auth.DependencyStaticMetadataFileList (in target 'Auth' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Auth.DependencyStaticMetadataFileList
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/Clocks.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Clocks.modulemap (in target 'Clocks' from project 'swift-clocks')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-clocks
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-clocks.build/Debug-iphoneos/Clocks.build/Clocks.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Auth.DependencyMetadataFileList (in target 'Auth' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    write-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Auth.DependencyMetadataFileList
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/Auth.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Auth.modulemap (in target 'Auth' from project 'Supabase')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/supabase-swift
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/Supabase.build/Debug-iphoneos/Auth.build/Auth.modulemap /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+CpResource /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/swift-crypto_Crypto.bundle/PrivacyInfo.xcprivacy /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto/Sources/Crypto/PrivacyInfo.xcprivacy (in target 'swift-crypto_Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto/Sources/Crypto/PrivacyInfo.xcprivacy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/swift-crypto_Crypto.bundle
+
+ProcessInfoPlistFile /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/swift-crypto_Crypto.bundle/Info.plist /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/swift-crypto_Crypto.build/empty-swift-crypto_Crypto.plist (in target 'swift-crypto_Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    builtin-infoPlistUtility /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/swift-crypto_Crypto.build/empty-swift-crypto_Crypto.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphoneos -requiredArchitecture arm64 -o /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/swift-crypto_Crypto.bundle/Info.plist
+
+RegisterExecutionPolicyException /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/swift-crypto_Crypto.bundle (in target 'swift-crypto_Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    builtin-RegisterExecutionPolicyException /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/swift-crypto_Crypto.bundle
+
+Touch /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/swift-crypto_Crypto.bundle (in target 'swift-crypto_Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/swift-crypto
+    /usr/bin/touch -c /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/swift-crypto_Crypto.bundle
+
+SwiftDriver IssueReportingPackageSupport normal arm64 com.apple.xcode.tools.swift.compiler (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name IssueReportingPackageSupport -Onone @/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios13.0 -g -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -suppress-warnings -index-store-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/Developer/Library/Frameworks -parse-as-library -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/SDKStatCaches.noindex/iphoneos26.5-23F73-32daed1954a7d5dd0789fcaf2a9bb78b.sdkstatcache -output-file-map /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -sdk-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.swiftmodule -user-module-version 1.9.0 -validate-clang-modules-once -clang-build-session-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/Session.modulevalidation -package-name xctest_dynamic_overlay -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/swift-overrides.hmap -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/include -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/DerivedSources-normal/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/DerivedSources/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport-Swift.h -working-directory /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftDriver ConcurrencyExtras normal arm64 com.apple.xcode.tools.swift.compiler (in target 'ConcurrencyExtras' from project 'swift-concurrency-extras')
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name ConcurrencyExtras -Onone @/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios13.0 -g -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -suppress-warnings -index-store-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/Developer/Library/Frameworks -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/SDKStatCaches.noindex/iphoneos26.5-23F73-32daed1954a7d5dd0789fcaf2a9bb78b.sdkstatcache -output-file-map /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -sdk-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras.swiftmodule -user-module-version 1.3.2 -validate-clang-modules-once -clang-build-session-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/Session.modulevalidation -package-name swift_concurrency_extras -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/swift-overrides.hmap -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/include -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/DerivedSources-normal/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/DerivedSources/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-concurrency-extras.build/Debug-iphoneos/ConcurrencyExtras.build/Objects-normal/arm64/ConcurrencyExtras-Swift.h -working-directory /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftDriver HTTPTypes normal arm64 com.apple.xcode.tools.swift.compiler (in target 'HTTPTypes' from project 'swift-http-types')
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name HTTPTypes -Onone @/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -enable-experimental-feature StrictConcurrency\=complete -enable-upcoming-feature MemberImportVisibility -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios12.0 -g -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -suppress-warnings -index-store-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 5 -I /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/Developer/Library/Frameworks -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/SDKStatCaches.noindex/iphoneos26.5-23F73-32daed1954a7d5dd0789fcaf2a9bb78b.sdkstatcache -output-file-map /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -sdk-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/Session.modulevalidation -package-name swift_http_types -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/swift-overrides.hmap -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/include -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/DerivedSources-normal/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/DerivedSources/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-http-types.build/Debug-iphoneos/HTTPTypes.build/Objects-normal/arm64/HTTPTypes-Swift.h -working-directory /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftDriver Crypto normal arm64 com.apple.xcode.tools.swift.compiler (in target 'Crypto' from project 'swift-crypto')
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name Crypto -Onone @/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE -DCRYPTO_IN_SWIFTPM -DXcode -enable-upcoming-feature MemberImportVisibility -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios12.0 -g -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -suppress-warnings -index-store-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/Developer/Library/Frameworks -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/SDKStatCaches.noindex/iphoneos26.5-23F73-32daed1954a7d5dd0789fcaf2a9bb78b.sdkstatcache -output-file-map /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -sdk-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto.swiftmodule -user-module-version 4.5.0 -validate-clang-modules-once -clang-build-session-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/Session.modulevalidation -package-name swift_crypto -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/swift-overrides.hmap -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/include -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/DerivedSources-normal/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/DerivedSources/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/swift-crypto.build/Debug-iphoneos/Crypto.build/Objects-normal/arm64/Crypto-Swift.h -working-directory /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_SwiftConcurrencyShims-BIHTHNAOLBFNLOFI4TZR1E6XS.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/SwiftShims-M6YDPGIE544UBU3EBNHVXXWO.pcm
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ IssueReportingPackageSupport (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+
+SwiftCompile normal arm64 /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReportingPackageSupport/_Test.swift (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    
+
+SwiftCompile normal arm64 Compiling\ _Test.swift /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReportingPackageSupport/_Test.swift (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+SwiftCompile normal arm64 /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReportingPackageSupport/_Test.swift (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for IssueReportingPackageSupport (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+
+SwiftDriver\ Compilation\ Requirements IssueReportingPackageSupport normal arm64 com.apple.xcode.tools.swift.compiler (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name IssueReportingPackageSupport -Onone @/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios13.0 -g -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -suppress-warnings -index-store-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/Developer/Library/Frameworks -parse-as-library -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/SDKStatCaches.noindex/iphoneos26.5-23F73-32daed1954a7d5dd0789fcaf2a9bb78b.sdkstatcache -output-file-map /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -sdk-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.swiftmodule -user-module-version 1.9.0 -validate-clang-modules-once -clang-build-session-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/Session.modulevalidation -package-name xctest_dynamic_overlay -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/swift-overrides.hmap -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/include -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/DerivedSources-normal/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/DerivedSources/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport-Swift.h -working-directory /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftMergeGeneratedHeaders /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/IssueReportingPackageSupport-Swift.h /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport-Swift.h (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    builtin-swiftHeaderTool -arch arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport-Swift.h -o /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/IssueReportingPackageSupport-Swift.h
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.swiftmodule/arm64-apple-ios.swiftmodule /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.swiftmodule (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.swiftmodule /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.swiftmodule/arm64-apple-ios.swiftmodule
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.swiftmodule/arm64-apple-ios.swiftdoc /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.swiftdoc (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.swiftdoc /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.swiftmodule/arm64-apple-ios.swiftdoc
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.swiftmodule/arm64-apple-ios.abi.json /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.abi.json (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.abi.json /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.swiftmodule/arm64-apple-ios.abi.json
+
+Copy /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.swiftsourceinfo (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.swiftsourceinfo /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo
+
+SwiftDriver IssueReporting normal arm64 com.apple.xcode.tools.swift.compiler (in target 'IssueReporting' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name IssueReporting -Onone @/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios13.0 -g -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -suppress-warnings -index-store-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/PackageFrameworks -F /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/Developer/Library/Frameworks -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/SDKStatCaches.noindex/iphoneos26.5-23F73-32daed1954a7d5dd0789fcaf2a9bb78b.sdkstatcache -output-file-map /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -sdk-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting.swiftmodule -user-module-version 1.9.0 -validate-clang-modules-once -clang-build-session-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/Session.modulevalidation -package-name xctest_dynamic_overlay -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/swift-overrides.hmap -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/include -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/DerivedSources-normal/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/DerivedSources/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReporting.build/Objects-normal/arm64/IssueReporting-Swift.h -working-directory /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/SwiftShims-AIPZAPX1GURLSII9NNL2I9PM3.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_stdarg-F4JGCBZGTRX4VE2Z3XZAFL5TZ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/ptrauth-8QU7ASCZ7ZX4MWG8LH2X3H7I6.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_AvailabilityInternal-5ODDJ7K9N86GRWLDBBINZL1V6.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_SwiftConcurrencyShims-23T2RMV9U1PNXEMU8OINMJCH.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/ptrcheck-CGU0B26JV86RDOSV3EPWNOCLC.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_float-CLA407BM7Q5R6QVE0P6OIF0SO.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_AvailabilityInternal-WFWQYPEUYIT7FCTBFE3FS03I.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_float-9CYQR52VMTQSIL2I35QCJIO2S.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_stdbool-7WATRB0I1PSNOL41AUOH7OPRJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_stdbool-2PERAJMI7GRYQI4WRAZ737TKV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/ptrauth-55DZJD8TVX0VKQQRU2KVNAKCX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_stddef-ZX7IIRNFEMIQOPPF77QE4L5D.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_stdarg-1QSDPTPTT6DWYXER7WK4YVL7C.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/ptrcheck-47S3DGDNTNBUUE63LUAR14EDI.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_DarwinFoundation1-8SRZY4FVPEMCB0U1DZ31O60T4.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_stddef-53YZHGM1NCN7MBN6CTHU2THKG.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_DarwinFoundation1-6D7Y24WZ33T2SJ8SQ9BT8YARY.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_limits-2MQMUL1FGDEQGLUJS7BRP1D1.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_DarwinFoundation2-F0SJNM7DB6F4SNT9GU4W0OYD2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_limits-4NGP0FM8H974ALSQZC3SZR8LF.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_DarwinFoundation2-16TX94G7LQPS0FDIYOOBRM9JQ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/sys_types-7PB6HDBFDKPC33715L4SN4AOE.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_stdint-D5IQNTRD9VDV3NKDWN9GPKND9.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_stdint-77DCVWTZZ7U09FPW2N1BC0H8E.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/sys_types-6DYLIVYHRAZPIYOKZNCUVV24I.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_DarwinFoundation3-CIQL0YPSTE18T8F6RXWL3U6LV.pcm
+
+SwiftDriverJobDiscovery normal arm64 Compiling _Test.swift (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+
+SwiftDriver\ Compilation IssueReportingPackageSupport normal arm64 com.apple.xcode.tools.swift.compiler (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj
+    builtin-Swift-Compilation -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name IssueReportingPackageSupport -Onone @/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios13.0 -g -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -suppress-warnings -index-store-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/Developer/Library/Frameworks -parse-as-library -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/SDKStatCaches.noindex/iphoneos26.5-23F73-32daed1954a7d5dd0789fcaf2a9bb78b.sdkstatcache -output-file-map /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -sdk-module-cache-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.swiftmodule -user-module-version 1.9.0 -validate-clang-modules-once -clang-build-session-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/Session.modulevalidation -package-name xctest_dynamic_overlay -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/swift-overrides.hmap -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/include -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/DerivedSources-normal/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/DerivedSources/arm64 -Xcc -I/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport-Swift.h -working-directory /Users/shashwatkumar/Desktop/FMS/FMS.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+Ld /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.o normal (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios13.0 -r -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -O0 -w -F/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphoneos -F/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos -iframework /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -iframework /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/Developer/Library/Frameworks -filelist /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.LinkFileList -nostdlib -Xlinker -object_path_lto -Xlinker /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport_lto.o -Xlinker -no_deduplicate -Xlinker -dependency_info -Xlinker /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport_dependency_info.dat -fobjc-link-runtime -L/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.swiftmodule @/Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport-linker-args.resp -o /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.o
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_stdatomic-3WCJG8XVG8EC791QWKC2OMR18.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_DarwinFoundation3-IKM79JNH1NH2D70NUXOP65QA.pcm
+
+ExtractAppIntentsMetadata (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+    cd /Users/shashwatkumar/Library/Developer/Xcode/DerivedData/FMS-bhujjjwwnomxibbbssiazxogjwmo/SourcePackages/checkouts/xctest-dynamic-overlay
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name IssueReportingPackageSupport --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk --xcode-version 17F42 --platform-family iOS --deployment-target 13.0 --bundle-identifier xctest-dynamic-overlay.IssueReportingPackageSupport --output /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.appintents --target-triple arm64-apple-ios13.0 --binary-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Products/Debug-iphoneos/IssueReportingPackageSupport.o --dependency-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport_dependency_info.dat --stringsdata-file /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.SwiftFileList --metadata-file-list /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/IssueReportingPackageSupport.DependencyMetadataFileList --static-metadata-file-list /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/IssueReportingPackageSupport.DependencyStaticMetadataFileList --swift-const-vals-list /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/IssueReportingPackageSupport.SwiftConstValuesFileList --force --compile-time-extraction --deployment-aware-processing --validate-assistant-intents --no-app-shortcuts-localization
+2026-05-24 05:08:33.138 appintentsmetadataprocessor[34949:5438676] Starting appintentsmetadataprocessor export
+2026-05-24 05:08:33.204 appintentsmetadataprocessor[34949:5438676] error: At least one halting error produced during export. No AppIntents metadata have been exported and this target is not usable with AppIntents until errors are resolved.
+error: Unable to parse compiler-emitted metadata at `file:///Users/shashwatkumar/Desktop/FMS/.codex-derived-4/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Debug-iphoneos/IssueReportingPackageSupport.build/Objects-normal/arm64/_Test.swiftconstvalues`: The file “_Test.swiftconstvalues” couldn’t be opened because there is no such file.
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_inttypes-ANZKCW02NW53NUSYC0VEZSHDR.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/shashwatkumar/Desktop/FMS/.codex-derived-4/ModuleCache.noindex/_Builtin_inttypes-BRS2JUAP2TAHB8WD6FIF3E0I4.pcm
+
+** BUILD FAILED **
+
+
+The following build commands failed:
+	ExtractAppIntentsMetadata (in target 'IssueReportingPackageSupport' from project 'xctest-dynamic-overlay')
+	Building project FMS with scheme FMS and configuration Debug
+(2 failures)

@@ -4,8 +4,12 @@ struct DriverDashboardView: View {
     @Environment(AppViewModel.self) private var appViewModel: AppViewModel
     @Environment(DriverViewModel.self) private var driverVM: DriverViewModel
 
+    // Pre-trip inspection gate
+    @State private var showTripInspectionSheet = false
+    @State private var tripToStart: Trip? = nil
+
     private var currentUser: User? { appViewModel.currentUser }
-    private var assignedVehicle: Vehicle? { appViewModel.service.vehicle(for: currentUser?.assignedVehicleID) }
+    private var assignedVehicle: Vehicle? { appViewModel.assignedVehicle }
 
     // MARK: - Local Premium Dark Theme Palette
     private enum LocalTheme {
@@ -35,6 +39,7 @@ struct DriverDashboardView: View {
                     activeTripCard
                     quickActionsSection
                     todayStatsSection
+                    reportedDefectsSection
                 }
             }
             .padding(20)
@@ -42,11 +47,15 @@ struct DriverDashboardView: View {
         .background(LocalTheme.background.ignoresSafeArea())
         .refreshable {
             driverVM.isLoading = true
+            await appViewModel.service.syncWithDatabase()
             await driverVM.load()
+            await appViewModel.loadNotifications()
         }
         .toolbar(.hidden, for: .navigationBar)
         .task {
+            await appViewModel.service.syncWithDatabase()
             await driverVM.load()
+            await appViewModel.loadNotifications()
         }
         .sheet(isPresented: $driverVM.showFuelReceiptSheet) {
             FuelReceiptView()
@@ -60,6 +69,13 @@ struct DriverDashboardView: View {
         .sheet(item: $driverVM.showAlertDetail) { alert in
             VehicleAlertDetailSheet(alert: alert)
                 .environment(appViewModel)
+        }
+        .sheet(isPresented: $showTripInspectionSheet) {
+            TripStartInspectionSheet(trip: tripToStart) {
+                driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
+            }
+            .environment(appViewModel)
+            .environment(driverVM)
         }
         .overlay(alignment: .top) {
             if driverVM.showToast, let message = driverVM.toastMessage {
@@ -304,34 +320,113 @@ struct DriverDashboardView: View {
                 if let activeTrip = appViewModel.service.activeTrip(for: user.id) {
                     NavigationLink(destination: TripDetailView(trip: activeTrip).environment(appViewModel)) {
                         CustomDarkCard {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Active Trip")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(LocalTheme.textSecondary)
-
-                                Text(activeTrip.destination)
-                                    .font(.system(size: 22, weight: .bold))
-                                    .foregroundStyle(LocalTheme.textPrimary)
-
-                                HStack(alignment: .bottom) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("ETA")
-                                            .font(.system(size: 13))
+                            VStack(alignment: .leading, spacing: 14) {
+                                HStack {
+                                    Text("Active Trip")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .tracking(1)
+                                        .foregroundStyle(LocalTheme.accent)
+                                    Spacer()
+                                    HStack(spacing: 4) {
+                                        Circle()
+                                            .fill(LocalTheme.successGreen)
+                                            .frame(width: 6, height: 6)
+                                        Text("IN PROGRESS")
+                                            .font(.system(size: 10, weight: .black))
+                                            .foregroundStyle(LocalTheme.successGreen)
+                                    }
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Route")
+                                        .font(.caption)
+                                        .foregroundStyle(LocalTheme.textSecondary)
+                                    Text("\(activeTrip.origin) → \(activeTrip.destination)")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundStyle(LocalTheme.textPrimary)
+                                }
+                                
+                                HStack(spacing: 24) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Start Time")
+                                            .font(.system(size: 11))
                                             .foregroundStyle(LocalTheme.textSecondary)
-                                        Text("2:15 PM")
-                                            .font(.system(size: 17, weight: .bold))
+                                        Text(activeTrip.startDate.formatted(date: .abbreviated, time: .shortened))
+                                            .font(.system(size: 13, weight: .semibold))
                                             .foregroundStyle(LocalTheme.textPrimary)
                                     }
-
+                                    
+                                    if let endDate = activeTrip.endDate {
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text("End Time")
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(LocalTheme.textSecondary)
+                                            Text(endDate.formatted(date: .abbreviated, time: .shortened))
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(LocalTheme.textPrimary)
+                                        }
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Distance")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(LocalTheme.textSecondary)
+                                        Text("\(Int(activeTrip.distanceKM)) km")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(LocalTheme.textPrimary)
+                                    }
+                                }
+                                
+                                if let route = activeTrip.routeDetails {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Route Details")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(LocalTheme.textSecondary)
+                                        Text(route)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(LocalTheme.textPrimary)
+                                            .lineLimit(2)
+                                    }
+                                    .padding(.top, 2)
+                                }
+                                
+                                if let note = activeTrip.notes {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Instructions")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(LocalTheme.textSecondary)
+                                        Text(note)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(LocalTheme.textPrimary)
+                                            .lineLimit(2)
+                                    }
+                                    .padding(.top, 2)
+                                }
+                                
+                                HStack {
+                                    if let vehicle = assignedVehicle {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "truck.box.fill")
+                                                .foregroundStyle(LocalTheme.accent)
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(vehicle.displayName)
+                                                    .font(.system(size: 12, weight: .semibold))
+                                                    .foregroundStyle(LocalTheme.textPrimary)
+                                                Text(vehicle.plateNumber)
+                                                    .font(.system(size: 10))
+                                                    .foregroundStyle(LocalTheme.textSecondary)
+                                            }
+                                        }
+                                    }
                                     Spacer()
-
                                     Text("Resume Trip")
-                                        .font(.system(size: 15, weight: .semibold))
+                                        .font(.system(size: 13, weight: .bold))
                                         .foregroundStyle(.white)
-                                        .padding(.horizontal, 22)
-                                        .padding(.vertical, 12)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
                                         .background(Capsule().fill(LocalTheme.accent))
                                 }
+                                .padding(.top, 6)
                             }
                         }
                     }
@@ -339,40 +434,177 @@ struct DriverDashboardView: View {
                 } else {
                     let upcoming = appViewModel.service.upcomingTrips(for: user.id)
                     if let nextTrip = upcoming.first {
-                        NavigationLink(destination: TripDetailView(trip: nextTrip).environment(appViewModel)) {
-                            CustomDarkCard {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("Start Trip")
-                                        .font(.system(size: 13))
+                        // NOT wrapped in NavigationLink — has separate buttons inside
+                        CustomDarkCard {
+                            VStack(alignment: .leading, spacing: 14) {
+                                HStack {
+                                    Text("Upcoming Trip")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .tracking(1)
                                         .foregroundStyle(LocalTheme.textSecondary)
-
-                                    Text(nextTrip.destination)
-                                        .font(.system(size: 22, weight: .bold))
-                                        .foregroundStyle(LocalTheme.textPrimary)
-
-                                    HStack(alignment: .bottom) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("ETA")
-                                                .font(.system(size: 13))
-                                                .foregroundStyle(LocalTheme.textSecondary)
-                                            Text(nextTrip.startDate.formatted(date: .omitted, time: .shortened))
-                                                .font(.system(size: 17, weight: .bold))
-                                                .foregroundStyle(LocalTheme.textPrimary)
-                                        }
-
-                                        Spacer()
-
-                                        Text("Start Trip")
-                                            .font(.system(size: 15, weight: .semibold))
-                                            .foregroundStyle(.white)
-                                            .padding(.horizontal, 22)
-                                            .padding(.vertical, 12)
-                                            .background(Capsule().fill(LocalTheme.accent))
+                                    Spacer()
+                                    HStack(spacing: 4) {
+                                        Circle()
+                                            .fill(Color.gray)
+                                            .frame(width: 6, height: 6)
+                                        Text("SCHEDULED")
+                                            .font(.system(size: 10, weight: .black))
+                                            .foregroundStyle(Color.gray)
                                     }
                                 }
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Route")
+                                        .font(.caption)
+                                        .foregroundStyle(LocalTheme.textSecondary)
+                                    Text("\(nextTrip.origin) → \(nextTrip.destination)")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundStyle(LocalTheme.textPrimary)
+                                }
+
+                                HStack(spacing: 24) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Start Time")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(LocalTheme.textSecondary)
+                                        Text(nextTrip.startDate.formatted(date: .abbreviated, time: .shortened))
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(LocalTheme.textPrimary)
+                                    }
+
+                                    if let endDate = nextTrip.endDate {
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text("End Time")
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(LocalTheme.textSecondary)
+                                            Text(endDate.formatted(date: .abbreviated, time: .shortened))
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(LocalTheme.textPrimary)
+                                        }
+                                    }
+
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Distance")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(LocalTheme.textSecondary)
+                                        Text("\(Int(nextTrip.distanceKM)) km")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(LocalTheme.textPrimary)
+                                    }
+                                }
+
+                                if let route = nextTrip.routeDetails {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Route Details")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(LocalTheme.textSecondary)
+                                        Text(route)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(LocalTheme.textPrimary)
+                                            .lineLimit(2)
+                                    }
+                                    .padding(.top, 2)
+                                }
+
+                                if let note = nextTrip.notes {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Instructions")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(LocalTheme.textSecondary)
+                                        Text(note)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(LocalTheme.textPrimary)
+                                            .lineLimit(2)
+                                    }
+                                    .padding(.top, 2)
+                                }
+
+                                // Vehicle info row
+                                if let vehicle = assignedVehicle {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "truck.box.fill")
+                                            .foregroundStyle(LocalTheme.accent)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(vehicle.displayName)
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundStyle(LocalTheme.textPrimary)
+                                            Text(vehicle.plateNumber)
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(LocalTheme.textSecondary)
+                                        }
+                                    }
+                                }
+
+                                // Action buttons row
+                                HStack(spacing: 10) {
+                                    // View Route button
+                                    NavigationLink(destination: TripDetailView(trip: nextTrip).environment(appViewModel)) {
+                                        HStack(spacing: 5) {
+                                            Image(systemName: "map")
+                                                .font(.system(size: 11, weight: .semibold))
+                                            Text("View Route")
+                                                .font(.system(size: 13, weight: .semibold))
+                                        }
+                                        .foregroundStyle(LocalTheme.textPrimary)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 9)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(LocalTheme.cardBackground)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 10)
+                                                        .stroke(LocalTheme.textSecondary.opacity(0.3), lineWidth: 1)
+                                                )
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    // Start Trip button (gate: inspect first)
+                                    Button {
+                                        let inspDone = currentUser.flatMap {
+                                            appViewModel.service.todayInspection(for: $0.id)
+                                        } != nil
+                                        if inspDone {
+                                            appViewModel.service.startScheduledTrip(id: nextTrip.id)
+                                            driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
+                                        } else {
+                                            tripToStart = nextTrip
+                                            showTripInspectionSheet = true
+                                        }
+                                    } label: {
+                                        Text("Start Trip")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundStyle(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 9)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .fill(LocalTheme.accent)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(.top, 4)
+
+                                // Inspection status pill
+                                let inspDone = currentUser.flatMap {
+                                    appViewModel.service.todayInspection(for: $0.id)
+                                } != nil
+                                HStack(spacing: 5) {
+                                    Image(systemName: inspDone ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(inspDone ? LocalTheme.successGreen : .orange)
+                                    Text(inspDone ? "Pre-trip inspection complete ✓" : "Pre-trip inspection required — tap Start Trip")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(inspDone ? LocalTheme.successGreen : .orange)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(
+                                    Capsule().fill(inspDone ? LocalTheme.successGreen.opacity(0.1) : Color.orange.opacity(0.1))
+                                )
                             }
                         }
-                        .buttonStyle(.plain)
                     } else {
                         CustomDarkCard {
                             Text("No upcoming trips assigned")
@@ -412,7 +644,7 @@ struct DriverDashboardView: View {
                 // Action 2: Start/Resume Trip
                 if let user = currentUser, let activeTrip = appViewModel.service.activeTrip(for: user.id) {
                     NavigationLink(destination: TripDetailView(trip: activeTrip)) {
-                        quickActionItem(icon: "map.fill", label: "Start Trip", isSOS: false)
+                        quickActionItem(icon: "map.fill", label: "Resume Trip", isSOS: false)
                     }
                     .buttonStyle(.plain)
                 } else {
@@ -423,16 +655,20 @@ struct DriverDashboardView: View {
                                 let scheduled = appViewModel.service.upcomingTrips(for: user.id)
                                 if let firstScheduled = scheduled.first {
                                     appViewModel.service.startScheduledTrip(id: firstScheduled.id)
-                                    driverVM.showToastMessage("Trip started successfully")
-                                } else if let vehicleID = user.assignedVehicleID {
-                                    appViewModel.service.startTrip(driverID: user.id, vehicleID: vehicleID, origin: "Mumbai", destination: "Pune Warehouse")
-                                    driverVM.showToastMessage("Trip started successfully")
+                                    driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
+                                } else if let vehicle = assignedVehicle {
+                                    appViewModel.service.startTrip(driverID: user.id, vehicleID: vehicle.id, origin: "Current Location", destination: "Destination")
+                                    driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
                                 } else {
-                                    driverVM.showToastMessage("No vehicle assigned to start trip")
+                                    driverVM.showToastMessage("No vehicle assigned")
                                 }
                             }
                         } else {
-                            driverVM.showToastMessage("Complete inspection first")
+                            // Show inspection sheet — not just a toast
+                            if let user = currentUser {
+                                tripToStart = appViewModel.service.upcomingTrips(for: user.id).first
+                            }
+                            showTripInspectionSheet = true
                         }
                     } label: {
                         quickActionItem(icon: "map.fill", label: "Start Trip", isSOS: false)
@@ -581,6 +817,100 @@ struct DriverDashboardView: View {
                 .shadow(color: Color.black.opacity(0.4), radius: 8)
         )
         .padding(.top, 8)
+    }
+
+    // MARK: - Reported Defects Section
+
+    private var reportedDefectsSection: some View {
+        let driverDefects = appViewModel.service.defects.filter { $0.driverID == currentUser?.id }
+        
+        return VStack(alignment: .leading, spacing: 12) {
+            if !driverDefects.isEmpty {
+                Text("Reported Issues & Repairs")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(LocalTheme.textPrimary)
+                
+                VStack(spacing: 12) {
+                    ForEach(driverDefects) { defect in
+                        CustomDarkCard {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(defect.title ?? "Issue Report")
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .foregroundStyle(LocalTheme.textPrimary)
+                                        
+                                        Text(defect.reportedDate.formatted(date: .abbreviated, time: .shortened))
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(LocalTheme.textSecondary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    // Status tag
+                                    defectStatusTag(defect.status)
+                                }
+                                
+                                Text(defect.description)
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(LocalTheme.textSecondary)
+                                    .lineLimit(2)
+                                
+                                // Show assigned maintenance technician if approved / inRepair
+                                if let linkedWO = appViewModel.service.workOrders.first(where: { $0.defectReportID == defect.id }) {
+                                    HStack {
+                                        if let tech = appViewModel.service.users(for: .maintenance).first(where: { $0.id == linkedWO.assignedMaintenanceID }) {
+                                            Label("Tech: \(tech.name)", systemImage: "wrench.and.screwdriver")
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundStyle(LocalTheme.accent)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        // Open chat coordination thread shortcut
+                                        NavigationLink(destination: WorkOrderChatView(workOrderID: linkedWO.id).environment(appViewModel)) {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "bubble.left.and.bubble.right.fill")
+                                                Text("Open Chat")
+                                            }
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(Capsule().fill(LocalTheme.accent))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .padding(.top, 4)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func defectStatusTag(_ status: DefectStatus) -> some View {
+        let (text, bgColor, textColor): (String, Color, Color) = {
+            switch status {
+            case .pending:
+                return ("Pending Review", Color.gray.opacity(0.15), Color.gray)
+            case .approved:
+                return ("Approved", Color.blue.opacity(0.15), Color.blue)
+            case .inRepair:
+                return ("In Repair", LocalTheme.accent.opacity(0.15), LocalTheme.accent)
+            case .completed:
+                return ("Completed", LocalTheme.successGreen.opacity(0.15), LocalTheme.successGreen)
+            }
+        }()
+        
+        return Text(text)
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(textColor)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(RoundedRectangle(cornerRadius: 6).fill(bgColor))
     }
 }
 

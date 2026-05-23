@@ -6,14 +6,18 @@ struct DefectReportView: View {
 
     @State private var issueType: DefectIssueType = .engine
     @State private var severity: WorkOrderPriority = .medium
+    @State private var title = ""
     @State private var description = ""
+    @State private var uploadedImages: [String] = []
+
+    private let sampleImages = ["brake_defect", "engine_smoke", "tire_wear", "scratch_defect"]
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Vehicle auto-filled
-                    if let vehicle = appViewModel.service.vehicle(for: appViewModel.currentUser?.assignedVehicleID) {
+                    if let vehicle = appViewModel.assignedVehicle {
                         DriverGlassCard {
                             HStack(spacing: 12) {
                                 Image(systemName: "truck.box.fill")
@@ -33,6 +37,22 @@ struct DefectReportView: View {
                         }
                     }
 
+                    // Issue Title
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Issue Title")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(DriverTheme.textPrimary)
+
+                        TextField("e.g. Brake noise during driving", text: $title)
+                            .font(.system(size: 15))
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(DriverTheme.cardFill)
+                            )
+                            .foregroundStyle(DriverTheme.textPrimary)
+                    }
+
                     // Issue Type
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Issue Type")
@@ -43,6 +63,9 @@ struct DefectReportView: View {
                             ForEach(DefectIssueType.allCases) { type in
                                 Button {
                                     issueType = type
+                                    if title.isEmpty {
+                                        title = "\(type.rawValue) Issue"
+                                    }
                                 } label: {
                                     Text(type.rawValue)
                                         .font(.system(size: 14, weight: .semibold))
@@ -89,14 +112,58 @@ struct DefectReportView: View {
                             .scrollContentBackground(.hidden)
                     }
 
+                    // Photo preview grid (if any uploaded)
+                    if !uploadedImages.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Attached Photos")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(DriverTheme.textSecondary)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(uploadedImages, id: \.self) { img in
+                                        ZStack(alignment: .topTrailing) {
+                                            Image(systemName: "photo.fill")
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(width: 70, height: 70)
+                                                .foregroundStyle(DriverTheme.accent.opacity(0.4))
+                                                .padding(10)
+                                                .background(DriverTheme.cardFill)
+                                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                            
+                                            Button {
+                                                withAnimation {
+                                                    uploadedImages.removeAll { $0 == img }
+                                                }
+                                            } label: {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .foregroundStyle(DriverTheme.criticalRed)
+                                                    .background(Circle().fill(.white))
+                                                    .font(.system(size: 18))
+                                            }
+                                            .offset(x: 5, y: -5)
+                                        }
+                                    }
+                                }
+                                .padding(.top, 5)
+                            }
+                        }
+                    }
+
                     // Add Photos
                     Button {
-                        // Camera/library picker
+                        // Add a mock defect photo sequentially
+                        let nextIndex = uploadedImages.count % sampleImages.count
+                        let nextImg = sampleImages[nextIndex] + "_\(UUID().uuidString.prefix(4))"
+                        withAnimation {
+                            uploadedImages.append(nextImg)
+                        }
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "camera.fill")
                                 .font(.system(size: 18))
-                            Text("Add Photos")
+                            Text("Add Photo")
                                 .font(.system(size: 15, weight: .semibold))
                         }
                         .foregroundStyle(DriverTheme.accent)
@@ -115,12 +182,16 @@ struct DefectReportView: View {
                     // Submit
                     Button("Submit") {
                         guard let user = appViewModel.currentUser,
-                              let vehicleID = user.assignedVehicleID else { return }
+                              let vehicle = appViewModel.assignedVehicle else { return }
+                        
+                        let issueTitle = title.isEmpty ? "\(issueType.rawValue) Defect" : title
                         appViewModel.service.addDefect(
                             driverID: user.id,
-                            vehicleID: vehicleID,
+                            vehicleID: vehicle.id,
                             severity: severity,
-                            description: "[\(issueType.rawValue)] \(description)"
+                            description: "[\(issueType.rawValue)] \(description)",
+                            title: issueTitle,
+                            images: uploadedImages.isEmpty ? nil : uploadedImages
                         )
                         dismiss()
                     }

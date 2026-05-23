@@ -60,6 +60,16 @@ private struct FleetManagerTabView: View {
             }
 
             NavigationStack {
+                DriverAssignmentManagementView(service: appViewModel.service)
+            }
+            .tabItem {
+                Label(
+                    "Driver",
+                    systemImage: "person.2.fill"
+                )
+            }
+
+            NavigationStack {
                 TeamView(
                     service: appViewModel.service,
                     currentOrgID:
@@ -69,7 +79,7 @@ private struct FleetManagerTabView: View {
             .tabItem {
                 Label(
                     "Team",
-                    systemImage: "person.2.fill"
+                    systemImage: "person.3.fill"
                 )
             }
 

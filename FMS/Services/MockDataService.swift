@@ -57,33 +57,94 @@ final class MockDataService {
         }
     }
 
-    /// Asynchronously fetches all remote data from Supabase and updates main queues.
+    /// Merge a remote list into a local list by ID.
+    /// - Remote records that match a local record (by id) replace the local version.
+    /// - Remote records not found locally are inserted at the front.
+    /// - Local records not found in the remote list are KEPT (seed data / offline submissions).
+    private func mergeDefects(local: [DefectReport], remote: [DefectReport]) -> [DefectReport] {
+        var result = local
+        for remoteItem in remote {
+            if let idx = result.firstIndex(where: { $0.id == remoteItem.id }) {
+                result[idx] = remoteItem          // update with server version
+            } else {
+                result.insert(remoteItem, at: 0)  // brand-new record from server
+            }
+        }
+        return result.sorted { $0.reportedDate > $1.reportedDate }
+    }
+
+    private func mergeWorkOrders(local: [WorkOrder], remote: [WorkOrder]) -> [WorkOrder] {
+        var result = local
+        for remoteItem in remote {
+            if let idx = result.firstIndex(where: { $0.id == remoteItem.id }) {
+                result[idx] = remoteItem
+            } else {
+                result.insert(remoteItem, at: 0)
+            }
+        }
+        return result.sorted { $0.scheduledDate > $1.scheduledDate }
+    }
+
+    /// Asynchronously fetches all remote data from Supabase and MERGES into local arrays.
+    /// Each table is fetched independently — a failure on one table does NOT affect the others.
+    /// Local seed/offline data is NEVER wiped, even if Supabase returns an empty list.
     func syncWithDatabase() async {
         guard SupabaseConfig.isConfigured else { return }
-        do {
-            let orgs = try await SupabaseService.shared.fetchOrganizations()
-            let usersList = try await SupabaseService.shared.fetchProfiles()
-            let vehiclesList = try await SupabaseService.shared.fetchVehicles()
-            let docs = try await SupabaseService.shared.fetchDocuments()
-            let tripsList = try await SupabaseService.shared.fetchTrips()
-            let inspectionsList = try await SupabaseService.shared.fetchInspections()
-            let defectsList = try await SupabaseService.shared.fetchDefects()
-            let orders = try await SupabaseService.shared.fetchWorkOrders()
-            let schedulesList = try await SupabaseService.shared.fetchSchedules()
-            let notificationsList = try await SupabaseService.shared.fetchNotifications()
-            
+
+        if let orgs = try? await SupabaseService.shared.fetchOrganizations(), !orgs.isEmpty {
             self.organizations = orgs
+        }
+        if let usersList = try? await SupabaseService.shared.fetchProfiles(), !usersList.isEmpty {
             self.users = usersList
+        }
+        if let vehiclesList = try? await SupabaseService.shared.fetchVehicles(), !vehiclesList.isEmpty {
             self.vehicles = vehiclesList
+        }
+        if let docs = try? await SupabaseService.shared.fetchDocuments() {
             self.documents = docs
+        }
+        if let tripsList = try? await SupabaseService.shared.fetchTrips() {
             self.trips = tripsList
+        }
+        if let inspectionsList = try? await SupabaseService.shared.fetchInspections() {
             self.inspections = inspectionsList
-            self.defects = defectsList
-            self.workOrders = orders
+        }
+        // MERGE: remote defects update or extend local list — never replace/wipe it
+        if let remoteDefects = try? await SupabaseService.shared.fetchDefects() {
+            self.defects = mergeDefects(local: self.defects, remote: remoteDefects)
+            print("[Sync] Merged \(remoteDefects.count) remote defect(s) → total \(self.defects.count)")
+        } else {
+            print("[Sync] Defects fetch failed — keeping \(self.defects.count) local defect(s)")
+        }
+        if let remoteOrders = try? await SupabaseService.shared.fetchWorkOrders() {
+            self.workOrders = mergeWorkOrders(local: self.workOrders, remote: remoteOrders)
+            print("[Sync] Merged \(remoteOrders.count) remote work order(s) → total \(self.workOrders.count)")
+        } else {
+            print("[Sync] Work orders fetch failed — keeping local data")
+        }
+        if let schedulesList = try? await SupabaseService.shared.fetchSchedules(), !schedulesList.isEmpty {
             self.maintenanceSchedules = schedulesList
+        }
+        if let notificationsList = try? await SupabaseService.shared.fetchNotifications() {
             self.notifications = notificationsList
+        }
+    }
+
+    /// Lightweight refresh: only pulls defect_reports + work_orders and MERGES into local.
+    /// Used by the Fleet Manager Defect Board. Local/seed data is always preserved.
+    func syncDefectsAndWorkOrders() async {
+        guard SupabaseConfig.isConfigured else {
+            print("[DefectSync] No Supabase — showing \(self.defects.count) local defect(s)")
+            return
+        }
+        do {
+            let remoteDefects = try await SupabaseService.shared.fetchDefects()
+            let remoteOrders  = try await SupabaseService.shared.fetchWorkOrders()
+            self.defects      = mergeDefects(local: self.defects, remote: remoteDefects)
+            self.workOrders   = mergeWorkOrders(local: self.workOrders, remote: remoteOrders)
+            print("[DefectSync] After merge: \(self.defects.count) defect(s), \(self.workOrders.count) work order(s)")
         } catch {
-            print("Supabase live sync warning: \(error.localizedDescription)")
+            print("[DefectSync] ERROR: \(error) — keeping \(self.defects.count) local defect(s)")
         }
     }
 
@@ -126,15 +187,19 @@ final class MockDataService {
     }
 
     func notifications(for user: User?) -> [AppNotification] {
-        guard let user else {
-            return notifications.sorted { $0.date > $1.date }
-        }
+        guard let user else { return [] }   // never return all notifications without a user
 
         return notifications.filter {
-            $0.userID == user.id || $0.roleTarget == user.role || ($0.userID == nil && $0.roleTarget == nil)
+            // Personal: notification.user_id == this user's profiles.id UUID
+            $0.userID == user.id ||
+            // Role-broadcast: notification.role_target == this user's role
+            $0.roleTarget == user.role ||
+            // Global broadcast: no user and no role
+            ($0.userID == nil && $0.roleTarget == nil)
         }
         .sorted { $0.date > $1.date }
     }
+
 
     func vehicle(for id: UUID?) -> Vehicle? {
         guard let id else { return nil }
@@ -186,6 +251,11 @@ final class MockDataService {
             .sorted { $0.timestamp < $1.timestamp }
     }
 
+    func chatMessages(forWorkOrder workOrderID: UUID) -> [ChatMessage] {
+        chatMessages.filter { $0.workOrderID == workOrderID }
+            .sorted { $0.timestamp < $1.timestamp }
+    }
+
     func todayInspection(for driverID: UUID) -> InspectionRecord? {
         let today = Calendar.current.startOfDay(for: .now)
         return inspections.first {
@@ -231,16 +301,57 @@ final class MockDataService {
         sosAlerts.insert(alert, at: 0)
     }
 
-    func sendChatMessage(senderID: UUID, receiverID: UUID, message: String) {
+    func sendChatMessage(senderID: UUID, receiverID: UUID?, message: String, workOrderID: UUID? = nil) {
         let msg = ChatMessage(
             id: UUID(),
             senderID: senderID,
             receiverID: receiverID,
             message: message,
             timestamp: .now,
-            isRead: false
+            isRead: false,
+            workOrderID: workOrderID
         )
         chatMessages.append(msg)
+        
+        if SupabaseConfig.isConfigured {
+            Task {
+                try? await SupabaseService.shared.addChatMessage(msg)
+            }
+        }
+        
+        // Push notification on new message in coordination thread
+        if let wID = workOrderID, let order = workOrders.first(where: { $0.id == wID }) {
+            let sender = users.first { $0.id == senderID }
+            let senderName = sender?.name ?? "Someone"
+            let senderRoleText = sender?.role.rawValue ?? "Team Member"
+            let alertMsg = "\(senderName) (\(senderRoleText)): \(message)"
+            
+            let managers = users.filter { $0.role == .fleetManager }
+            let vehicle = vehicles.first { $0.id == order.vehicleID }
+            
+            if sender?.role == .maintenance {
+                for mgr in managers {
+                    addNotification(userID: mgr.id, roleTarget: nil, title: "New Repair Message", message: alertMsg, category: .maintenance)
+                }
+                if let driverID = vehicle?.assignedDriverID {
+                    addNotification(userID: driverID, roleTarget: nil, title: "New Repair Message", message: alertMsg, category: .maintenance)
+                }
+            } else if sender?.role == .fleetManager {
+                if let techID = order.assignedMaintenanceID {
+                    addNotification(userID: techID, roleTarget: nil, title: "New Repair Message", message: alertMsg, category: .maintenance)
+                }
+                if let driverID = vehicle?.assignedDriverID {
+                    addNotification(userID: driverID, roleTarget: nil, title: "New Repair Message", message: alertMsg, category: .maintenance)
+                }
+            } else if sender?.role == .driver {
+                for mgr in managers {
+                    addNotification(userID: mgr.id, roleTarget: nil, title: "New Repair Message", message: alertMsg, category: .maintenance)
+                }
+                if let techID = order.assignedMaintenanceID {
+                    addNotification(userID: techID, roleTarget: nil, title: "New Repair Message", message: alertMsg, category: .maintenance)
+                }
+            }
+        }
     }
 
     func acknowledgeAlert(_ alert: VehicleAlert) {
@@ -401,11 +512,26 @@ final class MockDataService {
     func updateUser(_ user: User) {
         if let index = users.firstIndex(where: { $0.id == user.id }) {
             users[index] = user
+            if SupabaseConfig.isConfigured {
+                Task {
+                    try? await SupabaseService.shared.updateProfile(user)
+                }
+            }
         }
     }
 
     func deleteUser(_ user: User) {
         users.removeAll { $0.id == user.id }
+        
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.deleteProfile(user)
+                } catch {
+                    print("Supabase deleteProfile error: \(error)")
+                }
+            }
+        }
     }
 
     func addVehicle(_ vehicle: Vehicle) {
@@ -435,11 +561,21 @@ final class MockDataService {
         documents.removeAll { $0.vehicleID == vehicle.id }
         for index in users.indices where users[index].assignedVehicleID == vehicle.id {
             users[index].assignedVehicleID = nil
+            if SupabaseConfig.isConfigured {
+                let userToSync = users[index]
+                Task {
+                    try? await SupabaseService.shared.updateProfile(userToSync)
+                }
+            }
         }
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.deleteVehicle(vehicle)
+                do {
+                    try await SupabaseService.shared.deleteVehicle(vehicle)
+                } catch {
+                    print("Supabase deleteVehicle error: \(error)")
+                }
             }
         }
     }
@@ -487,11 +623,64 @@ final class MockDataService {
 
     func updateWorkOrder(_ workOrder: WorkOrder) {
         guard let index = workOrders.firstIndex(where: { $0.id == workOrder.id }) else { return }
+        let oldStatus = workOrders[index].status
         workOrders[index] = workOrder
+        
+        // Update linked defect report state
+        if let defectReportID = workOrder.defectReportID,
+           let defectIndex = defects.firstIndex(where: { $0.id == defectReportID }) {
+            var updatedDefect = defects[defectIndex]
+            switch workOrder.status {
+            case .open:
+                updatedDefect.status = .approved
+                updatedDefect.isResolved = false
+            case .inProgress, .waitingParts:
+                updatedDefect.status = .inRepair
+                updatedDefect.isResolved = false
+            case .completed:
+                updatedDefect.status = .completed
+                updatedDefect.isResolved = true
+            }
+            defects[defectIndex] = updatedDefect
+            
+            if SupabaseConfig.isConfigured {
+                let dToSync = updatedDefect
+                Task {
+                    try? await SupabaseService.shared.updateDefect(dToSync)
+                }
+            }
+        }
+        
+        // Notify if state changed to Completed
+        if oldStatus != .completed && workOrder.status == .completed {
+            let vehicle = vehicles.first { $0.id == workOrder.vehicleID }
+            let plate = vehicle?.plateNumber ?? "Vehicle"
+            let text = "Repair completed for \(plate): \(workOrder.title)."
+            
+            // 1. Notify Fleet Managers
+            let managers = users.filter { $0.role == .fleetManager }
+            for mgr in managers {
+                addNotification(userID: mgr.id, roleTarget: nil, title: "Repair Completed", message: text, category: .success)
+            }
+            
+            // 2. Notify Driver
+            if let defectReportID = workOrder.defectReportID,
+               let defect = defects.first(where: { $0.id == defectReportID }) {
+                let driverMsg = "Your vehicle \(plate) is ready for duty! The reported issue '\(workOrder.title)' has been repaired."
+                addNotification(userID: defect.driverID, roleTarget: nil, title: "Vehicle Ready for Duty", message: driverMsg, category: .success)
+            } else if let driverID = vehicle?.assignedDriverID {
+                let driverMsg = "Your vehicle \(plate) is ready for duty! The reported issue '\(workOrder.title)' has been repaired."
+                addNotification(userID: driverID, roleTarget: nil, title: "Vehicle Ready for Duty", message: driverMsg, category: .success)
+            }
+        }
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.updateWorkOrder(workOrder)
+                do {
+                    try await SupabaseService.shared.updateWorkOrder(workOrder)
+                } catch {
+                    print("Supabase updateWorkOrder error: \(error)")
+                }
             }
         }
     }
@@ -516,7 +705,7 @@ final class MockDataService {
         }
     }
 
-    func addDefect(driverID: UUID, vehicleID: UUID, severity: WorkOrderPriority, description: String) {
+    func addDefect(driverID: UUID, vehicleID: UUID, severity: WorkOrderPriority, description: String, title: String? = nil, images: [String]? = nil) {
         let defect = DefectReport(
             id: UUID(),
             driverID: driverID,
@@ -524,15 +713,123 @@ final class MockDataService {
             severity: severity,
             description: description,
             reportedDate: .now,
-            isResolved: false
+            isResolved: false,
+            title: title,
+            images: images,
+            status: .pending
         )
         defects.insert(defect, at: 0)
+        
+        // Notify Fleet Managers
+        let driverName = users.first(where: { $0.id == driverID })?.name ?? "Driver"
+        let vehiclePlate = vehicles.first(where: { $0.id == vehicleID })?.plateNumber ?? "Vehicle"
+        let msg = "\(driverName) reported defect on \(vehiclePlate): \(title ?? description)"
+        
+        let managers = users.filter { $0.role == .fleetManager }
+        for mgr in managers {
+            addNotification(
+                userID: mgr.id,
+                roleTarget: nil,
+                title: "New Defect Reported",
+                message: msg,
+                category: .critical
+            )
+        }
         
         if SupabaseConfig.isConfigured {
             Task {
                 try? await SupabaseService.shared.addDefect(defect)
             }
         }
+    }
+
+    func approveDefectReport(
+        defect: DefectReport,
+        assignedTechID: UUID,
+        title: String,
+        priority: WorkOrderPriority,
+        details: String
+    ) {
+        // 1. Mark defect resolved/approved
+        guard let defectIndex = defects.firstIndex(where: { $0.id == defect.id }) else { return }
+        defects[defectIndex].isResolved = false
+        defects[defectIndex].status = .approved
+        
+        if SupabaseConfig.isConfigured {
+            let updatedDefect = defects[defectIndex]
+            Task {
+                try? await SupabaseService.shared.updateDefect(updatedDefect)
+            }
+        }
+        
+        // 2. Create work order
+        let order = WorkOrder(
+            id: UUID(),
+            vehicleID: defect.vehicleID,
+            assignedMaintenanceID: assignedTechID,
+            title: title,
+            details: details,
+            priority: priority,
+            status: .open,
+            scheduledDate: .now,
+            completedDate: nil,
+            estimatedCost: 150.0,
+            repairSummary: "",
+            overdueAlertFired: false,
+            defectReportID: defect.id,
+            images: defect.images
+        )
+        workOrders.insert(order, at: 0)
+        
+        if SupabaseConfig.isConfigured {
+            Task {
+                try? await SupabaseService.shared.addWorkOrder(order)
+            }
+        }
+        
+        // 3. Notify assigned technician
+        let msg = "You have been assigned to repair work order: \(title)."
+        addNotification(
+            userID: assignedTechID,
+            roleTarget: nil,
+            title: "New Repair Assignment",
+            message: msg,
+            category: .maintenance
+        )
+        
+        // 4. Notify driver that repair is approved
+        let driverMsg = "Your reported defect '\(title)' has been approved for repair."
+        addNotification(
+            userID: defect.driverID,
+            roleTarget: nil,
+            title: "Repair Request Approved",
+            message: driverMsg,
+            category: .success
+        )
+    }
+    
+    func rejectDefectReport(defect: DefectReport) {
+        guard let defectIndex = defects.firstIndex(where: { $0.id == defect.id }) else { return }
+        defects[defectIndex].isResolved = true
+        defects[defectIndex].status = .completed
+        
+        if SupabaseConfig.isConfigured {
+            let updatedDefect = defects[defectIndex]
+            Task {
+                try? await SupabaseService.shared.updateDefect(updatedDefect)
+            }
+        }
+        
+        // Notify driver of rejection
+        let title = defect.title ?? "Defect"
+        let driverMsg = "Your defect request '\(title)' has been closed/resolved by the Fleet Manager."
+        addNotification(
+            userID: defect.driverID,
+            roleTarget: nil,
+            title: "Defect Report Closed",
+            message: driverMsg,
+            category: .warning
+        )
     }
 
     func startTrip(driverID: UUID, vehicleID: UUID, origin: String, destination: String) {
@@ -621,63 +918,137 @@ final class MockDataService {
         )
         notifications.insert(notification, at: 0)
 
+        // Schedule local push notification
+        NotificationScheduler.scheduleBroadcastAlert(title: title, body: message)
+
         if SupabaseConfig.isConfigured {
             Task { try? await SupabaseService.shared.addNotification(notification) }
         }
     }
 
+    func addTripAssignment(
+        driver: User,
+        vehicle: Vehicle,
+        origin: String,
+        destination: String,
+        routeDetails: String?,
+        notes: String?,
+        startDate: Date,
+        endDate: Date?,
+        distanceKM: Double
+    ) {
+        // 1. Assign vehicle to driver
+        var updatedVehicle = vehicle
+        updatedVehicle.assignedDriverID = driver.id
+        updateVehicle(updatedVehicle)
+        
+        // 2. Create trip entry in trips
+        let trip = Trip(
+            id: UUID(),
+            driverID: driver.id,
+            vehicleID: vehicle.id,
+            origin: origin,
+            destination: destination,
+            startDate: startDate,
+            endDate: endDate,
+            distanceKM: distanceKM,
+            status: .scheduled,
+            safetyScore: nil,
+            routeDetails: routeDetails,
+            notes: notes
+        )
+        trips.insert(trip, at: 0)
+        
+        if SupabaseConfig.isConfigured {
+            Task {
+                try? await SupabaseService.shared.addTrip(trip)
+            }
+        }
+        
+        // 3. Create notification for assigned driver
+        let notificationMsg = "You have been assigned vehicle \(vehicle.plateNumber) for \(origin) → \(destination) route."
+        addNotification(
+            userID: driver.id,
+            roleTarget: nil,
+            title: "New Trip Assigned",
+            message: notificationMsg,
+            category: .info
+        )
+    }
+
     private func syncDriverAssignments(using vehicle: Vehicle) {
         for index in users.indices where users[index].role == .driver {
+            var updated = false
             if users[index].id == vehicle.assignedDriverID {
-                users[index].assignedVehicleID = vehicle.id
+                if users[index].assignedVehicleID != vehicle.id {
+                    users[index].assignedVehicleID = vehicle.id
+                    updated = true
+                }
             } else if users[index].assignedVehicleID == vehicle.id {
                 users[index].assignedVehicleID = nil
+                updated = true
+            }
+            
+            if updated && SupabaseConfig.isConfigured {
+                let userToSync = users[index]
+                Task {
+                    try? await SupabaseService.shared.updateProfile(userToSync)
+                }
             }
         }
     }
     
     func checkOverdueCriticalWorkOrders() {
         for order in workOrders where order.isOverdue {
-            let title = "Delayed Critical Work Order: \(order.title)"
-            
-            // Prevent duplicate notifications
-            if !notifications.contains(where: { $0.title == title }) {
-                guard let vehicle = self.vehicle(for: order.vehicleID) else { continue }
-                
-                let vehicleDetails = "\(vehicle.displayName) (\(vehicle.plateNumber))"
-                let message = "Work Order '\(order.title)' for \(vehicleDetails) is \(order.overdueDurationString)."
-                
-                // 1. Notify Technician
-                if let techID = order.assignedMaintenanceID {
-                    let techNotification = AppNotification(
-                        id: UUID(),
-                        userID: techID,
-                        roleTarget: nil,
-                        title: title,
-                        message: message,
-                        date: .now,
-                        isRead: false,
-                        category: .critical
-                    )
-                    notifications.insert(techNotification, at: 0)
-                }
-                
-                // 2. Notify Fleet Manager
-                let managerNotification = AppNotification(
-                    id: UUID(),
-                    userID: nil,
-                    roleTarget: .fleetManager,
+            // Use overdueAlertFired flag instead of checking local notifications array.
+            // This survives a Supabase sync (which overwrites the local notifications array)
+            // because the flag is stored on the work order row itself in Supabase.
+            if order.overdueAlertFired { continue }
+
+            guard let vehicle = self.vehicle(for: order.vehicleID) else { continue }
+
+            let title = "Critical Work Order Overdue"
+            let vehicleDetails = "\(vehicle.displayName) (\(vehicle.plateNumber))"
+            let message = "Work Order '\(order.title)' for \(vehicleDetails) is \(order.overdueDurationString)."
+
+            // 1. Notify Technician
+            if let techID = order.assignedMaintenanceID {
+                addNotification(
+                    userID: techID,
+                    roleTarget: nil,
                     title: title,
                     message: message,
-                    date: .now,
-                    isRead: false,
                     category: .critical
                 )
-                notifications.insert(managerNotification, at: 0)
+            }
+
+            // 2. Notify Fleet Manager
+            addNotification(
+                userID: nil,
+                roleTarget: .fleetManager,
+                title: title,
+                message: message,
+                category: .critical
+            )
+
+            // 3. Persist the flag so this alert is never re-fired even after a sync
+            if let index = workOrders.firstIndex(where: { $0.id == order.id }) {
+                workOrders[index].overdueAlertFired = true
+                let updated = workOrders[index]
+                if SupabaseConfig.isConfigured {
+                    Task {
+                        do {
+                            try await SupabaseService.shared.updateWorkOrder(updated)
+                        } catch {
+                            print("Supabase overdueAlertFired update error: \(error)")
+                        }
+                    }
+                }
             }
         }
     }
 }
+
 
 // MARK: - Demo Seed Data
 
@@ -772,8 +1143,8 @@ enum DemoSeed {
         ]
 
         let defects = [
-            DefectReport(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, severity: .medium, description: "Rear left marker lamp flickers intermittently on rough roads.", reportedDate: .now.addingTimeInterval(-30000), isResolved: false),
-            DefectReport(id: UUID(), driverID: driver2ID, vehicleID: vehicle2ID, severity: .high, description: "Noticeable vibration from front axle above 70 km/h.", reportedDate: .now.addingTimeInterval(-54000), isResolved: false)
+            DefectReport(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, severity: .medium, description: "Rear left marker lamp flickers intermittently on rough roads.", reportedDate: .now.addingTimeInterval(-30000), isResolved: false, title: "Marker Lamp Flicker", images: nil, status: .pending),
+            DefectReport(id: UUID(), driverID: driver2ID, vehicleID: vehicle2ID, severity: .high, description: "Noticeable vibration from front axle above 70 km/h.", reportedDate: .now.addingTimeInterval(-54000), isResolved: false, title: "Front Axle Vibration", images: nil, status: .pending)
         ]
 
         let workOrders = [
@@ -861,4 +1232,3 @@ enum DemoSeed {
         )
     }
 }
-

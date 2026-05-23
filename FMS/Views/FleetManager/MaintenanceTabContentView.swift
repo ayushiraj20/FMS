@@ -31,6 +31,10 @@ struct MaintenanceTabContentView: View {
                 }
             }
         }
+        .task {
+            // Sync defect reports whenever the maintenance tab is opened
+            await appViewModel.service.syncDefectsAndWorkOrders()
+        }
     }
 
     // MARK: - Header
@@ -45,7 +49,7 @@ struct MaintenanceTabContentView: View {
     // MARK: - Stats Grid
     private var statsGrid: some View {
         let scheduledCount = appViewModel.service.maintenanceSchedules.filter { $0.status == .upcoming }.count
-        let openDefects = appViewModel.service.defects.filter { !$0.isResolved }.count
+        let openDefects = appViewModel.service.defects.filter { $0.status == .pending || $0.status == .approved || $0.status == .inRepair }.count
         let activeWorkOrders = appViewModel.service.workOrders.filter { $0.status != .completed }.count
         let overdueCount = appViewModel.service.maintenanceSchedules.filter { $0.status == .overdue }.count
 
@@ -56,19 +60,27 @@ struct MaintenanceTabContentView: View {
                 icon: "calendar.badge.clock",
                 color: AppTheme.brand
             )
-            maintenanceStatCard(
-                title: "Open Defects",
-                value: "\(openDefects)",
-                icon: "exclamationmark.triangle.fill",
-                color: AppTheme.warning,
-                badgeText: openDefects > 0 ? "+New" : nil
-            )
-            maintenanceStatCard(
-                title: "Work Orders",
-                value: "\(activeWorkOrders)",
-                icon: "wrench.and.screwdriver.fill",
-                color: AppTheme.textPrimary
-            )
+            NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
+                maintenanceStatCard(
+                    title: "Open Defects",
+                    value: "\(openDefects)",
+                    icon: "exclamationmark.triangle.fill",
+                    color: AppTheme.warning,
+                    badgeText: openDefects > 0 ? "+New" : nil
+                )
+            }
+            .buttonStyle(.plain)
+            
+            NavigationLink(destination: WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
+                maintenanceStatCard(
+                    title: "Work Orders",
+                    value: "\(activeWorkOrders)",
+                    icon: "wrench.and.screwdriver.fill",
+                    color: AppTheme.textPrimary
+                )
+            }
+            .buttonStyle(.plain)
+            
             maintenanceStatCard(
                 title: "Overdue",
                 value: "\(overdueCount)",
@@ -126,7 +138,9 @@ struct MaintenanceTabContentView: View {
                         quickAccessChip(icon: "calendar", title: "Schedule")
                     }
 
-                    quickAccessChip(icon: "exclamationmark.triangle", title: "Defects")
+                    NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
+                        quickAccessChip(icon: "exclamationmark.triangle", title: "Defects")
+                    }
 
                     quickAccessChip(icon: "doc.text.magnifyingglass", title: "Reports")
                 }

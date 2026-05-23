@@ -6,7 +6,7 @@ struct DriverVehicleTripDetailView: View {
     @Environment(DriverViewModel.self) private var driverVM
 
     private var currentUser: User? { appViewModel.currentUser }
-    private var assignedVehicle: Vehicle? { appViewModel.service.vehicle(for: currentUser?.assignedVehicleID) }
+    private var assignedVehicle: Vehicle? { appViewModel.assignedVehicle }
     private var activeTrip: Trip? { currentUser.flatMap { appViewModel.service.activeTrip(for: $0.id) } }
 
     var body: some View {

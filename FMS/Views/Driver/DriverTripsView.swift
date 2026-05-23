@@ -237,10 +237,15 @@ struct ActiveTripMapView: View {
         HStack(spacing: 12) {
             // Navigate
             Button {
-                // Open Apple Maps
-                let destination = MKMapItem(placemark: MKPlacemark(coordinate: routeCoordinates.last ?? currentPosition))
-                destination.name = trip.destination
-                destination.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
+                let destinationCoordinate = routeCoordinates.last ?? currentPosition
+                let mapsURL = URL(
+                    string: """
+                    http://maps.apple.com/?daddr=\(destinationCoordinate.latitude),\(destinationCoordinate.longitude)&dirflg=d
+                    """
+                )
+
+                guard let mapsURL else { return }
+                UIApplication.shared.open(mapsURL)
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "location.fill")

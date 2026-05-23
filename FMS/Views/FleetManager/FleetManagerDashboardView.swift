@@ -21,6 +21,9 @@ struct FleetManagerDashboardView: View {
                         // MARK: - KPI Grid
                         kpiGrid
                         
+                        // MARK: - Pending Defect Banner
+                        pendingDefectBanner
+                        
                         // MARK: - Priority Alerts
                         alertsSection
                         
@@ -417,6 +420,56 @@ struct FleetManagerDashboardView: View {
             NavigationLink(destination: WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
                 quickLink(title: "Work Orders", subtitle: "Create and monitor tasks", icon: "wrench.and.screwdriver.fill")
             }
+            
+            NavigationLink(destination: AssignDriverView(service: appViewModel.service)) {
+                quickLink(title: "Assign Driver", subtitle: "Pair available vehicles & drivers", icon: "person.badge.key.fill")
+            }
+            
+            NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
+                quickLink(title: "Defect Reports", subtitle: "Review & approve driver defect reports", icon: "exclamationmark.triangle.fill")
+            }
+        }
+    }
+    
+    // MARK: - Pending Defect Banner
+    @ViewBuilder
+    private var pendingDefectBanner: some View {
+        let pendingCount = appViewModel.service.defects.filter { $0.status == .pending }.count
+        if pendingCount > 0 {
+            NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(AppTheme.warning.opacity(0.18))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(AppTheme.warning)
+                            .font(.system(size: 20))
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(pendingCount) Pending Defect Report\(pendingCount == 1 ? "" : "s")")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Text("Tap to review and approve driver reports")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(AppTheme.warning)
+                }
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(AppTheme.warning.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(AppTheme.warning.opacity(0.25), lineWidth: 1)
+                        )
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
     
@@ -427,13 +480,23 @@ struct FleetManagerDashboardView: View {
     
     private func alertColor(_ category: NotificationCategory) -> Color {
         switch category {
-        case .critical: return AppTheme.error
-        case .warning: return AppTheme.warning
-        case .success: return AppTheme.success
-        case .info: return AppTheme.brand
+
+        case .critical:
+            return AppTheme.error
+
+        case .warning:
+            return AppTheme.warning
+
+        case .success:
+            return AppTheme.success
+
+        case .info:
+            return AppTheme.brand
+
+        case .maintenance:
+            return Color.orange
         }
     }
-    
     private func quickLink(title: String, subtitle: String, icon: String) -> some View {
         GlassCard {
             HStack(spacing: 14) {
@@ -466,6 +529,13 @@ struct FleetManagerDashboardView: View {
             Image(systemName: "bell")
                 .foregroundStyle(AppTheme.textPrimary)
             if appViewModel.unreadNotificationsCount > 0 {
+                Text("\(appViewModel.unreadNotificationsCount)")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.white)
+                    .frame(minWidth: 18, minHeight: 18)
+                    .background(Color.red)
+                    .clipShape(Circle())
+                    .offset(x: 8, y: -8)
                 
                 
             }

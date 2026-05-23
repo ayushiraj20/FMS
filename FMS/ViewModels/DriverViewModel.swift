@@ -52,13 +52,14 @@ final class DriverViewModel {
         sosConfirmed = false
         showSOSSheet = true
 
-        sosTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
-            Task { @MainActor in
-                guard let self else { timer.invalidate(); return }
+        sosTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+
                 if self.sosCountdown > 1 {
                     self.sosCountdown -= 1
                 } else {
-                    timer.invalidate()
+                    self.sosTimer?.invalidate()
                     self.triggerSOS(service: service, user: user)
                 }
             }
@@ -78,10 +79,16 @@ final class DriverViewModel {
         sosTimer = nil
         sosTriggered = true
 
-        guard let user, let vehicleID = user.assignedVehicleID else {
+        guard let user else {
             sosConfirmed = true
             return
         }
+
+        guard let vehicle = service.vehicles.first(where: { $0.assignedDriverID == user.id }) else {
+            sosConfirmed = true
+            return
+        }
+        let vehicleID = vehicle.id
 
         // Use a default location (Mumbai) for demo
         service.triggerSOS(
@@ -147,7 +154,10 @@ final class DriverViewModel {
     }
 
     func submitInspection(service: MockDataService, user: User?) {
-        guard let user, let vehicleID = user.assignedVehicleID else { return }
+        guard let user else { return }
+        
+        guard let vehicle = service.vehicles.first(where: { $0.assignedDriverID == user.id }) else { return }
+        let vehicleID = vehicle.id
 
         if hasCriticalFailures {
             showInspectionCriticalAlert = true
