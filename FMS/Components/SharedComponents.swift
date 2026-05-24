@@ -164,17 +164,19 @@ struct TagView: View {
 struct AvatarView: View {
     let name: String
     let size: CGFloat
+    var customColor: Color? = nil
 
     var body: some View {
         let initials = name.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined().uppercased()
+        let baseColor = customColor ?? colorForName(name)
         
         ZStack {
             Circle()
                 .fill(
                     LinearGradient(
                         colors: [
-                            colorForName(name),
-                            colorForName(name).opacity(0.8)
+                            baseColor,
+                            baseColor.opacity(0.8)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
