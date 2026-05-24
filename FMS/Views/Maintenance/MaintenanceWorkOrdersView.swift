@@ -787,9 +787,8 @@ struct MaintenanceWorkOrdersView: View {
                     DetailChatBubble(sender: "DISPATCH", message: "Parts are at the counter.", highlighted: false)
                     DetailChatBubble(sender: currentMechanicName.uppercased(), message: "Picking them up now.", highlighted: true)
                     
-                    Button {
-                    } label: {
-                        Text("Open Chat")
+                    NavigationLink(destination: WorkOrderChatView(workOrderID: workOrder.id).environment(appViewModel)) {
+                        Text("Open Coordination Chat")
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(headingText)
                             .frame(maxWidth: .infinity)

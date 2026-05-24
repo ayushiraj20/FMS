@@ -113,8 +113,8 @@ private struct NewInspectionSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         guard let user = appViewModel.currentUser,
-                              let vehicleID = user.assignedVehicleID else { return }
-                        appViewModel.service.addInspection(driverID: user.id, vehicleID: vehicleID, type: inspectionType, notes: notes, items: items)
+                              let vehicle = appViewModel.assignedVehicle else { return }
+                        appViewModel.service.addInspection(driverID: user.id, vehicleID: vehicle.id, type: inspectionType, notes: notes, items: items)
                         dismiss()
                     }
                 }
@@ -148,8 +148,8 @@ private struct DefectReportSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Submit") {
                         guard let user = appViewModel.currentUser,
-                              let vehicleID = user.assignedVehicleID else { return }
-                        appViewModel.service.addDefect(driverID: user.id, vehicleID: vehicleID, severity: severity, description: description)
+                              let vehicle = appViewModel.assignedVehicle else { return }
+                        appViewModel.service.addDefect(driverID: user.id, vehicleID: vehicle.id, severity: severity, description: description)
                         dismiss()
                     }
                     .disabled(description.isEmpty)

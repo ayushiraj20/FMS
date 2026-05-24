@@ -16,7 +16,7 @@ struct DriverProfileView: View {
     @State private var editLicense = ""
 
     private var currentUser: User? { appViewModel.currentUser }
-    private var assignedVehicle: Vehicle? { appViewModel.service.vehicle(for: currentUser?.assignedVehicleID) }
+    private var assignedVehicle: Vehicle? { appViewModel.assignedVehicle }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -53,8 +53,20 @@ struct DriverProfileView: View {
                 .environment(appViewModel)
         }
         .sheet(isPresented: $showChatSheet) {
-            MaintenanceChatView()
-                .environment(appViewModel)
+            if let activeWO = appViewModel.service.workOrders.first(where: { $0.vehicleID == appViewModel.assignedVehicle?.id && $0.status != .completed }) {
+                NavigationStack {
+                    WorkOrderChatView(workOrderID: activeWO.id)
+                        .environment(appViewModel)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close") { showChatSheet = false }
+                            }
+                        }
+                }
+            } else {
+                MaintenanceChatView()
+                    .environment(appViewModel)
+            }
         }
         .alert("Log Out", isPresented: $showLogoutAlert) {
             Button("Log Out", role: .destructive) {

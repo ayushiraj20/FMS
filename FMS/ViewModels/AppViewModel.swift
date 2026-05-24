@@ -29,8 +29,9 @@ final class AppViewModel {
     var organizationName = "NorthStar Logistics"
     var profileNotificationsEnabled = true
     var biometricUnlockEnabled = false
-
+    var notifications: [AppNotification] = []
     let service = MockDataService()
+    let supabase = SupabaseService.shared
 
     // MARK: App Launch
 
@@ -90,8 +91,7 @@ final class AppViewModel {
                         }
                     ) {
 
-                    currentUser =
-                    matchedUser
+                    currentUser = matchedUser
 
                     organizationName =
                     service.organizations
@@ -103,8 +103,10 @@ final class AppViewModel {
                         )?.name
                     ?? organizationName
 
-                    flowState =
-                    .authenticated
+                    // Load notifications filtered for this user's UUID immediately after login
+                    await loadNotifications()
+
+                    flowState = .authenticated
 
                     // START BROADCAST
 
@@ -169,6 +171,9 @@ final class AppViewModel {
             )?.name
         ?? organizationName
 
+        // Pre-load notifications filtered for this user's UUID
+        notifications = service.notifications(for: user)
+
         flowState = .authenticated
 
         // START BROADCAST
@@ -207,9 +212,9 @@ final class AppViewModel {
         }
 
         currentUser = user
-
-        flowState =
-        .authenticated
+        // Pre-load notifications filtered for this demo user's UUID
+        notifications = service.notifications(for: user)
+        flowState = .authenticated
 
         Task {
 
@@ -297,18 +302,16 @@ final class AppViewModel {
     }
 
     // MARK: Helpers
-
-    var unreadNotificationsCount: Int {
-
-        service.notifications(
-            for: currentUser
-        )
-        .filter {
-            !$0.isRead
-        }
-        .count
+    
+    var assignedVehicle: Vehicle? {
+        guard let currentUser else { return nil }
+        return service.vehicles.first { $0.assignedDriverID == currentUser.id }
     }
 
+    var unreadNotificationsCount: Int {
+        // Always filter by the current user's UUID — never show unread count for other users
+        return notifications.filter { !$0.isRead }.count
+    }
     var currentRole: UserRole? {
 
         currentUser?.role
@@ -335,5 +338,25 @@ final class AppViewModel {
                     orgID
                 }
             )
+    }
+    func loadNotifications() async {
+        guard let user = currentUser else { return }
+
+        if SupabaseConfig.isConfigured {
+            do {
+                // Fetch from Supabase using the logged-in user's UUID
+                notifications = try await supabase.fetchNotificationsForUser(
+                    userID: user.id,
+                    roleRawValue: user.role.rawValue
+                )
+            } catch {
+                // Fallback to local MockDataService cache (already UUID-filtered)
+                notifications = service.notifications(for: user)
+                print("[Notifications] Supabase fetch failed, using local cache: \(error.localizedDescription)")
+            }
+        } else {
+            // No Supabase — use local cache directly, filtered by UUID
+            notifications = service.notifications(for: user)
+        }
     }
 }

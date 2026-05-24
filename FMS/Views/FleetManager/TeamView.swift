@@ -202,8 +202,15 @@ struct TeamView: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
     
+    private func assignedVehicle(for member: User) -> Vehicle? {
+        if member.role == .driver {
+            return viewModel.service.vehicles.first(where: { $0.assignedDriverID == member.id })
+        }
+        return nil
+    }
+
     private func getVehiclePlate(for member: User) -> String {
-        if let vid = member.assignedVehicleID, let vehicle = viewModel.service.vehicle(for: vid) {
+        if let vehicle = assignedVehicle(for: member) {
             return vehicle.plateNumber
         }
         return "Unassigned"
@@ -221,7 +228,7 @@ struct TeamView: View {
         switch member.role {
         case .driver:
             TagView(text: "Driver", color: AppTheme.brand)
-            if member.assignedVehicleID != nil {
+            if assignedVehicle(for: member) != nil {
                 TagView(text: "Assigned", color: AppTheme.success)
             }
         case .maintenance:
@@ -234,7 +241,7 @@ struct TeamView: View {
     // MARK: - Member Status Logic
     private func memberStatus(_ member: User) -> (String, Color) {
         if member.role == .driver {
-            if member.assignedVehicleID != nil {
+            if assignedVehicle(for: member) != nil {
                 return ("On Duty", AppTheme.success)
             } else {
                 return ("Off Duty", Color(white: 0.5))
@@ -320,8 +327,7 @@ private struct TeamMemberDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(title: "Current Assignment", subtitle: "Vehicle and trip details")
 
-            if let vehicleID = member.assignedVehicleID,
-               let vehicle = service.vehicle(for: vehicleID) {
+            if let vehicle = service.vehicles.first(where: { $0.assignedDriverID == member.id }) {
                 GlassCard {
                     HStack(spacing: 12) {
                         Image(systemName: "truck.box.fill")
@@ -606,7 +612,7 @@ final class TeamViewModel {
 
     private func memberIsAvailable(_ user: User) -> Bool {
         if user.role == .driver {
-            return user.assignedVehicleID == nil
+            return !service.vehicles.contains { $0.assignedDriverID == user.id }
         } else if user.role == .maintenance {
             return !service.workOrders.contains { $0.assignedMaintenanceID == user.id && $0.status != .completed }
         }
@@ -615,7 +621,7 @@ final class TeamViewModel {
 
     private func memberIsOnShift(_ user: User) -> Bool {
         if user.role == .driver {
-            return user.assignedVehicleID != nil
+            return service.vehicles.contains { $0.assignedDriverID == user.id }
         } else if user.role == .maintenance {
             return service.workOrders.contains { $0.assignedMaintenanceID == user.id && $0.status != .completed }
         }

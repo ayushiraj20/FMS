@@ -5,6 +5,8 @@
 
 ## User settings
 xcuserdata/
+xcuserdata/
+*.xcuserstate
 FMS.xcodeproj/project.xcworkspace/xcuserdata/mac.xcuserdatad/UserInterfaceState.xcuserstate
 
 ## compatibility with Xcode 8 and earlier (ignoring not required starting Xcode 9)
@@ -91,3 +93,7 @@ iOSInjectionProject/
 CLAUDE.md
 /.claude
 FMS.xcodeproj/project.xcworkspace/xcuserdata/mac.xcuserdatad/UserInterfaceState.xcuserstate
+
+# SPM Cache
+SPMCache/
+

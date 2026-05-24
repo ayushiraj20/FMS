@@ -74,6 +74,7 @@ enum NotificationCategory: String, Codable {
     case warning = "Warning"
     case critical = "Critical"
     case success = "Success"
+    case maintenance = "Maintenance"
 }
 
 struct Organization: Identifiable, Codable, Hashable {
@@ -197,6 +198,8 @@ struct Trip: Identifiable, Codable, Hashable {
     var distanceKM: Double
     var status: TripStatus
     var safetyScore: Int? = nil
+    var routeDetails: String? = nil
+    var notes: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -209,6 +212,8 @@ struct Trip: Identifiable, Codable, Hashable {
         case distanceKM = "distance_km"
         case status
         case safetyScore = "safety_score"
+        case routeDetails = "route_details"
+        case notes
     }
 }
 
@@ -271,6 +276,15 @@ struct InspectionRecord: Identifiable, Codable, Hashable {
     }
 }
 
+enum DefectStatus: String, Codable, CaseIterable, Identifiable {
+    case pending = "Pending"
+    case approved = "Approved"
+    case inRepair = "In Repair"
+    case completed = "Completed"
+    
+    var id: String { rawValue }
+}
+
 struct DefectReport: Identifiable, Codable, Hashable {
     let id: UUID
     var driverID: UUID
@@ -279,6 +293,9 @@ struct DefectReport: Identifiable, Codable, Hashable {
     var description: String
     var reportedDate: Date
     var isResolved: Bool
+    var title: String? = nil
+    var images: [String]? = nil
+    var status: DefectStatus = .pending
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -288,6 +305,9 @@ struct DefectReport: Identifiable, Codable, Hashable {
         case description
         case reportedDate = "reported_date"
         case isResolved = "is_resolved"
+        case title
+        case images
+        case status
     }
 }
 
@@ -304,6 +324,8 @@ struct WorkOrder: Identifiable, Codable, Hashable {
     var estimatedCost: Double
     var repairSummary: String
     var overdueAlertFired: Bool = false
+    var defectReportID: UUID? = nil
+    var images: [String]? = nil
 
     // MARK: - Computed
     var isOverdue: Bool {
@@ -325,6 +347,8 @@ struct WorkOrder: Identifiable, Codable, Hashable {
         case estimatedCost = "estimated_cost"
         case repairSummary = "repair_summary"
         case overdueAlertFired = "overdue_alert_fired"
+        case defectReportID = "defect_report_id"
+        case images
     }
     
     
@@ -494,10 +518,11 @@ struct SOSAlert: Identifiable, Codable, Hashable {
 struct ChatMessage: Identifiable, Codable, Hashable {
     let id: UUID
     var senderID: UUID
-    var receiverID: UUID
+    var receiverID: UUID?
     var message: String
     var timestamp: Date
     var isRead: Bool
+    var workOrderID: UUID? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -506,6 +531,7 @@ struct ChatMessage: Identifiable, Codable, Hashable {
         case message
         case timestamp
         case isRead = "is_read"
+        case workOrderID = "work_order_id"
     }
 }
 

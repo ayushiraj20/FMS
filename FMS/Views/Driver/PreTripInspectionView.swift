@@ -18,7 +18,7 @@ struct PreTripInspectionView: View {
                         .font(.system(size: 34, weight: .bold))
                         .foregroundStyle(DriverTheme.textPrimary)
 
-                    if let vehicle = appViewModel.service.vehicle(for: appViewModel.currentUser?.assignedVehicleID) {
+                    if let vehicle = appViewModel.assignedVehicle {
                         Text(vehicle.plateNumber)
                             .font(.system(size: 15))
                             .foregroundStyle(DriverTheme.textSecondary)

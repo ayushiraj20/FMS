@@ -19,26 +19,18 @@ struct ProfileSettingsView: View {
                     
                     // Avatar Section
                     VStack(spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(AppTheme.brand.opacity(0.15))
-                                .frame(width: 96, height: 96)
-                            
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 44))
-                                .foregroundStyle(AppTheme.brand)
-                        }
-                        .overlay(alignment: .bottomTrailing) {
-                            ZStack {
-                                Circle()
-                                    .fill(AppTheme.background)
-                                    .frame(width: 28, height: 28)
-                                Image(systemName: "checkmark.shield.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundStyle(AppTheme.brand)
+                        AvatarView(name: name, size: 96)
+                            .overlay(alignment: .bottomTrailing) {
+                                ZStack {
+                                    Circle()
+                                        .fill(AppTheme.background)
+                                        .frame(width: 28, height: 28)
+                                    Image(systemName: "checkmark.shield.fill")
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(AppTheme.brand)
+                                }
+                                .offset(x: 2, y: 2)
                             }
-                            .offset(x: 2, y: 2)
-                        }
                         
                         VStack(spacing: 8) {
                             Text(name)
