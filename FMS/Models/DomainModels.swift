@@ -35,6 +35,7 @@ enum TripStatus: String, Codable, CaseIterable {
     case scheduled = "Scheduled"
     case inProgress = "In Progress"
     case completed = "Completed"
+    case cancelled = "Cancelled"
 }
 
 enum WorkOrderStatus: String, Codable, CaseIterable, Identifiable {
@@ -73,6 +74,7 @@ enum NotificationCategory: String, Codable {
     case warning = "Warning"
     case critical = "Critical"
     case success = "Success"
+    case maintenance = "Maintenance"
 }
 
 struct Organization: Identifiable, Codable, Hashable {
@@ -195,6 +197,9 @@ struct Trip: Identifiable, Codable, Hashable {
     var endDate: Date?
     var distanceKM: Double
     var status: TripStatus
+    var safetyScore: Int? = nil
+    var routeDetails: String? = nil
+    var notes: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -206,6 +211,9 @@ struct Trip: Identifiable, Codable, Hashable {
         case endDate = "end_date"
         case distanceKM = "distance_km"
         case status
+        case safetyScore = "safety_score"
+        case routeDetails = "route_details"
+        case notes
     }
 }
 
@@ -268,6 +276,15 @@ struct InspectionRecord: Identifiable, Codable, Hashable {
     }
 }
 
+enum DefectStatus: String, Codable, CaseIterable, Identifiable {
+    case pending = "Pending"
+    case approved = "Approved"
+    case inRepair = "In Repair"
+    case completed = "Completed"
+    
+    var id: String { rawValue }
+}
+
 struct DefectReport: Identifiable, Codable, Hashable {
     let id: UUID
     var driverID: UUID
@@ -276,6 +293,9 @@ struct DefectReport: Identifiable, Codable, Hashable {
     var description: String
     var reportedDate: Date
     var isResolved: Bool
+    var title: String? = nil
+    var images: [String]? = nil
+    var status: DefectStatus = .pending
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -285,6 +305,9 @@ struct DefectReport: Identifiable, Codable, Hashable {
         case description
         case reportedDate = "reported_date"
         case isResolved = "is_resolved"
+        case title
+        case images
+        case status
     }
 }
 
@@ -300,6 +323,16 @@ struct WorkOrder: Identifiable, Codable, Hashable {
     var completedDate: Date?
     var estimatedCost: Double
     var repairSummary: String
+    var overdueAlertFired: Bool = false
+    var defectReportID: UUID? = nil
+    var images: [String]? = nil
+
+    // MARK: - Computed
+    var isOverdue: Bool {
+        priority == .critical &&
+        status != .completed &&
+        scheduledDate < Date.now
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -313,9 +346,25 @@ struct WorkOrder: Identifiable, Codable, Hashable {
         case completedDate = "completed_date"
         case estimatedCost = "estimated_cost"
         case repairSummary = "repair_summary"
+        case overdueAlertFired = "overdue_alert_fired"
+        case defectReportID = "defect_report_id"
+        case images
+    }
+    
+    
+    var overdueDurationString: String {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.day, .hour, .minute]
+        formatter.unitsStyle = .full
+        formatter.maximumUnitCount = 1
+        
+        let timeInterval = Date.now.timeIntervalSince(scheduledDate)
+        if let durationString = formatter.string(from: timeInterval) {
+            return "\(durationString) overdue"
+        }
+        return "overdue"
     }
 }
-
 struct MaintenanceSchedule: Identifiable, Codable, Hashable {
     let id: UUID
     var vehicleID: UUID
@@ -371,3 +420,234 @@ struct KPIStat: Identifiable, Hashable {
         case success
     }
 }
+
+// MARK: - Driver-Specific Models
+
+enum DutyStatus: String, Codable, CaseIterable {
+    case onDuty = "On Duty"
+    case offDuty = "Off Duty"
+}
+
+struct ShiftInfo: Identifiable, Codable, Hashable {
+    let id: UUID
+    var driverID: UUID
+    var startTime: Date
+    var endTime: Date
+    var breakTime: Date?
+    var date: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case driverID = "driver_id"
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case breakTime = "break_time"
+        case date
+    }
+
+    var totalHours: Double {
+        endTime.timeIntervalSince(startTime) / 3600.0
+    }
+
+    var elapsedHours: Double {
+        let now = Date.now
+        guard now > startTime else { return 0 }
+        guard now < endTime else { return totalHours }
+        return now.timeIntervalSince(startTime) / 3600.0
+    }
+
+    var remainingHours: Double {
+        max(0, totalHours - elapsedHours)
+    }
+
+    var progress: Double {
+        guard totalHours > 0 else { return 0 }
+        return min(1.0, elapsedHours / totalHours)
+    }
+}
+
+struct FuelReceipt: Identifiable, Codable, Hashable {
+    let id: UUID
+    var driverID: UUID
+    var vehicleID: UUID
+    var date: Date
+    var stationName: String
+    var litres: Double
+    var amount: Double
+    var vehiclePlate: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case driverID = "driver_id"
+        case vehicleID = "vehicle_id"
+        case date
+        case stationName = "station_name"
+        case litres
+        case amount
+        case vehiclePlate = "vehicle_plate"
+    }
+}
+
+enum SOSStatus: String, Codable {
+    case triggered = "Triggered"
+    case confirmed = "Confirmed"
+    case resolved = "Resolved"
+    case cancelled = "Cancelled"
+}
+
+struct SOSAlert: Identifiable, Codable, Hashable {
+    let id: UUID
+    var driverID: UUID
+    var vehicleID: UUID
+    var latitude: Double
+    var longitude: Double
+    var timestamp: Date
+    var status: SOSStatus
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case driverID = "driver_id"
+        case vehicleID = "vehicle_id"
+        case latitude
+        case longitude
+        case timestamp
+        case status
+    }
+}
+
+struct ChatMessage: Identifiable, Codable, Hashable {
+    let id: UUID
+    var senderID: UUID
+    var receiverID: UUID?
+    var message: String
+    var timestamp: Date
+    var isRead: Bool
+    var workOrderID: UUID? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case senderID = "sender_id"
+        case receiverID = "receiver_id"
+        case message
+        case timestamp
+        case isRead = "is_read"
+        case workOrderID = "work_order_id"
+    }
+}
+
+enum CheckpointStatus: String, Codable, CaseIterable {
+    case completed = "Completed"
+    case inTransit = "In Transit"
+    case upcoming = "Upcoming"
+}
+
+struct TripCheckpoint: Identifiable, Codable, Hashable {
+    let id: UUID
+    var tripID: UUID
+    var name: String
+    var status: CheckpointStatus
+    var arrivalTime: Date?
+    var departureTime: Date?
+    var sortOrder: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tripID = "trip_id"
+        case name
+        case status
+        case arrivalTime = "arrival_time"
+        case departureTime = "departure_time"
+        case sortOrder = "sort_order"
+    }
+}
+
+enum VehicleAlertType: String, Codable, CaseIterable {
+    case engine = "Engine"
+    case fuel = "Fuel"
+    case battery = "Battery"
+    case tire = "Tire"
+    case brake = "Brake"
+    case temperature = "Temperature"
+}
+
+enum AlertSeverity: String, Codable, CaseIterable {
+    case critical = "Critical"
+    case warning = "Warning"
+    case info = "Info"
+}
+
+struct VehicleAlert: Identifiable, Codable, Hashable {
+    let id: UUID
+    var vehicleID: UUID
+    var alertType: VehicleAlertType
+    var severity: AlertSeverity
+    var alertDescription: String
+    var recommendedAction: String
+    var isAcknowledged: Bool
+    var createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case vehicleID = "vehicle_id"
+        case alertType = "alert_type"
+        case severity
+        case alertDescription = "description"
+        case recommendedAction = "recommended_action"
+        case isAcknowledged = "is_acknowledged"
+        case createdAt = "created_at"
+    }
+}
+
+enum DefectIssueType: String, Codable, CaseIterable, Identifiable {
+    case engine = "Engine"
+    case brakes = "Brakes"
+    case tyres = "Tyres"
+    case lights = "Lights"
+    case body = "Body"
+    case fuelSystem = "Fuel System"
+    case electrical = "Electrical"
+    case other = "Other"
+
+    var id: String { rawValue }
+}
+
+enum InspectionItemStatus: String, Codable {
+    case unchecked = "Unchecked"
+    case passed = "Passed"
+    case failed = "Failed"
+}
+
+struct DriverInspectionItem: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var iconName: String
+    var status: InspectionItemStatus
+    var failureDescription: String
+    var isCritical: Bool
+
+    init(id: UUID = UUID(), title: String, iconName: String, status: InspectionItemStatus = .unchecked, failureDescription: String = "", isCritical: Bool = false) {
+        self.id = id
+        self.title = title
+        self.iconName = iconName
+        self.status = status
+        self.failureDescription = failureDescription
+        self.isCritical = isCritical
+    }
+}
+
+struct BreakLogEntry: Identifiable, Codable, Hashable {
+    let id: UUID
+    var driverID: UUID
+    var startTime: Date
+    var endTime: Date?
+    var breakType: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case driverID = "driver_id"
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case breakType = "break_type"
+    }
+}
+

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct UserManagementView: View {
     @State private var viewModel: UserManagementViewModel
+    @Environment(\.dismiss) private var dismiss
 
     init(service: MockDataService, currentOrgID: UUID?) {
         _viewModel = State(wrappedValue: UserManagementViewModel(service: service, currentOrgID: currentOrgID))
@@ -11,9 +12,24 @@ struct UserManagementView: View {
         ZStack(alignment: .bottomTrailing) {
             Color(hex: "#121212").ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 20) {
-                // Header
+            VStack(alignment: .leading, spacing: 16) {
+                // Top Navigation Row
                 HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(AppTheme.brand)
+                            .contentShape(Rectangle())
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.top, 10)
+
+                // Large Title and Stats Row
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text("Team")
                         .font(.largeTitle.weight(.bold))
                         .foregroundStyle(.white)
@@ -25,9 +41,12 @@ struct UserManagementView: View {
                         .padding(.vertical, 4)
                         .background(Color(hex: "#1C1C1E"))
                         .clipShape(Capsule())
+
+                    Spacer()
                 }
                 .padding(.horizontal)
-                .padding(.top, 10)
+
+
 
                 // Search Bar
                 HStack {

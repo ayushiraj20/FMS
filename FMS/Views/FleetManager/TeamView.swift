@@ -1,5 +1,5 @@
 import SwiftUI
-import Combine
+
 import Observation
 
 struct TeamView: View {
@@ -11,20 +11,20 @@ struct TeamView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            ScrollView {
-                VStack(spacing: 16) {
+            List {
+                Group {
                     // MARK: - Custom Header
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text("Team")
                             .font(.system(size: 34, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.textPrimary)
                         
                         Text("\(viewModel.service.users.count) members")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Color(white: 0.6))
+                            .foregroundStyle(AppTheme.textSecondary)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
-                            .background(Color(white: 0.2))
+                            .background(AppTheme.surfaceSecondary)
                             .clipShape(Capsule())
                         
                         Spacer()
@@ -34,39 +34,68 @@ struct TeamView: View {
                     // MARK: - Search Bar
                     HStack {
                         Image(systemName: "magnifyingglass")
-                            .foregroundStyle(Color(white: 0.6))
+                            .foregroundStyle(AppTheme.textSecondary)
                         TextField("Search", text: $viewModel.searchText)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.textPrimary)
                     }
                     .padding(12)
-                    .background(Color(white: 0.15))
+                    .background(AppTheme.surfaceSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     
                     // MARK: - Filter Chips
                     filterChips
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
 
-                    // MARK: - Team Members List
-                    if viewModel.filteredMembers.isEmpty {
-                        EmptyStateView(
-                            icon: "person.2.slash",
-                            title: "No team members found",
-                            message: "Try adjusting your search or filters."
-                        )
-                        .padding(.top, 40)
-                    } else {
-                        LazyVStack(spacing: 16) {
-                            ForEach(viewModel.filteredMembers) { member in
-                                NavigationLink(destination: TeamMemberDetailView(member: member, service: viewModel.service)) {
-                                    teamMemberCard(member)
-                                }
-                                .buttonStyle(.plain)
+                // MARK: - Team Members List
+                if viewModel.filteredMembers.isEmpty {
+                    EmptyStateView(
+                        icon: "person.2.slash",
+                        title: "No team members found",
+                        message: "Try adjusting your search or filters."
+                    )
+                    .padding(.top, 40)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                } else {
+                    ForEach(viewModel.filteredMembers) { member in
+                        ZStack {
+                            teamMemberCard(member)
+                            NavigationLink(destination: TeamMemberDetailView(member: member, service: viewModel.service)) {
+                                EmptyView()
                             }
+                            .opacity(0)
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                viewModel.deleteMember(member)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                viewModel.prepareForEdit(member)
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(AppTheme.brand)
                         }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 100)
+                
+                Color.clear
+                    .frame(height: 100)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .navigationBarHidden(true)
             
@@ -117,13 +146,13 @@ struct TeamView: View {
                 Image(systemName: "person.crop.circle.fill")
                     .resizable()
                     .frame(width: 50, height: 50)
-                    .foregroundStyle(Color(white: 0.6), Color(white: 0.9))
+                    .foregroundStyle(AppTheme.textSecondary, AppTheme.surfaceSecondary)
                     .clipShape(Circle())
                 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(member.name)
                         .font(.headline.weight(.bold))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(AppTheme.textPrimary)
                     
                     Text(member.role.rawValue.capitalized)
                         .font(.system(size: 11, weight: .bold))
@@ -151,7 +180,7 @@ struct TeamView: View {
             HStack(alignment: .bottom) {
                 Text(getVehiclePlate(for: member))
                     .font(.title3.weight(.bold))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(AppTheme.textPrimary)
                 
                 Spacer()
                 
@@ -160,29 +189,28 @@ struct TeamView: View {
                     Button(action: {}) {
                         Image(systemName: "phone")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(.black)
+                            .foregroundStyle(AppTheme.textPrimary)
                             .frame(width: 36, height: 36)
-                            .background(Color(white: 0.95))
-                            .clipShape(Circle())
-                    }
-                    Button(action: {}) {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(.black)
-                            .frame(width: 36, height: 36)
-                            .background(Color(white: 0.95))
+                            .background(AppTheme.surfaceSecondary)
                             .clipShape(Circle())
                     }
                 }
             }
         }
         .padding(16)
-        .background(.white)
+        .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
     
+    private func assignedVehicle(for member: User) -> Vehicle? {
+        if member.role == .driver {
+            return viewModel.service.vehicles.first(where: { $0.assignedDriverID == member.id })
+        }
+        return nil
+    }
+
     private func getVehiclePlate(for member: User) -> String {
-        if let vid = member.assignedVehicleID, let vehicle = viewModel.service.vehicle(for: vid) {
+        if let vehicle = assignedVehicle(for: member) {
             return vehicle.plateNumber
         }
         return "Unassigned"
@@ -200,7 +228,7 @@ struct TeamView: View {
         switch member.role {
         case .driver:
             TagView(text: "Driver", color: AppTheme.brand)
-            if member.assignedVehicleID != nil {
+            if assignedVehicle(for: member) != nil {
                 TagView(text: "Assigned", color: AppTheme.success)
             }
         case .maintenance:
@@ -213,7 +241,7 @@ struct TeamView: View {
     // MARK: - Member Status Logic
     private func memberStatus(_ member: User) -> (String, Color) {
         if member.role == .driver {
-            if member.assignedVehicleID != nil {
+            if assignedVehicle(for: member) != nil {
                 return ("On Duty", AppTheme.success)
             } else {
                 return ("Off Duty", Color(white: 0.5))
@@ -299,8 +327,7 @@ private struct TeamMemberDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(title: "Current Assignment", subtitle: "Vehicle and trip details")
 
-            if let vehicleID = member.assignedVehicleID,
-               let vehicle = service.vehicle(for: vehicleID) {
+            if let vehicle = service.vehicles.first(where: { $0.assignedDriverID == member.id }) {
                 GlassCard {
                     HStack(spacing: 12) {
                         Image(systemName: "truck.box.fill")
@@ -526,6 +553,19 @@ final class TeamViewModel {
         return members
     }
 
+    func deleteMember(_ member: User) {
+        service.deleteUser(member)
+    }
+
+    func prepareForEdit(_ member: User) {
+        newName = member.name
+        newRole = member.role
+        newEmail = member.email
+        newPhone = member.phone
+        newTitle = member.title
+        showAddMember = true
+    }
+
     func createMember() async -> Bool {
         errorMessage = nil
         isCreating = true
@@ -572,7 +612,7 @@ final class TeamViewModel {
 
     private func memberIsAvailable(_ user: User) -> Bool {
         if user.role == .driver {
-            return user.assignedVehicleID == nil
+            return !service.vehicles.contains { $0.assignedDriverID == user.id }
         } else if user.role == .maintenance {
             return !service.workOrders.contains { $0.assignedMaintenanceID == user.id && $0.status != .completed }
         }
@@ -581,7 +621,7 @@ final class TeamViewModel {
 
     private func memberIsOnShift(_ user: User) -> Bool {
         if user.role == .driver {
-            return user.assignedVehicleID != nil
+            return service.vehicles.contains { $0.assignedDriverID == user.id }
         } else if user.role == .maintenance {
             return service.workOrders.contains { $0.assignedMaintenanceID == user.id && $0.status != .completed }
         }

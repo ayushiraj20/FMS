@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfileSettingsView: View {
     @Environment(AppViewModel.self) private var appViewModel
+    @State private var showEditSheet = false
 
     var body: some View {
         ZStack {
@@ -18,27 +19,18 @@ struct ProfileSettingsView: View {
                     
                     // Avatar Section
                     VStack(spacing: 16) {
-                        ZStack(alignment: .bottomTrailing) {
-                            Circle()
-                                .fill(AppTheme.brand.opacity(0.15))
-                                .frame(width: 96, height: 96)
-                            
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 44))
-                                .foregroundStyle(AppTheme.brand)
-                                .offset(y: -4)
-                            
-                            // Checkmark shield
-                            ZStack {
-                                Circle()
-                                    .fill(AppTheme.background)
-                                    .frame(width: 28, height: 28)
-                                Image(systemName: "checkmark.shield.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundStyle(AppTheme.brand)
+                        AvatarView(name: name, size: 96)
+                            .overlay(alignment: .bottomTrailing) {
+                                ZStack {
+                                    Circle()
+                                        .fill(AppTheme.background)
+                                        .frame(width: 28, height: 28)
+                                    Image(systemName: "checkmark.shield.fill")
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(AppTheme.brand)
+                                }
+                                .offset(x: 2, y: 2)
                             }
-                            .offset(x: 2, y: 2)
-                        }
                         
                         VStack(spacing: 8) {
                             Text(name)
@@ -103,13 +95,16 @@ struct ProfileSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Edit") { }
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background(Capsule().fill(AppTheme.surfaceSecondary))
+                Button("Edit") {
+                    showEditSheet = true
+                }
+                .font(.system(size: 17))
+                .foregroundStyle(AppTheme.brand)
             }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            EditProfileView()
+                .environment(appViewModel)
         }
     }
     
@@ -146,6 +141,104 @@ struct ProfileSettingsView: View {
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(AppTheme.textSecondary)
+        }
+    }
+}
+
+struct EditProfileView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(AppViewModel.self) private var appViewModel
+    
+    @State private var nameInput = ""
+    @State private var phoneInput = ""
+    @State private var titleInput = ""
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 24) {
+                        VStack(spacing: 8) {
+                            Image(systemName: "person.crop.circle.badge.plus")
+                                .font(.system(size: 64))
+                                .foregroundStyle(AppTheme.brand)
+                                .padding(.top, 16)
+                            
+                            Text("Update Profile Details")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            
+                            Text("Your organization requires active details for safety and compliance.")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 24)
+                        }
+                        
+                        GlassCard {
+                            VStack(spacing: 18) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Full Name")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    TextField("Enter name", text: $nameInput)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Title / Role")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    TextField("Enter title", text: $titleInput)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Phone Number")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    TextField("Enter phone number", text: $phoneInput)
+                                        .textFieldStyle(.roundedBorder)
+                                        .keyboardType(.phonePad)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+            }
+            .navigationTitle("Edit Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundStyle(AppTheme.brand)
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        Task {
+                            await appViewModel.updateProfile(name: nameInput, phone: phoneInput, title: titleInput)
+                            dismiss()
+                        }
+                    }
+                    .font(.body.bold())
+                    .foregroundStyle(AppTheme.brand)
+                    .disabled(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .onAppear {
+                if let user = appViewModel.currentUser {
+                    nameInput = user.name
+                    phoneInput = user.phone ?? ""
+                    titleInput = user.title ?? ""
+                }
+            }
         }
     }
 }

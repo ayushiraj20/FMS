@@ -31,6 +31,20 @@ final class SupabaseService {
         try await client.from("profiles").insert(user).execute()
     }
     
+    func updateProfile(_ user: User) async throws {
+        try await client.from("profiles")
+            .update(user)
+            .eq("id", value: user.id)
+            .execute()
+    }
+    
+    func deleteProfile(_ user: User) async throws {
+        try await client.from("profiles")
+            .delete()
+            .eq("id", value: user.id)
+            .execute()
+    }
+    
     struct CreateUserParams: Codable {
         let p_email: String
         let p_password: String
@@ -133,6 +147,13 @@ final class SupabaseService {
         try await client.from("defect_reports").insert(defect).execute()
     }
     
+    func updateDefect(_ defect: DefectReport) async throws {
+        try await client.from("defect_reports")
+            .update(defect)
+            .eq("id", value: defect.id)
+            .execute()
+    }
+    
     // Work Orders
     func fetchWorkOrders() async throws -> [WorkOrder] {
         let orders: [WorkOrder] = try await client.from("work_orders").select().execute().value
@@ -156,20 +177,100 @@ final class SupabaseService {
         return schedules
     }
     
-    // Notifications
-    func fetchNotifications() async throws -> [AppNotification] {
-        let alerts: [AppNotification] = try await client.from("notifications").select().execute().value
-        return alerts
+    func fetchBroadcastMessages(
+        orgID: UUID
+    ) async throws -> [BroadcastMessage] {
+
+        let rows:[BroadcastMessage] =
+        try await client
+            .from("broadcast_messages")
+            .select("""
+            id,
+            organization_id,
+            sender_id,
+            sender_name:profiles(name),
+            title,
+            message,
+            sent_at
+            """)
+            .eq("organization_id", value: orgID)
+            .order("sent_at", ascending: false)
+            .execute()
+            .value
+
+        return rows
+    }
+
+    func addBroadcastMessage(
+        _ message: BroadcastMessage
+    ) async throws {
+
+        try await client
+            .from("broadcast_messages")
+            .insert(message)
+            .execute()
     }
     
+    // Notifications
+    /// Fetch ALL notifications (used only for full sync / admin)
+    func fetchNotifications() async throws -> [AppNotification] {
+        let alerts: [AppNotification] = try await client
+            .from("notifications")
+            .select()
+            .execute()
+            .value
+        return alerts
+    }
+
+    /// Fetch notifications for a specific logged-in user using their UUID.
+    /// Returns:
+    ///   - Notifications where user_id == currentUser.id  (personal)
+    ///   - Notifications where role_target == currentUser.role (role-broadcast)
+    ///   - Notifications where both user_id and role_target are null (global broadcast)
+    func fetchNotificationsForUser(userID: UUID, roleRawValue: String) async throws -> [AppNotification] {
+        let all: [AppNotification] = try await client
+            .from("notifications")
+            .select()
+            .execute()
+            .value
+
+        return all.filter {
+            // Personal: directly addressed to this user's UUID
+            $0.userID == userID ||
+            // Role-broadcast: addressed to this user's role
+            $0.roleTarget?.rawValue == roleRawValue ||
+            // Global broadcast: no user and no role target
+            ($0.userID == nil && $0.roleTarget == nil)
+        }
+        .sorted { $0.date > $1.date }
+    }
+
     func addNotification(_ alert: AppNotification) async throws {
         try await client.from("notifications").insert(alert).execute()
     }
-    
+
     func updateNotification(_ alert: AppNotification) async throws {
         try await client.from("notifications")
             .update(alert)
             .eq("id", value: alert.id)
             .execute()
     }
+
+    // MARK: - Chat Messages
+    func fetchChatMessages() async throws -> [ChatMessage] {
+        let messages: [ChatMessage] = try await client
+            .from("chat_messages")
+            .select()
+            .execute()
+            .value
+        return messages
+    }
+
+    func addChatMessage(_ message: ChatMessage) async throws {
+        try await client
+            .from("chat_messages")
+            .insert(message)
+            .execute()
+    }
 }
+

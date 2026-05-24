@@ -4,6 +4,8 @@ import MapKit
 struct FleetManagerDashboardView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @State private var viewModel = FleetManagerDashboardViewModel()
+    @State private var selectedStat: KPIStat?
+    @State private var showBroadcast = false
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -18,6 +20,9 @@ struct FleetManagerDashboardView: View {
                     } else {
                         // MARK: - KPI Grid
                         kpiGrid
+                        
+                        // MARK: - Pending Defect Banner
+                        pendingDefectBanner
                         
                         // MARK: - Priority Alerts
                         alertsSection
@@ -64,18 +69,43 @@ struct FleetManagerDashboardView: View {
                 }
                 .buttonStyle(.plain)
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: NotificationsView()) {
-                    ZStack {
-                        
-                        notificationBadge
-                    }
+            ToolbarItemGroup(
+                placement: .topBarTrailing
+            ) {
+
+                NavigationLink(
+                    destination: NotificationsView()
+                ) {
+
+                    notificationBadge
                 }
                 .buttonStyle(.plain)
+
+                Button {
+
+                    showBroadcast = true
+
+                } label: {
+
+                    Image(
+                        systemName:
+                        "megaphone.fill"
+                    )
+                    .foregroundStyle(
+                        AppTheme.textPrimary
+                    )
+                }
             }
         }
         .task {
             await viewModel.load()
+        }
+        .sheet(
+            isPresented:
+            $showBroadcast
+        ) {
+
+            BroadcastComposeView()
         }
     }
     
@@ -85,10 +115,7 @@ struct FleetManagerDashboardView: View {
             Text("Operations Overview")
                 .font(.title2.weight(.bold))
                 .foregroundStyle(AppTheme.textPrimary)
-            Text("\(appViewModel.organizationName) is running with strong availability.")
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.textSecondary)
-        }
+            }
         .padding(.top, 8)
     }
     
@@ -96,10 +123,61 @@ struct FleetManagerDashboardView: View {
     private var kpiGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
             ForEach(viewModel.stats(service: appViewModel.service)) { stat in
-                StatCardView(stat: stat)
+                NavigationLink(destination: destinationView(for: stat)) {
+                    StatCardView(stat: stat)
+                }
+                .buttonStyle(.plain)
+//                Button {
+//                    selectedStat = stat
+//                } label: {
+//                    StatCardView(stat: stat)
+//                }
+//                .buttonStyle(.plain)
             }
         }
+//        .sheet(item: $selectedStat) { stat in
+//            NavigationStack {
+//                destinationView(for: stat)
+//                    .toolbar {
+//                        ToolbarItem(placement: .topBarTrailing) {
+//                            Button("Close") {
+//                                selectedStat = nil
+//                            }
+//                        }
+//                    }
+//            }
+//            .presentationDetents([.medium, .large])
+//        }
     }
+    
+    
+    @ViewBuilder
+    private func destinationView(for stat: KPIStat) -> some View {
+        switch stat.title {
+
+        case "Active Vehicles":
+            ActiveVehiclesDetailView(
+                vehicles: appViewModel.service.vehicles
+            )
+
+        case "Fuel Spend":
+            FuelSpendDetailView()
+
+        case "Open Work Orders":
+//            WorkOrdersDetailView(
+//                service: appViewModel.service,
+//                currentOrgID: appViewModel.currentOrganization?.id
+//            )
+            EmptyView()
+
+        case "Expiring Documents":
+            ExpiringDocumentsDetailView()
+
+        default:
+            EmptyView()
+        }
+    }
+    
     
     // MARK: - Priority Alerts
     private var alertsSection: some View {
@@ -110,20 +188,39 @@ struct FleetManagerDashboardView: View {
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
                     Spacer()
-                    NavigationLink(destination: NotificationsView()) {
-                        Text("See All")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AppTheme.brand)
-                    }
-                    .buttonStyle(.plain)
+//                    NavigationLink(destination: NotificationsView()) {
+//                        Text("See All")
+//                            .font(.subheadline.weight(.semibold))
+//                            .foregroundStyle(AppTheme.brand)
+//                    }
+//                    .buttonStyle(.plain)
                 }
                 
                 HStack(alignment: .top, spacing: 0) {
-                    alertIconItem(icon: "exclamationmark.triangle.fill", color: AppTheme.error, count: 5, label: "SOS Alerts")
-                    alertIconItem(icon: "bell.fill", color: AppTheme.warning, count: 3, label: "Critical")
-                    alertIconItem(icon: "wrench.and.screwdriver.fill", color: .blue, count: 2, label: "Maintenance")
-                    alertIconItem(icon: "location.slash.fill", color: .orange, count: 4, label: "Off-Route")
-                    alertIconItem(icon: "mappin.and.ellipse", color: .purple, count: 1, label: "Geofence")
+                    NavigationLink(destination: PriorityAlertDetailView(category: "SOS Alerts", count: 5)) {
+                        alertIconItem(icon: "exclamationmark.triangle.fill", color: Color("AccentColor"), count: 5, label: "SOS Alerts")
+                    }
+                    .buttonStyle(.plain)
+                    
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Critical", count: 3)) {
+                        alertIconItem(icon: "bell.fill", color: Color("AccentColor"), count: 3, label: "Critical")
+                    }
+                    .buttonStyle(.plain)
+                    
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Maintenance", count: 2)) {
+                        alertIconItem(icon: "wrench.and.screwdriver.fill", color: Color("AccentColor"), count: 2, label: "Maintenance")
+                    }
+                    .buttonStyle(.plain)
+                    
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Off-Route", count: 4)) {
+                        alertIconItem(icon: "location.slash.fill", color: Color("AccentColor"), count: 4, label: "Off-Route")
+                    }
+                    .buttonStyle(.plain)
+                    
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Geofence", count: 1)) {
+                        alertIconItem(icon: "mappin.and.ellipse", color: Color("AccentColor"), count: 1, label: "Geofence")
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -193,7 +290,12 @@ struct FleetManagerDashboardView: View {
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
                     Spacer()
-                    Button { } label: {
+//                    Button { } label: {
+//                        Text("See All")
+//                            .font(.subheadline.weight(.medium))
+//                            .foregroundStyle(AppTheme.brand)
+//                    }
+                    NavigationLink(destination: FleetUtilizationDetailView()) {
                         Text("See All")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(AppTheme.brand)
@@ -276,9 +378,9 @@ struct FleetManagerDashboardView: View {
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 HStack(spacing: 12) {
-                    needsAttentionCard(count: 2, label: "Maintenance\nDue", color: .orange)
-                    needsAttentionCard(count: 3, label: "Overdue\nServices", color: .red)
-                    needsAttentionCard(count: 4, label: "Lost\nGPS Feed", color: .blue)
+                    needsAttentionCard(count: 2, label: "Maintenance\nDue", color: Color("AccentColor"))
+                    needsAttentionCard(count: 3, label: "Overdue\nServices", color: Color("AccentColor"))
+                    needsAttentionCard(count: 4, label: "Lost\nGPS Feed", color: Color("AccentColor"))
                 }
             }
         }
@@ -318,6 +420,56 @@ struct FleetManagerDashboardView: View {
             NavigationLink(destination: WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
                 quickLink(title: "Work Orders", subtitle: "Create and monitor tasks", icon: "wrench.and.screwdriver.fill")
             }
+            
+            NavigationLink(destination: AssignDriverView(service: appViewModel.service)) {
+                quickLink(title: "Assign Driver", subtitle: "Pair available vehicles & drivers", icon: "person.badge.key.fill")
+            }
+            
+            NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
+                quickLink(title: "Defect Reports", subtitle: "Review & approve driver defect reports", icon: "exclamationmark.triangle.fill")
+            }
+        }
+    }
+    
+    // MARK: - Pending Defect Banner
+    @ViewBuilder
+    private var pendingDefectBanner: some View {
+        let pendingCount = appViewModel.service.defects.filter { $0.status == .pending }.count
+        if pendingCount > 0 {
+            NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(AppTheme.warning.opacity(0.18))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(AppTheme.warning)
+                            .font(.system(size: 20))
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(pendingCount) Pending Defect Report\(pendingCount == 1 ? "" : "s")")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Text("Tap to review and approve driver reports")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(AppTheme.warning)
+                }
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(AppTheme.warning.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(AppTheme.warning.opacity(0.25), lineWidth: 1)
+                        )
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
     
@@ -328,21 +480,31 @@ struct FleetManagerDashboardView: View {
     
     private func alertColor(_ category: NotificationCategory) -> Color {
         switch category {
-        case .critical: return AppTheme.error
-        case .warning: return AppTheme.warning
-        case .success: return AppTheme.success
-        case .info: return AppTheme.brand
+
+        case .critical:
+            return AppTheme.error
+
+        case .warning:
+            return AppTheme.warning
+
+        case .success:
+            return AppTheme.success
+
+        case .info:
+            return AppTheme.brand
+
+        case .maintenance:
+            return Color.orange
         }
     }
-    
     private func quickLink(title: String, subtitle: String, icon: String) -> some View {
         GlassCard {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.title3)
-                    .foregroundStyle(AppTheme.brand)
+                    .foregroundStyle(Color("AccentColor"))
                     .frame(width: 42, height: 42)
-                    .background(AppTheme.brand.opacity(0.12))
+                    .background(Color("AccentColor").opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 
                 VStack(alignment: .leading, spacing: 3) {
@@ -367,6 +529,13 @@ struct FleetManagerDashboardView: View {
             Image(systemName: "bell")
                 .foregroundStyle(AppTheme.textPrimary)
             if appViewModel.unreadNotificationsCount > 0 {
+                Text("\(appViewModel.unreadNotificationsCount)")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.white)
+                    .frame(minWidth: 18, minHeight: 18)
+                    .background(Color.red)
+                    .clipShape(Circle())
+                    .offset(x: 8, y: -8)
                 
                 
             }

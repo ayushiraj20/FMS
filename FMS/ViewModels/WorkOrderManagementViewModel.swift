@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import Combine
+
 import Observation
 
 @Observable
@@ -54,27 +54,64 @@ final class WorkOrderManagementViewModel {
 
     func prepareCreateOrder() {
         createVehicleID = service.vehicles.first?.id
-        createMaintenanceID = nil
+        createMaintenanceID = service.users(for: .maintenance).first?.id
         createTitle = ""
         createDetails = ""
         createPriority = .medium
         createScheduledDate = Date.now
         isPresentingCreateSheet = true
     }
-
     func createWorkOrder() {
-        guard let vehicleID = createVehicleID else { return }
-        service.addWorkOrder(
-            vehicleID: vehicleID,
-            assignedMaintenanceID: createMaintenanceID,
-            title: createTitle,
-            details: createDetails,
-            priority: createPriority,
-            scheduledDate: createScheduledDate
-        )
-        isPresentingCreateSheet = false
-    }
 
+        guard let vehicleID = createVehicleID else { return }
+
+            service.addWorkOrder(
+                vehicleID: vehicleID,
+                assignedMaintenanceID: createMaintenanceID,
+                title: createTitle,
+                details: createDetails,
+                priority: createPriority,
+                scheduledDate: createScheduledDate
+            )
+            // Immediately sync with Supabase so the new work order appears remotely
+            if SupabaseConfig.isConfigured {
+                Task { await service.syncWithDatabase() }
+            }
+
+        // Local notification
+        if let vehicle = service.vehicle(for: vehicleID) {
+
+            NotificationScheduler.scheduleMaintenanceReminder(
+                workOrderTitle: createTitle,
+                vehicleDetail: vehicle.displayName,
+                scheduledDate: createScheduledDate
+            )
+        }
+
+        // Notify the assigned technician directly by their UUID
+        if let technicianID = createMaintenanceID {
+            service.addNotification(
+                userID: technicianID,         // stored in notifications.user_id → profiles.id
+                roleTarget: nil,              // no role broadcast — personal notification only
+                title: "New Work Order Assigned",
+                message: "\(createTitle) has been assigned to you. Scheduled: \(createScheduledDate.formatted(date: .abbreviated, time: .omitted)).",
+                category: .maintenance
+            )
+        }
+
+        // Notify all fleet managers via role broadcast
+        service.addNotification(
+            userID: nil,
+            roleTarget: .fleetManager,
+            title: "Work Order Created",
+            message: "\(createTitle) has been scheduled. Review and monitor progress.",
+            category: .info
+        )
+
+        isPresentingCreateSheet = false
+
+        
+    }
     func prepareEditOrder(_ order: WorkOrder) {
         selectedWorkOrder = order
         editStatus = order.status
@@ -92,6 +129,10 @@ final class WorkOrderManagementViewModel {
             order.completedDate = nil
         }
         service.updateWorkOrder(order)
+        // Force a remote sync so the change is reflected in Supabase immediately
+        if SupabaseConfig.isConfigured {
+            Task { await service.syncWithDatabase() }
+        }
         selectedWorkOrder = nil
     }
 }

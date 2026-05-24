@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import Combine
+
 import Observation
 
 @Observable
@@ -43,7 +43,16 @@ final class VehicleManagementViewModel {
                 vehicle.displayName.localizedCaseInsensitiveContains(searchText) ||
                 vehicle.plateNumber.localizedCaseInsensitiveContains(searchText)
             
-            let matchesFilter = selectedStatusFilter == nil || vehicle.status == selectedStatusFilter
+            let matchesFilter: Bool
+            if let filter = selectedStatusFilter {
+                if filter == .idle {
+                    matchesFilter = (vehicle.status == .idle || vehicle.status == .outOfService)
+                } else {
+                    matchesFilter = (vehicle.status == filter)
+                }
+            } else {
+                matchesFilter = true
+            }
             
             return matchesSearch && matchesFilter
         }
@@ -62,7 +71,7 @@ final class VehicleManagementViewModel {
     }
 
     var idleCount: Int {
-        service.vehicles.filter { $0.status == .idle }.count
+        service.vehicles.filter { $0.status == .idle || $0.status == .outOfService }.count
     }
 
     var drivers: [User] {
@@ -79,6 +88,14 @@ final class VehicleManagementViewModel {
 
     func documents(for vehicleID: UUID) -> [VehicleDocument] {
         service.documents(for: vehicleID)
+    }
+
+    func alerts(for vehicleID: UUID) -> [VehicleAlert] {
+        service.alerts(for: vehicleID)
+    }
+
+    func defects(for vehicleID: UUID) -> [DefectReport] {
+        service.defects.filter { $0.vehicleID == vehicleID }
     }
 
     func deleteVehicle(_ vehicle: Vehicle) {
@@ -133,9 +150,22 @@ final class VehicleManagementViewModel {
         if selectedVehicle == nil {
             service.addVehicle(vehicle)
         } else {
+            let previousDriverID = selectedVehicle?.assignedDriverID
             service.updateVehicle(vehicle)
+
+            // If a new driver has been assigned, notify them personally using their UUID
+            if let newDriverID = assignedDriverID, newDriverID != previousDriverID {
+                service.addNotification(
+                    userID: newDriverID,    // notifications.user_id = profiles.id of the driver
+                    roleTarget: nil,        // personal notification, not a role broadcast
+                    title: "Vehicle Assigned to You",
+                    message: "\(displayName) (\(plateNumber)) has been assigned to you.",
+                    category: .info
+                )
+            }
         }
         isPresentingForm = false
+
     }
 
     // Documents
