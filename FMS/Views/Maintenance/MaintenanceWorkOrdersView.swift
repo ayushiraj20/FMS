@@ -1,43 +1,76 @@
 import SwiftUI
 
 struct MaintenanceWorkOrdersView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var searchText = ""
     @State private var selectedOrder: WorkOrder?
     @State private var selectedFilter: MaintenanceOrderProgressFilter = .all
+    @State private var isShowingCalendar = false
+    
 
+    
     private var currentUser: User? { appViewModel.currentUser }
     private var orders: [WorkOrder] {
-        appViewModel.service.workOrders(for: currentUser?.id).filter {
-            selectedFilter.matches($0.status) &&
-            (searchText.isEmpty ||
-            $0.title.localizedCaseInsensitiveContains(searchText) ||
-            $0.details.localizedCaseInsensitiveContains(searchText) ||
-            (appViewModel.service.vehicle(for: $0.vehicleID)?.displayName.localizedCaseInsensitiveContains(searchText) ?? false) ||
-            (appViewModel.service.vehicle(for: $0.vehicleID)?.plateNumber.localizedCaseInsensitiveContains(searchText) ?? false))
+        appViewModel.service
+            .workOrders(for: currentUser?.id)
+            .filter {
+                selectedFilter.matches($0.status) &&
+                (searchText.isEmpty ||
+                 $0.title.localizedCaseInsensitiveContains(searchText) ||
+                 $0.details.localizedCaseInsensitiveContains(searchText) ||
+                 (appViewModel.service.vehicle(for: $0.vehicleID)?.displayName.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                 (appViewModel.service.vehicle(for: $0.vehicleID)?.plateNumber.localizedCaseInsensitiveContains(searchText) ?? false))
+            }
+            .sorted {
+                // Overdue critical orders always float to the very top
+                if $0.isOverdue != $1.isOverdue { return $0.isOverdue }
+                return priorityValue($0.priority) > priorityValue($1.priority) ||
+                (priorityValue($0.priority) == priorityValue($1.priority) && $0.scheduledDate < $1.scheduledDate)
+            }
+    }
+    
+    private func priorityValue(_ priority: WorkOrderPriority) -> Int {
+        switch priority {
+        case .critical: return 4
+        case .high:     return 3
+        case .medium:   return 2
+        case .low:      return 1
         }
     }
-
+    
     var body: some View {
         VStack(spacing: 0) {
             filterBar
+            
             ordersList
         }
         .navigationTitle("Work Orders")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Image(systemName: "line.3.horizontal.decrease")
-                    .foregroundStyle(ordersAccent)
+                Button {
+                    isShowingCalendar = true
+                } label: {
+                    Image(systemName: "calendar")
+                        .foregroundStyle(ordersAccent)
+                }
             }
         }
         .searchable(text: $searchText, prompt: "Search work orders")
         .sheet(item: $selectedOrder) { order in
             MaintenanceOrderUpdateSheet(workOrder: order)
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
+        }
+        .sheet(isPresented: $isShowingCalendar) {
+            NavigationStack {
+                MaintenanceCalendarView(orders: appViewModel.service.workOrders(for: currentUser?.id))
+                    .environment(appViewModel)
+            }
         }
     }
-
+    
+    // MARK: - Subviews
+    
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
@@ -69,7 +102,7 @@ struct MaintenanceWorkOrdersView: View {
             .padding(.vertical, 12)
         }
     }
-
+    
     private var ordersList: some View {
         List {
             if orders.isEmpty {
@@ -82,11 +115,9 @@ struct MaintenanceWorkOrdersView: View {
                 .listRowSeparator(.hidden)
             } else {
                 ForEach(orders) { order in
-                    // Previous tap-to-sheet path kept for rollback:
-                    // selectedOrder = order
                     NavigationLink {
                         MaintenanceWorkOrderDetailView(workOrder: order)
-                            .environmentObject(appViewModel)
+                            .environment(appViewModel)
                     } label: {
                         MaintenanceWorkOrderCard(
                             order: order,
@@ -111,9 +142,8 @@ struct MaintenanceWorkOrdersView: View {
         .appListStyle()
         .scrollContentBackground(.hidden)
     }
-
+    
     private var legacyOrdersList: some View {
-        // Previous Orders UI kept for rollback.
         List {
             ForEach(orders) { order in
                 Button {
@@ -146,10 +176,12 @@ struct MaintenanceWorkOrdersView: View {
         }
         .appListStyle()
     }
-
+    
     private var ordersAccent: Color { Color(hex: "#FF5A1F") }
     private var warmSecondaryText: Color { Color.dynamic(light: "#715B54", dark: "#D7B8AC") }
+    
 
+    
     private func markOrderDone(_ order: WorkOrder) {
         var updatedOrder = order
         updatedOrder.status = .completed
@@ -159,750 +191,824 @@ struct MaintenanceWorkOrdersView: View {
         }
         appViewModel.service.updateWorkOrder(updatedOrder)
     }
-}
-
-private enum MaintenanceOrderProgressFilter: String, CaseIterable, Identifiable {
-    case all
-    case pending
-    case inProgress
-    case waitingParts
-    case done
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .all: "All"
-        case .pending: "Pending"
-        case .inProgress: "In Progress"
-        case .waitingParts: "On Hold"
-        case .done: "Done"
-        }
-    }
-
-    var emptyMessage: String {
-        switch self {
-        case .all: "Assigned work from admin will appear here."
-        case .pending: "No pending work orders right now."
-        case .inProgress: "No work orders are currently in progress."
-        case .waitingParts: "No orders are waiting on parts."
-        case .done: "Completed work will appear here after you mark it done."
-        }
-    }
-
-    func matches(_ status: WorkOrderStatus) -> Bool {
-        switch self {
-        case .all: true
-        case .pending: status == .open
-        case .inProgress: status == .inProgress
-        case .waitingParts: status == .waitingParts
-        case .done: status == .completed
-        }
-    }
-}
-
-private struct MaintenanceWorkOrderCard: View {
-    let order: WorkOrder
-    let vehicle: Vehicle?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                Text("#WO-\(String(order.id.uuidString.prefix(4)))")
-                    .font(.caption.monospaced().weight(.bold))
-                    .foregroundStyle(Color(hex: "#FF5A1F"))
-
-                Spacer()
-
-                Text(order.priority.rawValue.uppercased())
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(priorityTextColor)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(priorityBackgroundColor, in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text(vehicle?.displayName ?? "Assigned Vehicle")
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
-                    .lineLimit(2)
-
-                Text(order.title)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
-                    .lineLimit(2)
-
-                Text(order.details)
-                    .font(.body)
-                    .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#E3C8BE"))
-                    .lineLimit(2)
-            }
-
-            Divider()
-                .overlay(Color.dynamic(light: "#E6D8D2", dark: "#33343A"))
-
-            HStack(spacing: 8) {
-                Label(order.scheduledDate.formatted(date: .omitted, time: .shortened), systemImage: "clock")
-                    .labelStyle(.titleAndIcon)
-                    .font(.caption.monospaced().weight(.semibold))
-
-                Spacer()
-
-                Label(order.status.rawValue.uppercased(), systemImage: statusIcon)
-                    .labelStyle(.titleAndIcon)
-                    .font(.caption.monospaced().weight(.bold))
-                    .foregroundStyle(statusColor)
-            }
-            .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.dynamic(light: "#FFFFFF", dark: "#191A20").opacity(0.96))
-                .overlay(alignment: .leading) {
-                    Rectangle()
-                        .fill(priorityStripeColor)
-                        .frame(width: 8)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#3B3841"), lineWidth: 1)
-                )
-        )
-    }
-
-    private var priorityStripeColor: Color {
-        switch order.priority {
-        case .low: AppTheme.success
-        case .medium: Color(hex: "#FFE436")
-        case .high: Color(hex: "#FF5A1F")
-        case .critical: Color(hex: "#FFB0A3")
-        }
-    }
-
-    private var priorityTextColor: Color {
-        switch order.priority {
-        case .low: AppTheme.success
-        case .medium: Color(hex: "#F9FF58")
-        case .high: Color(hex: "#FF5A1F")
-        case .critical: Color(hex: "#FFB0A3")
-        }
-    }
-
-    private var priorityBackgroundColor: Color {
-        switch order.priority {
-        case .low: AppTheme.success.opacity(0.14)
-        case .medium: Color(hex: "#FFE436").opacity(0.18)
-        case .high: Color(hex: "#FF5A1F").opacity(0.18)
-        case .critical: Color(hex: "#FFB0A3").opacity(0.18)
-        }
-    }
-
-    private var statusColor: Color {
-        switch order.status {
-        case .open: Color.dynamic(light: "#715B54", dark: "#E3C8BE")
-        case .inProgress: Color(hex: "#2EA7FF")
-        case .waitingParts: AppTheme.warning
-        case .completed: AppTheme.success
-        }
-    }
-
-    private var statusIcon: String {
-        switch order.status {
-        case .open: "ellipsis.circle"
-        case .inProgress: "arrow.triangle.2.circlepath"
-        case .waitingParts: "shippingbox"
-        case .completed: "checkmark.circle.fill"
-        }
-    }
-}
-
-private struct MaintenanceWorkOrderDetailView: View {
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @State private var workOrder: WorkOrder
-    @State private var progress: Int
-    @State private var repairStartedAt: Date?
-    @State private var labourHours = "1"
-    @State private var labourMinutes = "30"
-    @State private var isShowingCompletion = false
-
-    init(workOrder: WorkOrder) {
-        _workOrder = State(initialValue: workOrder)
-        _progress = State(initialValue: MaintenanceWorkOrderDetailView.initialProgress(for: workOrder.status))
-        _repairStartedAt = State(initialValue: workOrder.status == .completed ? nil : Date.now.addingTimeInterval(-5081))
-    }
-
-    private var vehicle: Vehicle? { appViewModel.service.vehicle(for: workOrder.vehicleID) }
-    private var accent: Color { Color(hex: "#FF5A1F") }
-    private var dangerAccent: Color { Color(hex: "#D70B1B") }
-    private var cardBackground: Color { Color.dynamic(light: "#FFFFFF", dark: "#1B1C22") }
-    private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
-    private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                heroCard
-                timerCard
-                actionRow
-                progressCard
-                scheduleCard
-                descriptionCard
-                labourCard
-                partsCard
-                chatCard
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 28)
-        }
-        .navigationTitle("#WO-\(String(workOrder.id.uuidString.prefix(4)))")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(detailText)
+    
+    // MARK: - Filter Enum
+    
+    private enum MaintenanceOrderProgressFilter: String, CaseIterable, Identifiable {
+        case all
+        case pending
+        case inProgress
+        case waitingParts
+        case done
+        
+        var id: String { rawValue }
+        
+        var title: String {
+            switch self {
+            case .all:          "All"
+            case .pending:      "Pending"
+            case .inProgress:   "In Progress"
+            case .waitingParts: "On Hold"
+            case .done:         "Done"
             }
         }
-        .navigationDestination(isPresented: $isShowingCompletion) {
-            CompleteWorkOrderView(
-                workOrder: workOrder,
-                vehicle: vehicle,
-                labourHoursText: labourTotalText,
-                partName: partName
-            )
-            .environmentObject(appViewModel)
-        }
-    }
-
-    private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                Text("\(workOrder.priority.rawValue.uppercased()) PRIORITY")
-                    .font(.caption2.monospaced().weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.16), in: Capsule())
-
-                Spacer()
-
-                Text(workOrder.status.rawValue.uppercased())
-                    .font(.caption2.monospaced().weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.16), in: Capsule())
+        
+        var emptyMessage: String {
+            switch self {
+            case .all:          "Assigned work from admin will appear here."
+            case .pending:      "No pending work orders right now."
+            case .inProgress:   "No work orders are currently in progress."
+            case .waitingParts: "No orders are waiting on parts."
+            case .done:         "Completed work will appear here after you mark it done."
             }
-
-            Text(workOrder.title)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-
-            HStack(spacing: 12) {
-                Label(vehicle?.displayName ?? "Vehicle", systemImage: "truck.box")
-                Label("Assigned: \(workOrder.scheduledDate.formatted(date: .omitted, time: .shortened))", systemImage: "clock")
-            }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.white.opacity(0.9))
-            .lineLimit(1)
-            .minimumScaleFactor(0.78)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [dangerAccent, accent],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(alignment: .topTrailing) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 52))
-                        .foregroundStyle(.white.opacity(0.16))
-                        .padding(.trailing, 12)
-                        .padding(.top, 10)
-                }
-        )
-    }
-
-    private var timerCard: some View {
-        DetailSectionCard {
-            VStack(spacing: 14) {
-                Text("ACTIVE REPAIR TIMER")
-                    .font(.caption2.monospaced().weight(.bold))
-                    .tracking(2)
-                    .foregroundStyle(detailText)
-
-                if let repairStartedAt {
-                    TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                        Text(Self.formattedDuration(from: repairStartedAt, to: timeline.date))
-                            .font(.system(size: 34, weight: .bold, design: .monospaced))
-                            .foregroundStyle(accent)
-                    }
-                } else {
-                    Text("00:00:00")
-                        .font(.system(size: 34, weight: .bold, design: .monospaced))
-                        .foregroundStyle(detailText)
-                }
-
-                Button {
-                    repairStartedAt = repairStartedAt == nil ? .now : nil
-                } label: {
-                    Label(repairStartedAt == nil ? "Start Timer" : "Stop Timer", systemImage: repairStartedAt == nil ? "play.circle" : "stop.circle")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 46)
-                        .background(dangerAccent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-                .buttonStyle(.plain)
+        
+        func matches(_ status: WorkOrderStatus) -> Bool {
+            switch self {
+            case .all:          true
+            case .pending:      status == .open
+            case .inProgress:   status == .inProgress
+            case .waitingParts: status == .waitingParts
+            case .done:         status == .completed
             }
         }
     }
-
-    private var actionRow: some View {
-        HStack(spacing: 12) {
-            Button {
-                updateProgress(to: max(progress, 75))
-            } label: {
-                Text("Update Progress")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(headingText)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .background(Color.dynamic(light: "#EEF0F4", dark: "#2B2D35"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                isShowingCompletion = true
-            } label: {
-                Text("Mark Complete")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .background(accent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .shadow(color: accent.opacity(0.24), radius: 12, x: 0, y: 6)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var progressCard: some View {
-        DetailSectionCard {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Text("Task Progress")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(headingText)
+    
+    // MARK: - Card
+    
+    struct MaintenanceWorkOrderCard: View {
+        let order: WorkOrder
+        let vehicle: Vehicle?
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 12) {
+                
+                // MARK: Top row: WO ID + priority/overdue badges
+                HStack(alignment: .top) {
+                    Text("#WO-\(String(order.id.uuidString.prefix(4)))")
+                        .font(.caption.monospaced().weight(.bold))
+                        .foregroundStyle(Color(hex: "#FF5A1F"))
+                    
                     Spacer()
-                    Text("\(progress)%")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(accent)
-                }
-
-                ProgressView(value: Double(progress), total: 100)
-                    .tint(accent)
-                    .background(Color.dynamic(light: "#D9DDE4", dark: "#30323A"))
-                    .clipShape(Capsule())
-
-                HStack(spacing: 8) {
-                    ForEach([25, 50, 75, 100], id: \.self) { value in
-                        Button {
-                            updateProgress(to: value)
-                        } label: {
-                            Text("\(value)%")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(progress == value ? Color.white : detailText)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 34)
-                                .background(progress == value ? accent.opacity(0.45) : Color.dynamic(light: "#EFF1F5", dark: "#292B32"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                Label("Actual Start Time: \(actualStartText)", systemImage: "alarm")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(accent)
-            }
-        }
-    }
-
-    private var scheduleCard: some View {
-        DetailSectionCard {
-            VStack(spacing: 14) {
-                DetailKeyValueRow(title: "Location", value: "Bay \(bayNumber)")
-                DetailDivider()
-                DetailKeyValueRow(title: "Scheduled", value: workOrder.scheduledDate.formatted(date: .omitted, time: .shortened))
-                DetailDivider()
-                DetailKeyValueRow(title: "Est. Duration", value: estimatedDuration)
-            }
-        }
-    }
-
-    private var descriptionCard: some View {
-        DetailSectionCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("DESCRIPTION")
-                    .font(.caption2.monospaced().weight(.bold))
-                    .tracking(1.2)
-                    .foregroundStyle(detailText)
-                Text("\"\(workOrder.details)\"")
-                    .font(.subheadline.italic())
-                    .foregroundStyle(headingText)
-                    .lineSpacing(4)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var labourCard: some View {
-        DetailSectionCard {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text("Labour Hours")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(headingText)
-                    Spacer()
-                    Button {
-                    } label: {
-                        Label("Add Hours", systemImage: "plus")
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(accent)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                HStack(spacing: 12) {
-                    DetailTimeInput(title: "HOURS", value: $labourHours)
-                    DetailTimeInput(title: "MINUTES", value: $labourMinutes)
-                }
-
-                HStack {
-                    Rectangle()
-                        .fill(accent)
-                        .frame(width: 3)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(currentMechanicName)
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(headingText)
-                        Text("Mechanic ID: #552")
-                            .font(.caption)
-                            .foregroundStyle(detailText)
-                    }
-                    Spacer()
-                    Text("\(labourTotalText) hrs")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
-                }
-                .padding(12)
-                .background(Color.dynamic(light: "#F3F4F7", dark: "#22242B"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
-        }
-    }
-
-    private var partsCard: some View {
-        DetailSectionCard {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text("Spare Parts")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(headingText)
-                    Spacer()
-                    Button {
-                    } label: {
-                        Label("Add Part", systemImage: "plus.square")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(accent)
-                            .padding(.horizontal, 10)
+                    
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Text(order.priority.rawValue.uppercased())
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(priorityTextColor)
+                            .padding(.horizontal, 12)
                             .padding(.vertical, 6)
-                            .overlay(Capsule().stroke(accent, lineWidth: 1))
+                            .background(priorityBackgroundColor, in: Capsule())
+                        
+                        if order.isOverdue {
+                            // AC3: Red background + text label so colour-blind users
+                            // are never relying on colour alone.
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.clock.fill")
+                                    .font(.caption2.bold())
+                                Text("OVERDUE")
+                                    .font(.caption2.bold())
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.red, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        } else if order.priority == .critical {
+                            Text("URGENT")
+                                .font(.caption2.bold())
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.red, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
-
-                HStack(spacing: 12) {
-                    Image(systemName: "slider.horizontal.3")
+                
+                // MARK: Vehicle + title + details
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(vehicle?.displayName ?? "Assigned Vehicle")
                         .font(.title3.weight(.bold))
-                        .foregroundStyle(detailText)
-                        .frame(width: 44, height: 44)
-                        .background(Color.dynamic(light: "#EEF0F4", dark: "#30323A"), in: Circle())
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(partName)
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(headingText)
-                        Text("BP-402")
-                            .font(.caption)
-                            .foregroundStyle(detailText)
-                    }
-
+                        .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
+                        .lineLimit(2)
+                    
+                    Text(order.title)
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
+                        .lineLimit(2)
+                    
+                    Text(order.details)
+                        .font(.body)
+                        .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#E3C8BE"))
+                        .lineLimit(2)
+                }
+                
+                Divider()
+                    .overlay(Color.dynamic(light: "#E6D8D2", dark: "#33343A"))
+                
+                // MARK: Footer: scheduled time + status
+                HStack(spacing: 8) {
+                    Label(order.scheduledDate.formatted(date: .omitted, time: .shortened), systemImage: "clock")
+                        .labelStyle(.titleAndIcon)
+                        .font(.caption.monospaced().weight(.semibold))
+                    
                     Spacer()
-
-                    Text("Qty: 1 set")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
+                    
+                    Label(order.status.rawValue.uppercased(), systemImage: statusIcon)
+                        .labelStyle(.titleAndIcon)
+                        .font(.caption.monospaced().weight(.bold))
+                        .foregroundStyle(statusColor)
+                }
+                .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    // AC3: Tint the card background red when overdue so it stands
+                    // out visually even before the badge is read.
+                    .fill(order.isOverdue
+                          ? Color.red.opacity(0.06)
+                          : Color.dynamic(light: "#FFFFFF", dark: "#191A20").opacity(0.96))
+                    .overlay(alignment: .leading) {
+                        // AC3: Left stripe is solid red for overdue orders.
+                        Rectangle()
+                            .fill(priorityStripeColor)
+                            .frame(width: 8)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(borderColor, lineWidth: borderWidth)
+                    )
+            )
+        }
+        
+        // MARK: - Derived style helpers
+        
+        /// AC3: Overdue orders always get a solid red border regardless of priority.
+        private var borderColor: Color {
+            if order.isOverdue { return Color.red }
+            return order.priority == .critical || order.priority == .high
+                ? Color.red
+                : Color.dynamic(light: "#E6D8D2", dark: "#3B3841")
+        }
+        
+        private var borderWidth: CGFloat {
+            order.isOverdue ? 2 : (order.priority == .critical || order.priority == .high ? 3 : 1)
+        }
+        
+        /// AC3: Overdue orders get a solid red left stripe.
+        private var priorityStripeColor: Color {
+            if order.isOverdue { return Color.red }
+            switch order.priority {
+            case .low:      return AppTheme.success
+            case .medium:   return Color(hex: "#FFE436")
+            case .high:     return Color(hex: "#FF5A1F")
+            case .critical: return Color(hex: "#FFB0A3")
+            }
+        }
+        
+        private var priorityTextColor: Color {
+            switch order.priority {
+            case .low:      AppTheme.success
+            case .medium:   Color(hex: "#F9FF58")
+            case .high:     Color(hex: "#FF5A1F")
+            case .critical: Color(hex: "#FFB0A3")
+            }
+        }
+        
+        private var priorityBackgroundColor: Color {
+            switch order.priority {
+            case .low:      AppTheme.success.opacity(0.14)
+            case .medium:   Color(hex: "#FFE436").opacity(0.18)
+            case .high:     Color(hex: "#FF5A1F").opacity(0.18)
+            case .critical: Color(hex: "#FFB0A3").opacity(0.18)
+            }
+        }
+        
+        private var statusColor: Color {
+            switch order.status {
+            case .open:         Color.dynamic(light: "#715B54", dark: "#E3C8BE")
+            case .inProgress:   Color(hex: "#2EA7FF")
+            case .waitingParts: AppTheme.warning
+            case .completed:    AppTheme.success
+            }
+        }
+        
+        private var statusIcon: String {
+            switch order.status {
+            case .open:         "ellipsis.circle"
+            case .inProgress:   "arrow.triangle.2.circlepath"
+            case .waitingParts: "shippingbox"
+            case .completed:    "checkmark.circle.fill"
+            }
+        }
+    }
+    
+    // MARK: - Detail View
+    
+    struct MaintenanceWorkOrderDetailView: View {
+        @Environment(\.dismiss) private var dismiss
+        @Environment(AppViewModel.self) private var appViewModel
+        @State private var workOrder: WorkOrder
+        @State private var progress: Int
+        @State private var repairStartedAt: Date?
+        @State private var labourHours = "1"
+        @State private var labourMinutes = "30"
+        @State private var isShowingCompletion = false
+        
+        init(workOrder: WorkOrder) {
+            _workOrder = State(initialValue: workOrder)
+            _progress = State(initialValue: MaintenanceWorkOrderDetailView.initialProgress(for: workOrder.status))
+            _repairStartedAt = State(initialValue: workOrder.status == .completed ? nil : Date.now.addingTimeInterval(-5081))
+        }
+        
+        private var vehicle: Vehicle? { appViewModel.service.vehicle(for: workOrder.vehicleID) }
+        private var accent: Color { Color(hex: "#FF5A1F") }
+        private var dangerAccent: Color { Color(hex: "#D70B1B") }
+        private var cardBackground: Color { Color.dynamic(light: "#FFFFFF", dark: "#1B1C22") }
+        private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
+        private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
+        
+        var body: some View {
+            ScrollView {
+                VStack(spacing: 18) {
+                    heroCard
+                    timerCard
+                    actionRow
+                    progressCard
+                    scheduleCard
+                    descriptionCard
+                    labourCard
+                    partsCard
+                    chatCard
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 28)
+            }
+            .navigationTitle("#WO-\(String(workOrder.id.uuidString.prefix(4)))")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(detailText)
+                }
+            }
+            .navigationDestination(isPresented: $isShowingCompletion) {
+                CompleteWorkOrderView(
+                    workOrder: workOrder,
+                    vehicle: vehicle,
+                    labourHoursText: labourTotalText,
+                    partName: partName
+                )
+                .environment(appViewModel)
+            }
+        }
+        
+        private var heroCard: some View {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top) {
+                    Text("\(workOrder.priority.rawValue.uppercased()) PRIORITY")
+                        .font(.caption2.monospaced().weight(.bold))
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(accent.opacity(0.14), in: Capsule())
-                }
-                .padding(10)
-                .background(Color.dynamic(light: "#F3F4F7", dark: "#11131A"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-        }
-    }
-
-    private var chatCard: some View {
-        DetailSectionCard {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Label("Work Order Chat", systemImage: "message")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(headingText)
+                        .background(Color.white.opacity(0.16), in: Capsule())
+                    
                     Spacer()
-                    Circle()
-                        .fill(accent)
-                        .frame(width: 6, height: 6)
+                    
+                    // AC3: Show OVERDUE badge in the detail hero card too.
+                    if workOrder.isOverdue {
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.clock.fill")
+                                .font(.caption2.bold())
+                            Text("OVERDUE")
+                                .font(.caption2.monospaced().weight(.bold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.red, in: Capsule())
+                    } else {
+                        Text(workOrder.status.rawValue.uppercased())
+                            .font(.caption2.monospaced().weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(0.16), in: Capsule())
+                    }
                 }
-
-                DetailChatBubble(sender: "DISPATCH", message: "Parts are at the counter.", highlighted: false)
-                DetailChatBubble(sender: currentMechanicName.uppercased(), message: "Picking them up now.", highlighted: true)
-
-                Button {
-                } label: {
-                    Text("Open Chat")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(headingText)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 46)
-                        .background(Color.dynamic(light: "#EEF0F4", dark: "#33353D"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                
+                Text(workOrder.title)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                
+                HStack(spacing: 12) {
+                    Label(vehicle?.displayName ?? "Vehicle", systemImage: "truck.box")
+                    Label("Assigned: \(workOrder.scheduledDate.formatted(date: .omitted, time: .shortened))", systemImage: "clock")
                 }
-                .buttonStyle(.plain)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.9))
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
             }
-        }
-    }
-
-    private var actualStartText: String {
-        (repairStartedAt ?? workOrder.scheduledDate).formatted(date: .omitted, time: .shortened)
-    }
-
-    private var bayNumber: String {
-        let value = abs(workOrder.id.hashValue % 5) + 1
-        return "\(value)"
-    }
-
-    private var estimatedDuration: String {
-        switch workOrder.priority {
-        case .low: "1h 00m"
-        case .medium: "2h 00m"
-        case .high: "2h 30m"
-        case .critical: "3h 00m"
-        }
-    }
-
-    private var currentMechanicName: String {
-        appViewModel.currentUser?.name ?? "Maintenance Staff"
-    }
-
-    private var partName: String {
-        if workOrder.title.localizedCaseInsensitiveContains("brake") {
-            return "Front Brake Pads"
-        }
-        if workOrder.title.localizedCaseInsensitiveContains("oil") {
-            return "Oil Filter Kit"
-        }
-        if workOrder.title.localizedCaseInsensitiveContains("tyre") || workOrder.title.localizedCaseInsensitiveContains("tire") {
-            return "Tyre Valve Set"
-        }
-        return "Workshop Parts Kit"
-    }
-
-    private var labourTotalText: String {
-        let hours = Double(labourHours) ?? 0
-        let minutes = Double(labourMinutes) ?? 0
-        return String(format: "%.1f", hours + (minutes / 60))
-    }
-
-    private func updateProgress(to value: Int) {
-        progress = value
-        if value >= 100 {
-            isShowingCompletion = true
-            return
-        }
-
-        if workOrder.status == .open {
-            workOrder.status = .inProgress
-        }
-        appViewModel.service.updateWorkOrder(workOrder)
-    }
-
-    private func markComplete() {
-        // Previous immediate completion path kept for rollback.
-        progress = 100
-        workOrder.status = .completed
-        workOrder.completedDate = .now
-        repairStartedAt = nil
-        if workOrder.repairSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            workOrder.repairSummary = "Marked complete from work order detail."
-        }
-        appViewModel.service.updateWorkOrder(workOrder)
-    }
-
-    private static func initialProgress(for status: WorkOrderStatus) -> Int {
-        switch status {
-        case .open: 25
-        case .inProgress: 75
-        case .waitingParts: 50
-        case .completed: 100
-        }
-    }
-
-    private static func formattedDuration(from start: Date, to end: Date) -> String {
-        let seconds = max(0, Int(end.timeIntervalSince(start)))
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        let remainingSeconds = seconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, remainingSeconds)
-    }
-}
-
-private struct DetailSectionCard<Content: View>: View {
-    let content: Content
-
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-
-    var body: some View {
-        content
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(18)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22").opacity(0.96))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1)
+                    .fill(
+                        LinearGradient(
+                            // AC3: Pure red gradient when overdue, standard danger otherwise.
+                            colors: workOrder.isOverdue
+                                ? [Color.red, Color(hex: "#FF5A1F")]
+                                : [dangerAccent, accent],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
+                    .overlay(alignment: .topTrailing) {
+                        Image(systemName: workOrder.isOverdue
+                              ? "exclamationmark.clock.fill"
+                              : "exclamationmark.triangle.fill")
+                            .font(.system(size: 52))
+                            .foregroundStyle(.white.opacity(0.16))
+                            .padding(.trailing, 12)
+                            .padding(.top, 10)
+                    }
             )
-    }
-}
-
-private struct DetailKeyValueRow: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(.subheadline)
-                .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
-            Spacer()
-            Text(value)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
         }
-    }
-}
-
-private struct DetailDivider: View {
-    var body: some View {
-        Divider()
-            .overlay(Color.dynamic(light: "#E6D8D2", dark: "#3B3841"))
-    }
-}
-
-private struct DetailTimeInput: View {
-    let title: String
-    @Binding var value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            TextField("", text: $value)
-                .keyboardType(.numberPad)
-                .font(.headline)
-                .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
-                .padding(.horizontal, 12)
-                .frame(height: 48)
-                .background(Color.dynamic(light: "#FFFFFF", dark: "#11131A"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.dynamic(light: "#BFC6D4", dark: "#667085"), lineWidth: 1)
-                )
-
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
-        }
-    }
-}
-
-private struct DetailChatBubble: View {
-    let sender: String
-    let message: String
-    let highlighted: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(sender)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
-            Text(message)
-                .font(.caption)
-                .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Color.dynamic(light: "#F3F4F7", dark: "#11131A"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(alignment: .leading) {
-            if highlighted {
-                Rectangle()
-                    .fill(Color(hex: "#FF5A1F"))
-                    .frame(width: 3)
+        
+        private var timerCard: some View {
+            DetailSectionCard {
+                VStack(spacing: 14) {
+                    Text("ACTIVE REPAIR TIMER")
+                        .font(.caption2.monospaced().weight(.bold))
+                        .tracking(2)
+                        .foregroundStyle(detailText)
+                    
+                    if let repairStartedAt {
+                        TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                            Text(Self.formattedDuration(from: repairStartedAt, to: timeline.date))
+                                .font(.system(size: 34, weight: .bold, design: .monospaced))
+                                .foregroundStyle(accent)
+                        }
+                    } else {
+                        Text("00:00:00")
+                            .font(.system(size: 34, weight: .bold, design: .monospaced))
+                            .foregroundStyle(detailText)
+                    }
+                    
+                    Button {
+                        repairStartedAt = repairStartedAt == nil ? .now : nil
+                    } label: {
+                        Label(repairStartedAt == nil ? "Start Timer" : "Stop Timer",
+                              systemImage: repairStartedAt == nil ? "play.circle" : "stop.circle")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 46)
+                            .background(dangerAccent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-}
-
-private struct MaintenanceOrderUpdateSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
-    @State var workOrder: WorkOrder
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Status") {
-                    Picker("Current Status", selection: $workOrder.status) {
-                        ForEach(WorkOrderStatus.allCases) { status in
-                            Text(status.rawValue).tag(status)
+        
+        private var actionRow: some View {
+            HStack(spacing: 12) {
+                Button {
+                    updateProgress(to: max(progress, 75))
+                } label: {
+                    Text("Update Progress")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(headingText)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(Color.dynamic(light: "#EEF0F4", dark: "#2B2D35"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    isShowingCompletion = true
+                } label: {
+                    Text("Mark Complete")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(accent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .shadow(color: accent.opacity(0.24), radius: 12, x: 0, y: 6)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        
+        private var progressCard: some View {
+            DetailSectionCard {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Text("Task Progress")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(headingText)
+                        Spacer()
+                        Text("\(progress)%")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(accent)
+                    }
+                    
+                    ProgressView(value: Double(progress), total: 100)
+                        .tint(accent)
+                        .background(Color.dynamic(light: "#D9DDE4", dark: "#30323A"))
+                        .clipShape(Capsule())
+                    
+                    HStack(spacing: 8) {
+                        ForEach([25, 50, 75, 100], id: \.self) { value in
+                            Button {
+                                updateProgress(to: value)
+                            } label: {
+                                Text("\(value)%")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(progress == value ? Color.white : detailText)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 34)
+                                    .background(
+                                        progress == value ? accent.opacity(0.45) : Color.dynamic(light: "#EFF1F5", dark: "#292B32"),
+                                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                    TextField("Completed Repairs", text: $workOrder.repairSummary, axis: .vertical)
+                    
+                    Label("Actual Start Time: \(actualStartText)", systemImage: "alarm")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(accent)
                 }
             }
-            .navigationTitle("Update Work Order")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+        }
+        
+        private var scheduleCard: some View {
+            DetailSectionCard {
+                VStack(spacing: 14) {
+                    DetailKeyValueRow(title: "Location", value: "Bay \(bayNumber)")
+                    DetailDivider()
+                    DetailKeyValueRow(title: "Scheduled", value: workOrder.scheduledDate.formatted(date: .omitted, time: .shortened))
+                    DetailDivider()
+                    DetailKeyValueRow(title: "Est. Duration", value: estimatedDuration)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        if workOrder.status == .completed && workOrder.completedDate == nil {
-                            workOrder.completedDate = .now
+            }
+        }
+        
+        private var descriptionCard: some View {
+            DetailSectionCard {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("DESCRIPTION")
+                        .font(.caption2.monospaced().weight(.bold))
+                        .tracking(1.2)
+                        .foregroundStyle(detailText)
+                    Text("\"\(workOrder.details)\"")
+                        .font(.subheadline.italic())
+                        .foregroundStyle(headingText)
+                        .lineSpacing(4)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        
+        private var labourCard: some View {
+            DetailSectionCard {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("Labour Hours")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(headingText)
+                        Spacer()
+                        Button {
+                        } label: {
+                            Label("Add Hours", systemImage: "plus")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(accent)
                         }
-                        appViewModel.service.updateWorkOrder(workOrder)
-                        dismiss()
+                        .buttonStyle(.plain)
+                    }
+                    
+                    HStack(spacing: 12) {
+                        DetailTimeInput(title: "HOURS", value: $labourHours)
+                        DetailTimeInput(title: "MINUTES", value: $labourMinutes)
+                    }
+                    
+                    HStack {
+                        Rectangle()
+                            .fill(accent)
+                            .frame(width: 3)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(currentMechanicName)
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(headingText)
+                            Text("Mechanic ID: #552")
+                                .font(.caption)
+                                .foregroundStyle(detailText)
+                        }
+                        Spacer()
+                        Text("\(labourTotalText) hrs")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
+                    }
+                    .padding(12)
+                    .background(Color.dynamic(light: "#F3F4F7", dark: "#22242B"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+            }
+        }
+        
+        private var partsCard: some View {
+            DetailSectionCard {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("Spare Parts")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(headingText)
+                        Spacer()
+                        Button {
+                        } label: {
+                            Label("Add Part", systemImage: "plus.square")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(accent)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .overlay(Capsule().stroke(accent, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    HStack(spacing: 12) {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(detailText)
+                            .frame(width: 44, height: 44)
+                            .background(Color.dynamic(light: "#EEF0F4", dark: "#30323A"), in: Circle())
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(partName)
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(headingText)
+                            Text("BP-402")
+                                .font(.caption)
+                                .foregroundStyle(detailText)
+                        }
+                        
+                        Spacer()
+                        
+                        Text("Qty: 1 set")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(accent.opacity(0.14), in: Capsule())
+                    }
+                    .padding(10)
+                    .background(Color.dynamic(light: "#F3F4F7", dark: "#11131A"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+            }
+        }
+        
+        private var chatCard: some View {
+            DetailSectionCard {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Label("Work Order Chat", systemImage: "message")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(headingText)
+                        Spacer()
+                        Circle()
+                            .fill(accent)
+                            .frame(width: 6, height: 6)
+                    }
+                    
+                    DetailChatBubble(sender: "DISPATCH", message: "Parts are at the counter.", highlighted: false)
+                    DetailChatBubble(sender: currentMechanicName.uppercased(), message: "Picking them up now.", highlighted: true)
+                    
+                    NavigationLink(destination: WorkOrderChatView(workOrderID: workOrder.id).environment(appViewModel)) {
+                        Text("Open Coordination Chat")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(headingText)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 46)
+                            .background(Color.dynamic(light: "#EEF0F4", dark: "#33353D"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        
+        private var actualStartText: String {
+            (repairStartedAt ?? workOrder.scheduledDate).formatted(date: .omitted, time: .shortened)
+        }
+        
+        private var bayNumber: String {
+            let value = abs(workOrder.id.hashValue % 5) + 1
+            return "\(value)"
+        }
+        
+        private var estimatedDuration: String {
+            switch workOrder.priority {
+            case .low:      "1h 00m"
+            case .medium:   "2h 00m"
+            case .high:     "2h 30m"
+            case .critical: "3h 00m"
+            }
+        }
+        
+        private var currentMechanicName: String {
+            appViewModel.currentUser?.name ?? "Maintenance Staff"
+        }
+        
+        private var partName: String {
+            if workOrder.title.localizedCaseInsensitiveContains("brake") { return "Front Brake Pads" }
+            if workOrder.title.localizedCaseInsensitiveContains("oil")   { return "Oil Filter Kit" }
+            if workOrder.title.localizedCaseInsensitiveContains("tyre") ||
+               workOrder.title.localizedCaseInsensitiveContains("tire")  { return "Tyre Valve Set" }
+            return "Workshop Parts Kit"
+        }
+        
+        private var labourTotalText: String {
+            let hours   = Double(labourHours)   ?? 0
+            let minutes = Double(labourMinutes) ?? 0
+            return String(format: "%.1f", hours + (minutes / 60))
+        }
+        
+        private func updateProgress(to value: Int) {
+            progress = value
+            if value >= 100 {
+                isShowingCompletion = true
+                return
+            }
+            if workOrder.status == .open {
+                workOrder.status = .inProgress
+            }
+            appViewModel.service.updateWorkOrder(workOrder)
+        }
+        
+        private func markComplete() {
+            progress = 100
+            workOrder.status = .completed
+            workOrder.completedDate = .now
+            repairStartedAt = nil
+            if workOrder.repairSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                workOrder.repairSummary = "Marked complete from work order detail."
+            }
+            appViewModel.service.updateWorkOrder(workOrder)
+        }
+        
+        private static func initialProgress(for status: WorkOrderStatus) -> Int {
+            switch status {
+            case .open:         25
+            case .inProgress:   75
+            case .waitingParts: 50
+            case .completed:    100
+            }
+        }
+        
+        private static func formattedDuration(from start: Date, to end: Date) -> String {
+            let seconds = max(0, Int(end.timeIntervalSince(start)))
+            let hours   = seconds / 3600
+            let minutes = (seconds % 3600) / 60
+            let remaining = seconds % 60
+            return String(format: "%02d:%02d:%02d", hours, minutes, remaining)
+        }
+    }
+    
+    // MARK: - Shared Detail Components
+    
+    private struct DetailSectionCard<Content: View>: View {
+        let content: Content
+        
+        init(@ViewBuilder content: () -> Content) {
+            self.content = content()
+        }
+        
+        var body: some View {
+            content
+                .padding(18)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22").opacity(0.96))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1)
+                        )
+                )
+        }
+    }
+    
+    private struct DetailKeyValueRow: View {
+        let title: String
+        let value: String
+        
+        var body: some View {
+            HStack {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+                Spacer()
+                Text(value)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
+            }
+        }
+    }
+    
+    private struct DetailDivider: View {
+        var body: some View {
+            Divider()
+                .overlay(Color.dynamic(light: "#E6D8D2", dark: "#3B3841"))
+        }
+    }
+    
+    private struct DetailTimeInput: View {
+        let title: String
+        @Binding var value: String
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                TextField("", text: $value)
+                    .keyboardType(.numberPad)
+                    .font(.headline)
+                    .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
+                    .padding(.horizontal, 12)
+                    .frame(height: 48)
+                    .background(Color.dynamic(light: "#FFFFFF", dark: "#11131A"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.dynamic(light: "#BFC6D4", dark: "#667085"), lineWidth: 1)
+                    )
+                
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+            }
+        }
+    }
+    
+    private struct DetailChatBubble: View {
+        let sender: String
+        let message: String
+        let highlighted: Bool
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(sender)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Color.dynamic(light: "#F3F4F7", dark: "#11131A"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(alignment: .leading) {
+                if highlighted {
+                    Rectangle()
+                        .fill(Color(hex: "#FF5A1F"))
+                        .frame(width: 3)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+    }
+    
+    // MARK: - Update Sheet
+    
+    private struct MaintenanceOrderUpdateSheet: View {
+        @Environment(\.dismiss) private var dismiss
+        @Environment(AppViewModel.self) private var appViewModel
+        @State var workOrder: WorkOrder
+        
+        var body: some View {
+            NavigationStack {
+                Form {
+                    Section("Status") {
+                        Picker("Current Status", selection: $workOrder.status) {
+                            ForEach(WorkOrderStatus.allCases) { status in
+                                Text(status.rawValue).tag(status)
+                            }
+                        }
+                        TextField("Completed Repairs", text: $workOrder.repairSummary, axis: .vertical)
+                    }
+                }
+                .navigationTitle("Update Work Order")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            if workOrder.status == .completed && workOrder.completedDate == nil {
+                                workOrder.completedDate = .now
+                            }
+                            appViewModel.service.updateWorkOrder(workOrder)
+                            dismiss()
+                        }
                     }
                 }
             }
@@ -913,6 +1019,6 @@ private struct MaintenanceOrderUpdateSheet: View {
 #Preview {
     NavigationStack {
         MaintenanceWorkOrdersView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

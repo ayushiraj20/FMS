@@ -3,7 +3,7 @@
 import SwiftUI
 
 struct MaintenanceDashboardView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     // Previous state owner kept for rollback:
     // @StateObject private var viewModel = MaintenanceDashboardViewModel()
     @State private var isLoading = true
@@ -20,7 +20,6 @@ struct MaintenanceDashboardView: View {
                     // activeOrders
                     // schedulePreview
                     dashboardHeader
-                    assignmentNotice
                     metricsGrid
                     priorityQueue
                     maintenanceScheduleStrip
@@ -34,9 +33,16 @@ struct MaintenanceDashboardView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: NotificationsView()) {
-                    Image(systemName: "bell")
-                        .foregroundStyle(AppTheme.textPrimary)
+                HStack(spacing: 16) {
+                    NavigationLink(destination: ProfileSettingsView()) {
+                        Image(systemName: "person.crop.circle")
+                            .foregroundStyle(AppTheme.textPrimary)
+                    }
+
+                    NavigationLink(destination: NotificationsView()) {
+                        Image(systemName: "bell")
+                            .foregroundStyle(AppTheme.textPrimary)
+                    }
                 }
             }
         }
@@ -50,6 +56,7 @@ struct MaintenanceDashboardView: View {
     }
 
     private var currentUser: User? { appViewModel.currentUser }
+    private var userFirstName: String { currentUser?.name.components(separatedBy: " ").first ?? "User" }
     private var assignedOrders: [WorkOrder] { appViewModel.service.workOrders(for: currentUser?.id) }
     private var activeAssignedOrders: [WorkOrder] { assignedOrders.filter { $0.status != .completed } }
     private var priorityOrders: [WorkOrder] {
@@ -69,68 +76,13 @@ struct MaintenanceDashboardView: View {
     private var dashboardHeader: some View {
         HStack(alignment: .center, spacing: 14) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "person.2.badge.gearshape.fill")
-                        .foregroundStyle(maintenanceAccent)
-                    Text("FleetOS")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .foregroundStyle(warmPrimaryText)
-                }
-
-                Text("\(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())) • \(activeAssignedOrders.count) active assignments")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(warmSecondaryText)
-            }
-
-            Spacer()
-
-            Text(userInitials)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [maintenanceAccent.opacity(0.9), Color(hex: "#C93610")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                )
-        }
-    }
-
-    private var assignmentNotice: some View {
-        HStack(spacing: 14) {
-            Image(systemName: activeAssignedOrders.isEmpty ? "checkmark.seal.fill" : "tray.full.fill")
-                .font(.title3)
-                .foregroundStyle(noticeColor)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(activeAssignedOrders.isEmpty ? "No assigned work pending" : "\(activeAssignedOrders.count) admin-assigned work orders")
-                    .font(.headline)
+                Text("Hey \(userFirstName)")
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundStyle(warmPrimaryText)
-                Text(activeAssignedOrders.isEmpty ? "You are clear for now." : "Tap Orders to update progress after each repair.")
-                    .font(.subheadline)
-                    .foregroundStyle(warmSecondaryText)
             }
 
             Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(noticeColor)
         }
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(noticeColor.opacity(0.12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(noticeColor.opacity(0.18), lineWidth: 1)
-                )
-        )
     }
 
     private var metricsGrid: some View {
@@ -475,6 +427,6 @@ private struct MaintenanceSchedulePreviewCard: View {
 #Preview {
     NavigationStack {
         MaintenanceDashboardView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

@@ -1,75 +1,251 @@
 import SwiftUI
 
 struct ProfileSettingsView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
+    @State private var showEditSheet = false
 
     var body: some View {
-        List {
-            if let user = appViewModel.currentUser {
-                Section {
-                    GlassCard {
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(user.name)
-                                        .font(.title3.weight(.bold))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                    Text(user.title)
-                                        .foregroundStyle(AppTheme.textSecondary)
+        ZStack {
+            AppTheme.background.ignoresSafeArea()
+            
+            ScrollView(showsIndicators: false) {
+                let user = appViewModel.currentUser
+                let name = user?.name ?? "Ayushi Raj"
+                let email = user?.email ?? "ayushi.raj@fleetos.com"
+                let phone = user?.phone ?? "+91-98765-43210"
+                let title = user?.title ?? "Fleet Manager"
+                
+                VStack(spacing: 32) {
+                    
+                    // Avatar Section
+                    VStack(spacing: 16) {
+                        AvatarView(name: name, size: 96)
+                            .overlay(alignment: .bottomTrailing) {
+                                ZStack {
+                                    Circle()
+                                        .fill(AppTheme.background)
+                                        .frame(width: 28, height: 28)
+                                    Image(systemName: "checkmark.shield.fill")
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(AppTheme.brand)
                                 }
-
-                                Spacer()
-                                RoleBadgeView(role: user.role)
+                                .offset(x: 2, y: 2)
                             }
-
-                            infoRow(title: "Email", value: user.email)
-                            infoRow(title: "Phone", value: user.phone)
-                            infoRow(title: "Organization", value: appViewModel.currentOrganization?.name ?? appViewModel.organizationName)
+                        
+                        VStack(spacing: 8) {
+                            Text(name)
+                                .font(.title2.weight(.bold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            
+                            Text(title)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(AppTheme.brand)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 6)
+                                .background(Capsule().fill(AppTheme.brand.opacity(0.15)))
                         }
                     }
+                    .padding(.top, 24)
+                    
+                    // Info Card
+                    GlassCard {
+                        VStack(spacing: 16) {
+                            infoRow(icon: "envelope.fill", title: "Email", value: email)
+                            Divider().background(AppTheme.border).padding(.leading, 40)
+                            infoRow(icon: "phone.fill", title: "Phone", value: phone)
+                            Divider().background(AppTheme.border).padding(.leading, 40)
+                            infoRow(icon: "checkmark.seal.fill", title: "Status", value: "Active", valueColor: AppTheme.success)
+                            Divider().background(AppTheme.border).padding(.leading, 40)
+                            infoRow(icon: "calendar", title: "Joined", value: "22 Jan 2026")
+                        }
+                    }
+                    
+                    // Links Card
+                    GlassCard {
+                        VStack(spacing: 16) {
+                            linkRow(icon: "gearshape.fill", title: "Settings")
+                            Divider().background(AppTheme.border).padding(.leading, 40)
+                            linkRow(icon: "questionmark.circle.fill", title: "Help & Support")
+                        }
+                    }
+                    
+                    // Logout Button
+                    Button {
+                        appViewModel.logout()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Text("Logout")
+                                .font(.system(size: 16, weight: .bold))
+                        }
+                        .foregroundStyle(AppTheme.error)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            Capsule()
+                                .fill(AppTheme.surfaceSecondary)
+                        )
+                    }
                 }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
-
-            Section {
-                Toggle("Push Notifications", isOn: $appViewModel.profileNotificationsEnabled)
-                Toggle("Biometric Unlock", isOn: $appViewModel.biometricUnlockEnabled)
-            } header: {
-                Text("Preferences")
-            }
-
-            Section {
-                NavigationLink("View Notifications", destination: NotificationsView())
-                    .foregroundStyle(AppTheme.textPrimary)
-            }
-
-            Section {
-                Button("Log Out", role: .destructive) {
-                    appViewModel.logout()
-                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
-        .navigationTitle("Profile & Settings")
+        .navigationTitle("Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Edit") {
+                    showEditSheet = true
+                }
+                .font(.system(size: 17))
+                .foregroundStyle(AppTheme.brand)
+            }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            EditProfileView()
+                .environment(appViewModel)
+        }
     }
-
-    private func infoRow(title: String, value: String) -> some View {
-        HStack {
-            Text(title)
+    
+    private func infoRow(icon: String, title: String, value: String, valueColor: Color = AppTheme.textPrimary) -> some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
                 .foregroundStyle(AppTheme.textSecondary)
+                .frame(width: 20)
+            
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.textSecondary)
+            
             Spacer()
+            
             Text(value)
-                .foregroundStyle(AppTheme.textPrimary)
+                .font(.subheadline)
+                .foregroundStyle(valueColor)
         }
-        .font(.subheadline)
+    }
+    
+    private func linkRow(icon: String, title: String) -> some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .foregroundStyle(AppTheme.textSecondary)
+                .frame(width: 20)
+            
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.textPrimary)
+            
+            Spacer()
+            
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(AppTheme.textSecondary)
+        }
+    }
+}
+
+struct EditProfileView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(AppViewModel.self) private var appViewModel
+    
+    @State private var nameInput = ""
+    @State private var phoneInput = ""
+    @State private var titleInput = ""
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 24) {
+                        VStack(spacing: 8) {
+                            Image(systemName: "person.crop.circle.badge.plus")
+                                .font(.system(size: 64))
+                                .foregroundStyle(AppTheme.brand)
+                                .padding(.top, 16)
+                            
+                            Text("Update Profile Details")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            
+                            Text("Your organization requires active details for safety and compliance.")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 24)
+                        }
+                        
+                        GlassCard {
+                            VStack(spacing: 18) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Full Name")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    TextField("Enter name", text: $nameInput)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Title / Role")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    TextField("Enter title", text: $titleInput)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Phone Number")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    TextField("Enter phone number", text: $phoneInput)
+                                        .textFieldStyle(.roundedBorder)
+                                        .keyboardType(.phonePad)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+            }
+            .navigationTitle("Edit Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundStyle(AppTheme.brand)
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        Task {
+                            await appViewModel.updateProfile(name: nameInput, phone: phoneInput, title: titleInput)
+                            dismiss()
+                        }
+                    }
+                    .font(.body.bold())
+                    .foregroundStyle(AppTheme.brand)
+                    .disabled(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .onAppear {
+                if let user = appViewModel.currentUser {
+                    nameInput = user.name
+                    phoneInput = user.phone
+                    titleInput = user.title
+                }
+            }
+        }
     }
 }
 
 #Preview {
     NavigationStack {
         ProfileSettingsView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct InspectionsView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel: AppViewModel
     @State private var isPresentingInspectionSheet = false
     @State private var isPresentingDefectSheet = false
 
@@ -61,18 +61,18 @@ struct InspectionsView: View {
         .navigationTitle("Inspections")
         .sheet(isPresented: $isPresentingInspectionSheet) {
             NewInspectionSheet()
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
         .sheet(isPresented: $isPresentingDefectSheet) {
             DefectReportSheet()
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
         }
     }
 }
 
 private struct NewInspectionSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel: AppViewModel
 
     @State private var inspectionType: InspectionType = .preTrip
     @State private var notes = ""
@@ -113,8 +113,8 @@ private struct NewInspectionSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         guard let user = appViewModel.currentUser,
-                              let vehicleID = user.assignedVehicleID else { return }
-                        appViewModel.service.addInspection(driverID: user.id, vehicleID: vehicleID, type: inspectionType, notes: notes, items: items)
+                              let vehicle = appViewModel.assignedVehicle else { return }
+                        appViewModel.service.addInspection(driverID: user.id, vehicleID: vehicle.id, type: inspectionType, notes: notes, items: items)
                         dismiss()
                     }
                 }
@@ -125,7 +125,7 @@ private struct NewInspectionSheet: View {
 
 private struct DefectReportSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel: AppViewModel
 
     @State private var severity: WorkOrderPriority = .medium
     @State private var description = ""
@@ -148,8 +148,8 @@ private struct DefectReportSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Submit") {
                         guard let user = appViewModel.currentUser,
-                              let vehicleID = user.assignedVehicleID else { return }
-                        appViewModel.service.addDefect(driverID: user.id, vehicleID: vehicleID, severity: severity, description: description)
+                              let vehicle = appViewModel.assignedVehicle else { return }
+                        appViewModel.service.addDefect(driverID: user.id, vehicleID: vehicle.id, severity: severity, description: description)
                         dismiss()
                     }
                     .disabled(description.isEmpty)
@@ -162,6 +162,6 @@ private struct DefectReportSheet: View {
 #Preview {
     NavigationStack {
         InspectionsView()
-            .environmentObject(AppViewModel())
+            .environment(AppViewModel())
     }
 }

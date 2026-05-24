@@ -1,62 +1,147 @@
 import SwiftUI
 
 struct NotificationsView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+
+    @Environment(AppViewModel.self)
+    private var appViewModel
 
     var body: some View {
+
         List {
-            ForEach(appViewModel.service.notifications(for: appViewModel.currentUser)) { notification in
+
+            ForEach(
+                appViewModel.notifications
+            ) { notification in
+
                 GlassCard {
-                    HStack(alignment: .top, spacing: 14) {
+
+                    HStack(
+                        alignment: .top,
+                        spacing: 14
+                    ) {
+
                         Circle()
-                            .fill(color(for: notification.category))
-                            .frame(width: 10, height: 10)
+                            .fill(
+                                color(
+                                    for: notification.category
+                                )
+                            )
+                            .frame(
+                                width: 10,
+                                height: 10
+                            )
                             .padding(.top, 7)
 
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(notification.title)
-                                .font(.headline)
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text(notification.message)
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.textSecondary)
-                            Text(notification.date.formatted(date: .abbreviated, time: .shortened))
-                                .font(.footnote)
-                                .foregroundStyle(AppTheme.textSecondary.opacity(0.8))
+                        VStack(
+                            alignment: .leading,
+                            spacing: 6
+                        ) {
+
+                            Text(
+                                notification.title
+                            )
+                            .font(.headline)
+                            .foregroundStyle(
+                                AppTheme.textPrimary
+                            )
+
+                            Text(
+                                notification.message
+                            )
+                            .font(.subheadline)
+                            .foregroundStyle(
+                                AppTheme.textSecondary
+                            )
+
+                            Text(
+                                notification.date.formatted(
+                                    date: .abbreviated,
+                                    time: .shortened
+                                )
+                            )
+                            .font(.footnote)
+                            .foregroundStyle(
+                                AppTheme.textSecondary
+                                    .opacity(0.8)
+                            )
                         }
 
                         Spacer()
 
                         if !notification.isRead {
-                            Button("Mark Read") {
-                                appViewModel.service.markNotificationRead(notification)
+
+                            Button(
+                                "Mark Read"
+                            ) {
+
+                                // Add later
                             }
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.brand)
+                            .font(
+                                .caption.weight(
+                                    .semibold
+                                )
+                            )
+                            .foregroundStyle(
+                                AppTheme.brand
+                            )
                         }
                     }
                 }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+                .listRowBackground(
+                    Color.clear
+                )
+                .listRowSeparator(
+                    .hidden
+                )
             }
         }
         .appListStyle()
-        .navigationTitle("Notifications")
+        .navigationTitle(
+            "Notifications"
+        )
+        .toolbar(
+            .visible,
+            for: .navigationBar
+        )
+
+        .task {
+            // Always reload notifications for the current logged-in user when this screen opens
+            await appViewModel.loadNotifications()
+        }
+
     }
 
-    private func color(for category: NotificationCategory) -> Color {
+    private func color(
+        for category: NotificationCategory
+    ) -> Color {
+
         switch category {
-        case .info: AppTheme.brand
-        case .warning: AppTheme.warning
-        case .critical: AppTheme.error
-        case .success: AppTheme.success
+
+        case .info:
+            return AppTheme.brand
+
+        case .warning:
+            return AppTheme.warning
+
+        case .critical:
+            return AppTheme.error
+
+        case .success:
+            return AppTheme.success
+
+        case .maintenance:
+            return Color.orange
         }
     }
 }
 
 #Preview {
+
     NavigationStack {
+
         NotificationsView()
-            .environmentObject(AppViewModel())
+            .environment(
+                AppViewModel()
+            )
     }
 }

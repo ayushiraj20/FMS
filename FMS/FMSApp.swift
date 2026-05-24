@@ -9,16 +9,54 @@ import SwiftUI
 
 @main
 struct FMSApp: App {
-    @StateObject private var appViewModel = AppViewModel()
+
+    @UIApplicationDelegateAdaptor(AppDelegate.self)
+    private var appDelegate
+
+    @State
+    private var appViewModel =
+    AppViewModel()
+
+    // Strong reference for monitoring service
+
+    @State
+    private var overdueMonitor:
+    OverdueWorkOrderMonitor?
 
     init() {
+
         ThemeConfigurator.configure()
+
+        // Request notification permission
+        // (overdue alerts + broadcasts)
+
+        NotificationScheduler
+            .requestPermission()
     }
 
     var body: some Scene {
+
         WindowGroup {
+
             ContentView()
-                .environmentObject(appViewModel)
+
+                .environment(
+                    appViewModel
+                )
+
+                .onAppear {
+
+                    // Start overdue monitoring
+
+                    overdueMonitor =
+                    OverdueWorkOrderMonitor(
+                        service:
+                        appViewModel.service
+                    )
+
+                    overdueMonitor?
+                        .start()
+                }
         }
     }
 }

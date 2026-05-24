@@ -10,22 +10,6 @@ struct AppScaffold<Content: View>: View {
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
-            AppTheme.ambientGradient
-                .opacity(0.9)
-                .ignoresSafeArea()
-
-            Circle()
-                .fill(AppTheme.brand.opacity(0.18))
-                .frame(width: 240, height: 240)
-                .blur(radius: 80)
-                .offset(x: 140, y: -240)
-
-            Circle()
-                .fill(Color.white.opacity(0.06))
-                .frame(width: 280, height: 280)
-                .blur(radius: 120)
-                .offset(x: -160, y: 260)
-
             content
         }
     }
@@ -40,14 +24,21 @@ struct GlassCard<Content: View>: View {
 
     var body: some View {
         content
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(AppTheme.glass)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(AppTheme.border, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(AppTheme.cardBackground)
+                    .shadow(
+                        color: AppTheme.cardShadowColor.opacity(0.06),
+                        radius: 8,
+                        x: 0,
+                        y: 2
                     )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(AppTheme.border, lineWidth: 0.5)
             )
     }
 }
@@ -58,7 +49,7 @@ struct SectionTitle: View {
 
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(AppTheme.textPrimary)
@@ -76,21 +67,47 @@ struct StatCardView: View {
 
     var body: some View {
         GlassCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(stat.title.uppercased())
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(AppTheme.textSecondary)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(stat.title)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(AppTheme.textSecondary)
+                    Spacer()
+                    Image(systemName: stat.iconName)
+                        .font(.title3)
+                        .foregroundStyle(Color("AccentColor"))
+                }
+
                 Text(stat.value)
-                    .font(.title2.weight(.bold))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.textPrimary)
-                Text(stat.detail)
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.textSecondary)
-                Text(stat.trend)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.brand)
+
+                if let badgeText = stat.badgeText {
+                    Text(badgeText)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule()
+                                .fill(badgeDisplayColor(stat.badgeColor))
+                        )
+                } else {
+                    Text(stat.trend)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Color("AccentColor"))
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func badgeDisplayColor(_ type: KPIStat.BadgeColorType) -> Color {
+        switch type {
+        case .none: return Color("AccentColor")
+        case .critical: return AppTheme.badgeCritical
+        case .action: return AppTheme.badgeAction
+        case .success: return AppTheme.badgeSuccess
         }
     }
 }
@@ -101,11 +118,107 @@ struct RoleBadgeView: View {
     var body: some View {
         Label(role.rawValue, systemImage: role.iconName)
             .font(.caption.weight(.semibold))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(AppTheme.brand.opacity(0.14))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(AppTheme.brand.opacity(0.12))
             .foregroundStyle(AppTheme.brand)
             .clipShape(Capsule())
+    }
+}
+
+struct StatusBadgeView: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
+            Text(text)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(color)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(color.opacity(0.12))
+        .clipShape(Capsule())
+    }
+}
+
+struct TagView: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.10))
+            .clipShape(Capsule())
+    }
+}
+
+struct AvatarView: View {
+    let name: String
+    let size: CGFloat
+
+    var body: some View {
+        let initials = name.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined().uppercased()
+        
+        ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            colorForName(name),
+                            colorForName(name).opacity(0.8)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            
+            Text(initials.isEmpty ? "U" : initials)
+                .font(.system(size: size * 0.36, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+        }
+        .frame(width: size, height: size)
+    }
+    
+    private func colorForName(_ name: String) -> Color {
+        let hash = abs(name.hashValue)
+        let colors: [Color] = [
+            Color(hex: "#00a2ff"), // Blue
+            Color(hex: "#34c759"), // Green
+            Color(hex: "#ff9500"), // Orange
+            Color(hex: "#af52de"), // Purple
+            Color(hex: "#ff2d55"), // Pink
+            Color(hex: "#ff3b30")  // Red
+        ]
+        return colors[hash % colors.count]
+    }
+}
+
+struct FilterChipView: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(isSelected ? .white : AppTheme.textSecondary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(isSelected ? AppTheme.brand : AppTheme.surfaceSecondary)
+                )
+        }
     }
 }
 
@@ -113,11 +226,14 @@ struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(AppTheme.textPrimary)
+            .foregroundStyle(.white)
             .padding(.vertical, 16)
             .frame(maxWidth: .infinity)
-            .background(AppTheme.gradient.opacity(configuration.isPressed ? 0.85 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(AppTheme.brand)
+                    .opacity(configuration.isPressed ? 0.85 : 1)
+            )
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
     }
 }
@@ -126,15 +242,14 @@ struct SecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(AppTheme.textPrimary)
+            .foregroundStyle(AppTheme.brand)
             .padding(.vertical, 16)
             .frame(maxWidth: .infinity)
-            .background(AppTheme.glass.opacity(configuration.isPressed ? 0.7 : 1))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(AppTheme.border, lineWidth: 1)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(AppTheme.brand.opacity(0.10))
+                    .opacity(configuration.isPressed ? 0.7 : 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 
@@ -173,6 +288,25 @@ struct LoadingStateView: View {
                 .foregroundStyle(AppTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct FloatingActionButton: View {
+    let icon: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(
+                    Circle()
+                        .fill(AppTheme.brand)
+                        .shadow(color: AppTheme.brand.opacity(0.4), radius: 12, x: 0, y: 6)
+                )
+        }
     }
 }
 

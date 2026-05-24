@@ -8,7 +8,7 @@ struct OnboardingPage: Identifiable {
 }
 
 struct OnboardingView: View {
-    @EnvironmentObject private var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var selection = 0
 
     private let pages = [
@@ -77,5 +77,5 @@ struct OnboardingView: View {
 
 #Preview {
     OnboardingView()
-        .environmentObject(AppViewModel())
+        .environment(AppViewModel())
 }
