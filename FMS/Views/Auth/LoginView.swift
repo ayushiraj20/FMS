@@ -109,7 +109,7 @@ struct LoginView: View {
                                 } else {
                                     HStack {
                                         Text("Sign In")
-                                        Image(systemName: "arrow.right")
+//                                        Image(systemName: "arrow.right")
                                     }
                                     .font(.system(size: 16, weight: .semibold))
                                     .frame(maxWidth: .infinity)
