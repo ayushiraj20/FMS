@@ -498,11 +498,10 @@ struct FleetManagerDashboardView: View {
     }
     
     private var notificationBadge: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack {
             Image(systemName: "bell.fill")
                 .font(.title3)
                 .foregroundStyle(AppTheme.textPrimary)
-                .frame(width: 44, height: 44)
                 
             if appViewModel.unreadNotificationsCount > 0 {
                 Text(appViewModel.unreadNotificationsCount > 10 ? "10+" : "\(appViewModel.unreadNotificationsCount)")
@@ -515,10 +514,11 @@ struct FleetManagerDashboardView: View {
                     .overlay(
                         Capsule().stroke(AppTheme.background, lineWidth: 2)
                     )
-                    .offset(x: 2, y: -2)
+                    .offset(x: 10, y: -10)
                     .zIndex(1)
             }
         }
+        .frame(width: 44, height: 44)
     }
 }
 

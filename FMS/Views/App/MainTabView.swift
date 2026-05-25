@@ -45,7 +45,7 @@ private struct FleetManagerTabView: View {
                 FleetManagerTripsView()
             }
             .tabItem {
-                Label("Trips", systemImage: "cube.box.fill")
+                Label("Trips", systemImage: "shippingbox.fill")
             }
 
             NavigationStack {
@@ -55,7 +55,7 @@ private struct FleetManagerTabView: View {
                 )
             }
             .tabItem {
-                Label("Vehicles", systemImage: "car.fill")
+                Label("Vehicles", systemImage: "car.2.fill")
             }
 
             NavigationStack {

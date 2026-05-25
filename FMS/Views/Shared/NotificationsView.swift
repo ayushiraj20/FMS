@@ -6,139 +6,59 @@ struct NotificationsView: View {
     private var appViewModel
 
     var body: some View {
-
         List {
+            ForEach(appViewModel.notifications) { notification in
+                HStack(alignment: .top, spacing: 14) {
+                    if !notification.isRead {
+                        Circle()
+                            .fill(Color(.systemBlue))
+                            .frame(width: 10, height: 10)
+                            .padding(.top, 7)
+                    } else {
+                        Circle()
+                            .fill(Color.clear)
+                            .frame(width: 10, height: 10)
+                            .padding(.top, 7)
+                    }
 
-            ForEach(
-                appViewModel.notifications
-            ) { notification in
-
-                GlassCard {
-
-                    HStack(
-                        alignment: .top,
-                        spacing: 14
-                    ) {
-
-                        if !notification.isRead {
-                            Circle()
-                                .fill(
-                                    color(
-                                        for: notification.category
-                                    )
-                                )
-                                .frame(
-                                    width: 10,
-                                    height: 10
-                                )
-                                .padding(.top, 7)
-                        } else {
-                            Circle()
-                                .fill(Color.clear)
-                                .frame(width: 10, height: 10)
-                                .padding(.top, 7)
-                        }
-
-                        VStack(
-                            alignment: .leading,
-                            spacing: 6
-                        ) {
-
-                            Text(
-                                notification.title
-                            )
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(notification.title)
                             .font(.headline)
-                            .foregroundStyle(
-                                AppTheme.textPrimary
-                            )
+                            .foregroundStyle(Color(.label))
 
-                            Text(
-                                notification.message
-                            )
+                        Text(notification.message)
                             .font(.subheadline)
-                            .foregroundStyle(
-                                AppTheme.textSecondary
-                            )
+                            .foregroundStyle(Color(.secondaryLabel))
+                            .padding(.bottom, 2)
 
-                            Text(
-                                notification.date.formatted(
-                                    date: .abbreviated,
-                                    time: .shortened
-                                )
-                            )
-                            .font(.footnote)
-                            .foregroundStyle(
-                                AppTheme.textSecondary
-                                    .opacity(0.8)
-                            )
-                        }
-
-                        Spacer()
-
-                        if !notification.isRead {
-
-                            Button(
-                                "Mark Read"
-                            ) {
-
-                                appViewModel.service.markNotificationRead(notification)
-                                appViewModel.notifications = appViewModel.service.notifications(for: appViewModel.currentUser)
-                            }
-                            .font(
-                                .caption.weight(
-                                    .semibold
-                                )
-                            )
-                            .foregroundStyle(
-                                AppTheme.brand
-                            )
-                        }
+                        Text(notification.date.formatted(date: .abbreviated, time: .shortened))
+                            .font(.caption)
+                            .foregroundStyle(Color(.tertiaryLabel))
                     }
                 }
-                .listRowBackground(
-                    Color.clear
-                )
-                .listRowSeparator(
-                    .hidden
-                )
+                .padding(.vertical, 4)
+                .listRowBackground(Color(.secondarySystemBackground))
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    if !notification.isRead {
+                        Button {
+                            appViewModel.service.markNotificationRead(notification)
+                            appViewModel.notifications = appViewModel.service.notifications(for: appViewModel.currentUser)
+                        } label: {
+                            Label("Mark Read", systemImage: "checkmark")
+                        }
+                        .tint(.blue)
+                    }
+                }
             }
         }
-        .appListStyle()
-        .navigationTitle(
-            "Notifications"
-        )
-        .toolbar(
-            .visible,
-            for: .navigationBar
-        )
-
+        .listStyle(.insetGrouped)
+        .background(Color(.systemBackground))
+        .scrollContentBackground(.hidden)
+        .navigationTitle("Notifications")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .task {
-            // Always reload notifications for the current logged-in user when this screen opens
             await appViewModel.loadNotifications()
-        }
-
-    }
-
-    private func color(
-        for category: NotificationCategory
-    ) -> Color {
-
-        switch category {
-
-        case .info:
-            return AppTheme.brand
-
-        case .warning:
-            return AppTheme.warning
-
-        case .critical:
-            return AppTheme.error
-
-        case .success:
-            return AppTheme.success
-
-        case .maintenance:
-            return Color.orange
         }
     }
 }

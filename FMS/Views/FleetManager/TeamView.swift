@@ -88,6 +88,22 @@ struct TeamView: View {
             .sheet(isPresented: $viewModel.showAddMember) {
                 AddTeamMemberSheet(viewModel: viewModel)
             }
+            .confirmationDialog(
+                "Delete Team Member",
+                isPresented: $viewModel.isPresentingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    viewModel.deleteConfirmed()
+                }
+                Button("Cancel", role: .cancel) {
+                    viewModel.memberToDelete = nil
+                }
+            } message: {
+                if let member = viewModel.memberToDelete {
+                    Text("Are you sure you want to delete \(member.name)? This action cannot be undone.")
+                }
+            }
         }
     }
 
@@ -158,6 +174,16 @@ struct TeamView: View {
                 
                 // Actions
                 HStack(spacing: 12) {
+                    Button(action: {
+                        viewModel.confirmDelete(member)
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(AppTheme.error)
+                            .frame(width: 36, height: 36)
+                            .background(AppTheme.surfaceSecondary)
+                            .clipShape(Circle())
+                    }
                     Button(action: {}) {
                         Image(systemName: "phone")
                             .font(.system(size: 14, weight: .medium))
@@ -525,8 +551,21 @@ final class TeamViewModel {
         return members
     }
 
-    func deleteMember(_ member: User) {
-        service.deleteUser(member)
+    // Delete State
+    var memberToDelete: User? = nil
+    var isPresentingDeleteConfirmation = false
+
+    func confirmDelete(_ member: User) {
+        memberToDelete = member
+        isPresentingDeleteConfirmation = true
+    }
+
+    func deleteConfirmed() {
+        if let member = memberToDelete {
+            service.deleteUser(member)
+        }
+        memberToDelete = nil
+        isPresentingDeleteConfirmation = false
     }
 
     func prepareForEdit(_ member: User) {
