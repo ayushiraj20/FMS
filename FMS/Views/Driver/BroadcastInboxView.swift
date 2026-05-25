@@ -94,5 +94,12 @@ struct BroadcastInboxView: View {
         .load(
             orgID: orgID
         )
+
+        
+        
+        BroadcastService.shared
+            .subscribe(
+                orgID: orgID
+            )
     }
 }
