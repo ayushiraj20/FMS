@@ -63,9 +63,7 @@ struct LoginView: View {
                                         .foregroundStyle(AppTheme.textSecondary)
                                         .kerning(1.2)
                                     Spacer()
-                                    Button("FORGOT?") { }
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(AppTheme.brand)
+                                   
                                 }
                                 
                                 AuthTextField(
@@ -77,6 +75,9 @@ struct LoginView: View {
                                     showPassword: $showPassword
                                 )
                                 .focused($focusedField, equals: .password)
+                                Button("FORGOT?") { }
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(AppTheme.brand)
                             }
                             
                             // Error Message Banner
