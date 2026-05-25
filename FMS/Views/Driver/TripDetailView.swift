@@ -4,6 +4,7 @@ import MapKit
 struct TripDetailView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     let trip: Trip
 
     private var currentUser: User? { appViewModel.currentUser }
@@ -48,7 +49,7 @@ struct TripDetailView: View {
                     // Settings or gear option
                 }) {
                     Image(systemName: "gearshape.fill")
-                        .foregroundStyle(.white)
+                        .foregroundStyle(DriverTheme.textPrimary)
                 }
             }
         }
@@ -107,7 +108,7 @@ struct TripDetailView: View {
         VStack(spacing: 0) {
             // Drag handle
             Capsule()
-                .fill(Color.white.opacity(0.2))
+                .fill(Color(UIColor { t in t.userInterfaceStyle == .dark ? UIColor.white.withAlphaComponent(0.20) : UIColor.black.withAlphaComponent(0.15) }))
                 .frame(width: 40, height: 5)
                 .padding(.vertical, 10)
 
@@ -132,7 +133,7 @@ struct TripDetailView: View {
                         
                         ZStack {
                             Circle()
-                                .stroke(Color.white.opacity(0.08), lineWidth: 8)
+                                .stroke(DriverTheme.cardBorder, lineWidth: 8)
                                 .frame(width: 70, height: 70)
                             
                             Circle()
@@ -172,8 +173,8 @@ struct TripDetailView: View {
         .frame(height: 520)
         .background(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .fill(Color(hex: "121217").opacity(0.96))
-                .shadow(color: .black.opacity(0.5), radius: 15, x: 0, y: -8)
+                .fill(DriverTheme.background.opacity(0.97))
+                .shadow(color: .black.opacity(0.4), radius: 15, x: 0, y: -8)
         )
     }
 
@@ -205,14 +206,14 @@ struct TripDetailView: View {
                             }
                         } else {
                             Circle()
-                                .stroke(Color.white.opacity(0.2), lineWidth: 2)
+                                .stroke(DriverTheme.separator, lineWidth: 2)
                                 .frame(width: 22, height: 22)
                         }
 
                         // Connecting vertical line
                         if index < checkpoints.count - 1 {
                             Rectangle()
-                                .fill(checkpoint.status == .completed ? DriverTheme.accent : Color.white.opacity(0.08))
+                                .fill(checkpoint.status == .completed ? DriverTheme.accent : DriverTheme.cardBorder)
                                 .frame(width: 2)
                                 .frame(height: 38)
                         }
@@ -289,11 +290,11 @@ struct TripDetailView: View {
                     .font(.system(size: 18))
                     .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
-                    .background(Circle().fill(Color.white.opacity(0.08)))
+                    .background(Circle().fill(DriverTheme.glassWhite))
             }
         }
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.white.opacity(0.04)))
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(DriverTheme.cardFill))
     }
 
     // MARK: - Metrics Bar Section
@@ -311,7 +312,7 @@ struct TripDetailView: View {
             .frame(maxWidth: .infinity)
             
             Rectangle()
-                .fill(Color.white.opacity(0.08))
+                .fill(DriverTheme.separator)
                 .frame(width: 1, height: 30)
             
             VStack(spacing: 4) {
@@ -325,7 +326,7 @@ struct TripDetailView: View {
             .frame(maxWidth: .infinity)
             
             Rectangle()
-                .fill(Color.white.opacity(0.08))
+                .fill(DriverTheme.separator)
                 .frame(width: 1, height: 30)
             
             VStack(spacing: 4) {
@@ -339,7 +340,7 @@ struct TripDetailView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.vertical, 14)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white.opacity(0.03)))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill.opacity(0.6)))
     }
 
     // MARK: - Action Button Section

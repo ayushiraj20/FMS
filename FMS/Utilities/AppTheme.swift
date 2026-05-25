@@ -66,22 +66,68 @@ enum AppTheme {
     static let badgeSuccess = Color.dynamic(light: "#34C759", dark: "#30D158")
 }
 
-// MARK: - Driver Theme (iOS 26 Light Mode)
+// MARK: - Driver Theme (Adaptive Light/Dark)
 enum DriverTheme {
     static let accent = Color(hex: "FD5D23")
-    static let background = Color.white
-    static let cardFill = Color(hex: "F2F2F7")
-    static let elevatedCard = Color.white
-    static let textPrimary = Color.black
-    static let textSecondary = Color(UIColor(red: 0.235, green: 0.235, blue: 0.263, alpha: 0.6))
-    static let separator = Color(UIColor(red: 0.235, green: 0.235, blue: 0.263, alpha: 0.3))
+
+    /// Adaptive: deep dark in dark mode, white in light mode
+    static let background = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor(red: 0.071, green: 0.071, blue: 0.090, alpha: 1) // #121217
+            : UIColor.systemBackground
+    })
+
+    /// Adaptive: dark card in dark mode, light card in light mode
+    static let cardFill = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor(red: 0.110, green: 0.110, blue: 0.129, alpha: 1) // #1C1C21
+            : UIColor.secondarySystemBackground
+    })
+
+    static let elevatedCard = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor(red: 0.110, green: 0.110, blue: 0.129, alpha: 1) // #1C1C21
+            : UIColor.systemBackground
+    })
+
+    /// Adaptive: white in dark mode, near-black in light mode
+    static let textPrimary = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark ? UIColor.white : UIColor.label
+    })
+
+    static let textSecondary = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor(red: 0.557, green: 0.557, blue: 0.576, alpha: 1) // #8E8E93
+            : UIColor.secondaryLabel
+    })
+
+    static let separator = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor.white.withAlphaComponent(0.12)
+            : UIColor.separator
+    })
+
     static let criticalRed = Color(hex: "FF3B30")
     static let successGreen = Color(hex: "34C759")
     static let warningAmber = Color(hex: "FF9500")
-    static let cardBorder = Color(hex: "E5E5EA")
 
-    static let cardShadow = Color.black.opacity(0.06)
-    static let glassWhite = Color.white.opacity(0.6)
+    static let cardBorder = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor.white.withAlphaComponent(0.08)
+            : UIColor.black.withAlphaComponent(0.10)
+    })
+
+    static let cardShadow = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor.black.withAlphaComponent(0.30)
+            : UIColor.black.withAlphaComponent(0.08)
+    })
+
+    static let glassWhite = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor.white.withAlphaComponent(0.08)
+            : UIColor.black.withAlphaComponent(0.04)
+    })
 
     static let accentGradient = LinearGradient(
         colors: [Color(hex: "FD5D23"), Color(hex: "FF7A45")],
@@ -90,7 +136,7 @@ enum DriverTheme {
     )
 }
 
-// MARK: - Driver Glass Card
+// MARK: - Driver Glass Card (adaptive light/dark)
 struct DriverGlassCard<Content: View>: View {
     let content: Content
 
@@ -179,7 +225,11 @@ struct CircularProgressRing: View {
     let progress: Double
     let size: CGFloat
     let strokeWidth: CGFloat
-    var trackColor: Color = Color(hex: "E5E5EA")
+    var trackColor: Color = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor.white.withAlphaComponent(0.12)
+            : UIColor(red: 0.898, green: 0.898, blue: 0.918, alpha: 1) // #E5E5EA
+    })
     var progressColor: Color = DriverTheme.accent
 
     var body: some View {
@@ -199,6 +249,7 @@ struct CircularProgressRing: View {
 
 struct ThemeConfigurator {
     static func configure() {
+        // MARK: Tab Bar
         let tabAppearance = UITabBarAppearance()
         tabAppearance.configureWithOpaqueBackground()
         tabAppearance.backgroundColor = UIColor.systemBackground
@@ -206,23 +257,24 @@ struct ThemeConfigurator {
 
         tabAppearance.stackedLayoutAppearance.normal.iconColor = UIColor.secondaryLabel
         tabAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor.secondaryLabel
+            NSAttributedString.Key.foregroundColor: UIColor.secondaryLabel
         ]
         tabAppearance.stackedLayoutAppearance.selected.iconColor = UIColor(Color("AccentColor"))
         tabAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor(Color("AccentColor"))
+            NSAttributedString.Key.foregroundColor: UIColor(Color("AccentColor"))
         ]
 
         UITabBar.appearance().standardAppearance = tabAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabAppearance
 
+        // MARK: Navigation Bar
         let navAppearance = UINavigationBarAppearance()
         navAppearance.configureWithDefaultBackground()
         navAppearance.largeTitleTextAttributes = [
-            .foregroundColor: UIColor.label
+            NSAttributedString.Key.foregroundColor: UIColor.label
         ]
         navAppearance.titleTextAttributes = [
-            .foregroundColor: UIColor.label
+            NSAttributedString.Key.foregroundColor: UIColor.label
         ]
         UINavigationBar.appearance().standardAppearance = navAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
