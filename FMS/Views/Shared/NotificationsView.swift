@@ -20,17 +20,24 @@ struct NotificationsView: View {
                         spacing: 14
                     ) {
 
-                        Circle()
-                            .fill(
-                                color(
-                                    for: notification.category
+                        if !notification.isRead {
+                            Circle()
+                                .fill(
+                                    color(
+                                        for: notification.category
+                                    )
                                 )
-                            )
-                            .frame(
-                                width: 10,
-                                height: 10
-                            )
-                            .padding(.top, 7)
+                                .frame(
+                                    width: 10,
+                                    height: 10
+                                )
+                                .padding(.top, 7)
+                        } else {
+                            Circle()
+                                .fill(Color.clear)
+                                .frame(width: 10, height: 10)
+                                .padding(.top, 7)
+                        }
 
                         VStack(
                             alignment: .leading,
@@ -74,7 +81,8 @@ struct NotificationsView: View {
                                 "Mark Read"
                             ) {
 
-                                // Add later
+                                appViewModel.service.markNotificationRead(notification)
+                                appViewModel.notifications = appViewModel.service.notifications(for: appViewModel.currentUser)
                             }
                             .font(
                                 .caption.weight(

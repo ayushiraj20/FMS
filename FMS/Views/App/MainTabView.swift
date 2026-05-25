@@ -34,64 +34,38 @@ private struct FleetManagerTabView: View {
     var body: some View {
 
         TabView {
-
             NavigationStack {
                 FleetManagerDashboardView()
             }
             .tabItem {
-                Label(
-                    "Dashboard",
-                    systemImage: "square.grid.2x2.fill"
-                )
+                Label("Dashboard", systemImage: "square.grid.2x2.fill")
+            }
+
+            NavigationStack {
+                FleetManagerTripsView()
+            }
+            .tabItem {
+                Label("Trips", systemImage: "cube.box.fill")
             }
 
             NavigationStack {
                 VehicleManagementView(
                     service: appViewModel.service,
-                    currentOrgID:
-                    appViewModel.currentOrganization?.id
+                    currentOrgID: appViewModel.currentOrganization?.id
                 )
             }
             .tabItem {
-                Label(
-                    "Vehicles",
-                    systemImage: "truck.box.fill"
-                )
-            }
-
-            NavigationStack {
-                DriverAssignmentManagementView(service: appViewModel.service)
-            }
-            .tabItem {
-                Label(
-                    "Driver",
-                    systemImage: "person.2.fill"
-                )
+                Label("Vehicles", systemImage: "car.fill")
             }
 
             NavigationStack {
                 TeamView(
                     service: appViewModel.service,
-                    currentOrgID:
-                    appViewModel.currentOrganization?.id
+                    currentOrgID: appViewModel.currentOrganization?.id
                 )
             }
             .tabItem {
-                Label(
-                    "Team",
-                    systemImage: "person.3.fill"
-                )
-            }
-
-            NavigationStack {
-                MaintenanceTabContentView()
-            }
-            .tabItem {
-                Label(
-                    "Maintenance",
-                    systemImage:
-                    "wrench.and.screwdriver.fill"
-                )
+                Label("Crew", systemImage: "person.2.fill")
             }
         }
         .tint(Color("AccentColor"))

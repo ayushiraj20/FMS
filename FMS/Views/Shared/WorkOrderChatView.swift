@@ -5,6 +5,7 @@ struct WorkOrderChatView: View {
     @Environment(AppViewModel.self) private var appViewModel
     
     let workOrderID: UUID
+    var onManage: (() -> Void)? = nil
     @State private var messageText = ""
     
     private var currentUser: User? {
@@ -135,6 +136,17 @@ struct WorkOrderChatView: View {
         .background(AppTheme.background.ignoresSafeArea())
         .navigationTitle("Repair Chat")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if let onManage {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Manage") {
+                        onManage()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.brand)
+                }
+            }
+        }
     }
     
     private func chatBubble(_ message: ChatMessage) -> some View {
