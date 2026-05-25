@@ -11,17 +11,43 @@ struct DriverDashboardView: View {
     private var currentUser: User? { appViewModel.currentUser }
     private var assignedVehicle: Vehicle? { appViewModel.assignedVehicle }
 
-    // MARK: - Local Premium Dark Theme Palette
+    // MARK: - Adaptive Theme Palette (light & dark)
     private enum LocalTheme {
-        static let background = Color(hex: "121217")      // Premium deep dark gray background
-        static let cardBackground = Color(hex: "1C1C21")  // Dark elevated card fill
-        static let textPrimary = Color.white              // Crisp white text
-        static let textSecondary = Color(hex: "8E8E93")    // Neutral light gray text
-        static let accent = Color(hex: "FD5D23")           // Vivid orange accent
-        static let successGreen = Color(hex: "34C759")      // Clean indicator green
-        static let criticalRed = Color(hex: "FF3B30")      // Alert red
-        static let dutyGreenBg = Color(hex: "1F3E2B")      // On duty pill dark green background
-        static let dutyGreenText = Color(hex: "4ADE80")    // On duty pill bright green text
+        // Backgrounds: deep dark in dark mode, system white in light mode
+        static let background = Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.071, green: 0.071, blue: 0.090, alpha: 1) // #121217
+                : UIColor.systemBackground
+        })
+        static let cardBackground = Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.110, green: 0.110, blue: 0.129, alpha: 1) // #1C1C21
+                : UIColor.secondarySystemBackground
+        })
+        // Text: white in dark, system label (near-black) in light
+        static let textPrimary = Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark ? UIColor.white : UIColor.label
+        })
+        static let textSecondary = Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.557, green: 0.557, blue: 0.576, alpha: 1)
+                : UIColor.secondaryLabel
+        })
+        // Accent & status — same in both modes
+        static let accent = Color(hex: "FD5D23")
+        static let successGreen = Color(hex: "34C759")
+        static let criticalRed = Color(hex: "FF3B30")
+        // Duty pill: adaptive green background
+        static let dutyGreenBg = Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.122, green: 0.243, blue: 0.169, alpha: 1) // #1F3E2B
+                : UIColor(red: 0.204, green: 0.780, blue: 0.349, alpha: 0.15)
+        })
+        static let dutyGreenText = Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.290, green: 0.871, blue: 0.502, alpha: 1) // #4ADE80
+                : UIColor(red: 0.106, green: 0.502, blue: 0.224, alpha: 1)
+        })
     }
 
     var body: some View {
@@ -90,9 +116,7 @@ struct DriverDashboardView: View {
 
     private var topBar: some View {
         HStack {
-            Spacer()
-
-            // Profile Avatar Button
+            // FIX: Profile Avatar Button moved to LEFT
             NavigationLink {
                 DriverProfileView()
                     .environment(appViewModel)
@@ -109,7 +133,9 @@ struct DriverDashboardView: View {
             }
             .accessibilityIdentifier("PROFILE_BUTTON")
 
-            // Bell Button
+            Spacer()
+
+            // Bell Button stays on RIGHT
             NavigationLink(destination: NotificationsView()) {
                 ZStack(alignment: .topTrailing) {
                     Circle()
@@ -165,7 +191,11 @@ struct DriverDashboardView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Capsule().fill(isOnDuty ? LocalTheme.dutyGreenBg : Color.white.opacity(0.08)))
+                    .background(Capsule().fill(isOnDuty ? LocalTheme.dutyGreenBg : Color(UIColor { trait in
+                        trait.userInterfaceStyle == .dark
+                            ? UIColor.white.withAlphaComponent(0.08)
+                            : UIColor.black.withAlphaComponent(0.06)
+                    })))
                 }
                 .alert("Change Duty Status", isPresented: $driverVM.showDutyToggleAlert) {
                     Button("Confirm") {
@@ -235,13 +265,25 @@ struct DriverDashboardView: View {
             } label: {
                 CustomDarkCard {
                     VStack(alignment: .leading, spacing: 8) {
-                        // Load generated high-fidelity vehicle asset
-                        Image("truck_placeholder")
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(height: 90)
-                            .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        // Vehicle image — uses asset if available, SF Symbol fallback otherwise
+                        Group {
+                            if UIImage(named: "truck_placeholder") != nil {
+                                Image("truck_placeholder")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } else {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(LocalTheme.cardBackground)
+                                    Image(systemName: "truck.box.fill")
+                                        .font(.system(size: 40))
+                                        .foregroundStyle(LocalTheme.accent.opacity(0.9))
+                                }
+                            }
+                        }
+                        .frame(height: 90)
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                         let plateNumber = assignedVehicle?.plateNumber ?? "TRK-2847"
                         let displayName = assignedVehicle?.displayName ?? "Tata Ace"
@@ -627,16 +669,16 @@ struct DriverDashboardView: View {
                 .foregroundStyle(LocalTheme.textPrimary)
 
             HStack(spacing: 12) {
-                // Action 1: Inspection
+                // Action 1: Inspection — FIX: use "clipboard.fill" (available iOS 14+)
                 let inspectionDone = currentUser.flatMap { appViewModel.service.todayInspection(for: $0.id) } != nil
                 if inspectionDone {
                     NavigationLink(destination: InspectionsView()) {
-                        quickActionItem(icon: "doc.text.clipboard.fill", label: "Inspection", isSOS: false)
+                        quickActionItem(icon: "clipboard.fill", label: "Inspection", isSOS: false)
                     }
                     .buttonStyle(.plain)
                 } else {
                     NavigationLink(destination: PreTripInspectionView()) {
-                        quickActionItem(icon: "doc.text.clipboard.fill", label: "Inspection", isSOS: false)
+                        quickActionItem(icon: "clipboard.fill", label: "Inspection", isSOS: false)
                     }
                     .buttonStyle(.plain)
                 }
@@ -756,46 +798,67 @@ struct DriverDashboardView: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(LocalTheme.textPrimary)
 
+            // FIX: wrap in card with dividers for clear separation
             HStack(spacing: 0) {
                 // Column 1: Distance
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .center, spacing: 4) {
                     HStack(alignment: .lastTextBaseline, spacing: 2) {
                         Text("\(todayDistanceValue)")
-                            .font(.system(size: 28, weight: .bold))
+                            .font(.system(size: 26, weight: .bold))
                             .foregroundStyle(LocalTheme.textPrimary)
                         Text("km")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(LocalTheme.textPrimary)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(LocalTheme.textSecondary)
                     }
                     Text("Distance")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(LocalTheme.textSecondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
+
+                Rectangle()
+                    .fill(Color(UIColor { t in
+                        t.userInterfaceStyle == .dark
+                            ? UIColor.white.withAlphaComponent(0.12)
+                            : UIColor.separator
+                    }))
+                    .frame(width: 1, height: 40)
 
                 // Column 2: Fuel
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .center, spacing: 4) {
                     Text("₹\(todayFuelAmountValue)")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 26, weight: .bold))
                         .foregroundStyle(LocalTheme.textPrimary)
                     Text("Fuel")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(LocalTheme.textSecondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
+
+                Rectangle()
+                    .fill(Color(UIColor { t in
+                        t.userInterfaceStyle == .dark
+                            ? UIColor.white.withAlphaComponent(0.12)
+                            : UIColor.separator
+                    }))
+                    .frame(width: 1, height: 40)
 
                 // Column 3: Trips
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .center, spacing: 4) {
                     Text("\(todayTripsCountValue)")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 26, weight: .bold))
                         .foregroundStyle(LocalTheme.textPrimary)
-                    Text("trips")
-                        .font(.system(size: 13, weight: .medium))
+                    Text("Trips")
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(LocalTheme.textSecondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 18)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(LocalTheme.cardBackground)
+            )
         }
     }
 
@@ -814,7 +877,7 @@ struct DriverDashboardView: View {
         .background(
             Capsule()
                 .fill(LocalTheme.cardBackground)
-                .shadow(color: Color.black.opacity(0.4), radius: 8)
+                .shadow(color: Color.black.opacity(0.15), radius: 8)
         )
         .padding(.top, 8)
     }
@@ -914,10 +977,18 @@ struct DriverDashboardView: View {
     }
 }
 
-// MARK: - Custom Card View
+// MARK: - Custom Card View (adaptive light/dark)
 
 struct CustomDarkCard<Content: View>: View {
     let content: Content
+
+    private static var adaptiveCardFill: Color {
+        Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.110, green: 0.110, blue: 0.129, alpha: 1) // #1C1C21
+                : UIColor.secondarySystemBackground
+        })
+    }
 
     init(@ViewBuilder content: () -> Content) {
         self.content = content()
@@ -929,7 +1000,7 @@ struct CustomDarkCard<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(hex: "1C1C21"))
+                    .fill(Self.adaptiveCardFill)
             )
     }
 }
@@ -941,11 +1012,16 @@ private struct ShiftProgressRing: View {
     let size: CGFloat
     let strokeWidth: CGFloat
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         ZStack {
-            // Track
+            // Track — subtle in both modes
             Circle()
-                .stroke(Color.white.opacity(0.08), lineWidth: strokeWidth)
+                .stroke(
+                    colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.10),
+                    lineWidth: strokeWidth
+                )
 
             // Progress Arc
             Circle()

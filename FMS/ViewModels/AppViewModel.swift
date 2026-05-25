@@ -269,36 +269,47 @@ final class AppViewModel {
         email: String? = nil
     ) async {
 
-        guard var user =
-        currentUser
-
-        else {
-
-            return
-        }
+        guard var user = currentUser else { return }
 
         user.name = name
         user.phone = phone
         user.title = title
 
         if let email {
-
             user.email = email
         }
 
-        if let idx =
-        service.users.firstIndex(
-            where: {
-                $0.id == user.id
+        // 1. Save to Supabase
+        do {
+            struct ProfileUpdate: Encodable {
+                let name: String
+                let phone: String?
+                let title: String?
             }
-        ) {
 
-            service.users[idx] =
-            user
+            let update = ProfileUpdate(
+                name: name,
+                phone: phone.isEmpty ? nil : phone,
+                title: title.isEmpty ? nil : title
+            )
+
+            try await SupabaseService.shared.client
+                .from("users")
+                .update(update)
+                .eq("id", value: user.id)
+                .execute()
+
+            print("Profile updated in Supabase ✅")
+        } catch {
+            print("Profile update failed: \(error)")
         }
 
-        currentUser =
-        user
+        // 2. Update local state
+        if let idx = service.users.firstIndex(where: { $0.id == user.id }) {
+            service.users[idx] = user
+        }
+
+        currentUser = user
     }
 
     // MARK: Helpers

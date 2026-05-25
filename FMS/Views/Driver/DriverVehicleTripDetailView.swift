@@ -104,13 +104,13 @@ struct DriverVehicleTripDetailView: View {
                             GeometryReader { geometry in
                                 ZStack(alignment: .leading) {
                                     RoundedRectangle(cornerRadius: 4)
-                                        .fill(Color.white.opacity(0.08))
+                                        .fill(DriverTheme.cardBorder)
                                         .frame(height: 8)
                                     
                                     RoundedRectangle(cornerRadius: 4)
                                         .fill(
                                             LinearGradient(
-                                                colors: fuelLevel < 35 ? [DriverTheme.criticalRed, .red] : [DriverTheme.accent, Color(hex: "FF7A45")],
+                                                colors: fuelLevel < 35 ? [DriverTheme.criticalRed, DriverTheme.warningAmber] : [DriverTheme.accent, DriverTheme.warningAmber],
                                                 startPoint: .leading,
                                                 endPoint: .trailing
                                             )
@@ -123,11 +123,14 @@ struct DriverVehicleTripDetailView: View {
                     }
                     .padding(20)
                 }
-                .background(DriverTheme.cardFill)
-                .cornerRadius(24)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(DriverTheme.cardBorder, lineWidth: 1)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .background(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(DriverTheme.cardFill)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .stroke(DriverTheme.cardBorder, lineWidth: 1)
+                        )
                 )
                 
                 // Bottom Quick Action Buttons
@@ -203,11 +206,13 @@ struct DriverVehicleTripDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
-        .background(DriverTheme.cardFill)
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(DriverTheme.cardBorder, lineWidth: 1)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(DriverTheme.cardFill)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(DriverTheme.cardBorder, lineWidth: 1)
+                )
         )
     }
 }
