@@ -2,7 +2,10 @@ import SwiftUI
 
 struct ProfileSettingsView: View {
     @Environment(AppViewModel.self) private var appViewModel
-    @State private var showEditSheet = false
+    @State private var isEditing = false
+    @State private var nameInput = ""
+    @State private var phoneInput = ""
+    @State private var titleInput = ""
 
     var body: some View {
         ZStack {
@@ -19,7 +22,7 @@ struct ProfileSettingsView: View {
                     
                     // Avatar Section
                     VStack(spacing: 16) {
-                        AvatarView(name: name, size: 96)
+                        AvatarView(name: name, size: 96, customColor: roleColor)
                             .overlay(alignment: .bottomTrailing) {
                                 ZStack {
                                     Circle()
@@ -27,22 +30,47 @@ struct ProfileSettingsView: View {
                                         .frame(width: 28, height: 28)
                                     Image(systemName: "checkmark.shield.fill")
                                         .font(.system(size: 18))
-                                        .foregroundStyle(AppTheme.brand)
+                                        .foregroundStyle(roleColor)
                                 }
                                 .offset(x: 2, y: 2)
                             }
                         
                         VStack(spacing: 8) {
-                            Text(name)
-                                .font(.title2.weight(.bold))
-                                .foregroundStyle(AppTheme.textPrimary)
-                            
-                            Text(title)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(AppTheme.brand)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 6)
-                                .background(Capsule().fill(AppTheme.brand.opacity(0.15)))
+                            if isEditing {
+                                TextField("Full Name", text: $nameInput)
+                                    .font(.title2.weight(.bold))
+                                    .multilineTextAlignment(.center)
+                                    .textFieldStyle(.plain)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(roleColor.opacity(0.3), lineWidth: 1)
+                                    )
+                                    .padding(.horizontal, 32)
+                                
+                                TextField("Title", text: $titleInput)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .multilineTextAlignment(.center)
+                                    .textFieldStyle(.plain)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(roleColor.opacity(0.3), lineWidth: 1)
+                                    )
+                                    .padding(.horizontal, 48)
+                            } else {
+                                Text(name)
+                                    .font(.title2.weight(.bold))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                
+                                Text(title)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(roleColor)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 6)
+                                    .background(Capsule().fill(roleColor.opacity(0.15)))
+                            }
                         }
                     }
                     .padding(.top, 24)
@@ -52,7 +80,39 @@ struct ProfileSettingsView: View {
                         VStack(spacing: 16) {
                             infoRow(icon: "envelope.fill", title: "Email", value: email)
                             Divider().background(AppTheme.border).padding(.leading, 40)
-                            infoRow(icon: "phone.fill", title: "Phone", value: phone)
+                            
+                            // Phone row
+                            HStack(spacing: 16) {
+                                Image(systemName: "phone.fill")
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                    .frame(width: 20)
+                                
+                                Text("Phone")
+                                    .font(.subheadline)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                
+                                Spacer()
+                                
+                                if isEditing {
+                                    TextField("Enter phone", text: $phoneInput)
+                                        .font(.subheadline)
+                                        .keyboardType(.phonePad)
+                                        .multilineTextAlignment(.trailing)
+                                        .textFieldStyle(.plain)
+                                        .padding(.vertical, 4)
+                                        .padding(.horizontal, 8)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .stroke(roleColor.opacity(0.3), lineWidth: 1)
+                                        )
+                                        .frame(width: 160)
+                                } else {
+                                    Text(phone)
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
+                            }
+                            
                             Divider().background(AppTheme.border).padding(.leading, 40)
                             infoRow(icon: "checkmark.seal.fill", title: "Status", value: "Active", valueColor: AppTheme.success)
                             Divider().background(AppTheme.border).padding(.leading, 40)
@@ -63,11 +123,17 @@ struct ProfileSettingsView: View {
                     // Links Card
                     GlassCard {
                         VStack(spacing: 16) {
-                            linkRow(icon: "gearshape.fill", title: "Settings")
+                            NavigationLink(destination: AppSettingsView()) {
+                                linkRow(icon: "gearshape.fill", title: "Settings")
+                            }
                             Divider().background(AppTheme.border).padding(.leading, 40)
-                            linkRow(icon: "questionmark.circle.fill", title: "Help & Support")
+                            NavigationLink(destination: HelpSupportView()) {
+                                linkRow(icon: "questionmark.circle.fill", title: "Help & Support")
+                            }
                         }
                     }
+                    .opacity(isEditing ? 0.5 : 1)
+                    .disabled(isEditing)
                     
                     // Logout Button
                     Button {
@@ -86,6 +152,8 @@ struct ProfileSettingsView: View {
                                 .fill(AppTheme.surfaceSecondary)
                         )
                     }
+                    .opacity(isEditing ? 0.5 : 1)
+                    .disabled(isEditing)
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 40)
@@ -93,18 +161,70 @@ struct ProfileSettingsView: View {
         }
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(isEditing)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Edit") {
-                    showEditSheet = true
+            if isEditing {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        isEditing = false
+                    }
+                    .foregroundStyle(roleColor)
                 }
-                .font(.system(size: 17))
-                .foregroundStyle(AppTheme.brand)
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        saveChanges()
+                    }
+                    .font(.body.bold())
+                    .foregroundStyle(roleColor)
+                    .disabled(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            } else {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Edit") {
+                        startEditing()
+                    }
+                    .font(.system(size: 17))
+                    .foregroundStyle(roleColor)
+                }
             }
         }
-        .sheet(isPresented: $showEditSheet) {
-            EditProfileView()
-                .environment(appViewModel)
+        .onAppear {
+            initializeInputs()
+        }
+    }
+
+    private var roleColor: Color {
+        guard let role = appViewModel.currentUser?.role else {
+            return AppTheme.brand
+        }
+        switch role {
+        case .fleetManager:
+            return AppTheme.brand
+        case .driver:
+            return Color(hex: "FD5D23")
+        case .maintenance:
+            return Color(hex: "#FF5A1F")
+        }
+    }
+
+    private func initializeInputs() {
+        if let user = appViewModel.currentUser {
+            nameInput = user.name
+            phoneInput = user.phone ?? ""
+            titleInput = user.title ?? ""
+        }
+    }
+
+    private func startEditing() {
+        initializeInputs()
+        isEditing = true
+    }
+
+    private func saveChanges() {
+        Task {
+            await appViewModel.updateProfile(name: nameInput, phone: phoneInput, title: titleInput)
+            isEditing = false
         }
     }
     

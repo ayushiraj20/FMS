@@ -6,6 +6,12 @@ struct MaintenanceWorkOrdersView: View {
     @State private var selectedOrder: WorkOrder?
     @State private var selectedFilter: MaintenanceOrderProgressFilter = .all
     @State private var isShowingCalendar = false
+    @State private var showOnlyCritical: Bool
+    
+    init(initialFilter: MaintenanceOrderProgressFilter = .all, showOnlyCritical: Bool = false) {
+        _selectedFilter = State(initialValue: initialFilter)
+        _showOnlyCritical = State(initialValue: showOnlyCritical)
+    }
     
 
     
@@ -14,6 +20,7 @@ struct MaintenanceWorkOrdersView: View {
         appViewModel.service
             .workOrders(for: currentUser?.id)
             .filter {
+                (!showOnlyCritical || $0.priority == .critical) &&
                 selectedFilter.matches($0.status) &&
                 (searchText.isEmpty ||
                  $0.title.localizedCaseInsensitiveContains(searchText) ||
@@ -41,6 +48,36 @@ struct MaintenanceWorkOrdersView: View {
     var body: some View {
         VStack(spacing: 0) {
             filterBar
+            
+            if showOnlyCritical {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                    Text("Showing Critical Work Orders Only")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.red)
+                    Spacer()
+                    Button {
+                        showOnlyCritical = false
+                    } label: {
+                        Text("Show All Priorities")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(ordersAccent)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(ordersAccent.opacity(0.12), in: Capsule())
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.red.opacity(0.06))
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundStyle(AppTheme.border),
+                    alignment: .bottom
+                )
+            }
             
             ordersList
         }
@@ -194,7 +231,7 @@ struct MaintenanceWorkOrdersView: View {
     
     // MARK: - Filter Enum
     
-    private enum MaintenanceOrderProgressFilter: String, CaseIterable, Identifiable {
+    enum MaintenanceOrderProgressFilter: String, CaseIterable, Identifiable {
         case all
         case pending
         case inProgress
