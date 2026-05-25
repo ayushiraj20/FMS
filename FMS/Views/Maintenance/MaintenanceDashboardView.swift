@@ -15,10 +15,7 @@ struct MaintenanceDashboardView: View {
                     LoadingStateView(title: "Loading workshop queue...")
                         .frame(height: 320)
                 } else {
-                    // Previous sections kept below for quick rollback:
-                    // header
-                    // activeOrders
-                    // schedulePreview
+                    topBar
                     dashboardHeader
                     metricsGrid
                     priorityQueue
@@ -29,29 +26,57 @@ struct MaintenanceDashboardView: View {
             .padding(.top, 18)
             .padding(.bottom, 28)
         }
-        .navigationTitle("Dashboard")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 16) {
-                    NavigationLink(destination: ProfileSettingsView()) {
-                        Image(systemName: "person.crop.circle")
-                            .foregroundStyle(AppTheme.textPrimary)
-                    }
-
-                    NavigationLink(destination: NotificationsView()) {
-                        Image(systemName: "bell")
-                            .foregroundStyle(AppTheme.textPrimary)
-                    }
-                }
-            }
-        }
+        .background(AppTheme.background.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .task {
-            // Previous load path kept for rollback:
-            // await viewModel.load()
+            await appViewModel.loadNotifications()
             guard isLoading else { return }
             try? await Task.sleep(for: .seconds(0.35))
             isLoading = false
+        }
+    }
+
+    private var topBar: some View {
+        HStack {
+            NavigationLink(destination: ProfileSettingsView()) {
+                ZStack {
+                    Circle()
+                        .fill(maintenanceAccent)
+                        .frame(width: 44, height: 44)
+                    Text(userInitials)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+            }
+            .accessibilityIdentifier("PROFILE_BUTTON")
+
+            Spacer()
+
+            NavigationLink(destination: NotificationsView()) {
+                ZStack(alignment: .topTrailing) {
+                    Circle()
+                        .fill(AppTheme.surfaceSecondary)
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: "bell.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(maintenanceAccent)
+                        .frame(width: 44, height: 44)
+
+                    if appViewModel.unreadNotificationsCount > 0 {
+                        Circle()
+                            .fill(AppTheme.error)
+                            .frame(width: 18, height: 18)
+                            .overlay(
+                                Text("\(appViewModel.unreadNotificationsCount)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.white)
+                            )
+                            .offset(x: 2, y: -2)
+                    }
+                }
+            }
+            .accessibilityIdentifier("BELL_BUTTON")
         }
     }
 
@@ -90,30 +115,45 @@ struct MaintenanceDashboardView: View {
             GridItem(.flexible(), spacing: 16),
             GridItem(.flexible(), spacing: 16)
         ], spacing: 16) {
-            MaintenanceMetricCard(
-                icon: "list.clipboard.fill",
-                title: "Open Orders",
-                value: "\(activeAssignedOrders.count)",
-                tint: maintenanceAccent
-            )
-            MaintenanceMetricCard(
-                icon: "exclamationmark.triangle.fill",
-                title: "Critical",
-                value: "\(assignedOrders.filter { $0.priority == .critical && $0.status != .completed }.count)",
-                tint: Color(hex: "#FFB4A6")
-            )
-            MaintenanceMetricCard(
-                icon: "wrench.and.screwdriver.fill",
-                title: "In Progress",
-                value: "\(assignedOrders.filter { $0.status == .inProgress }.count)",
-                tint: Color(hex: "#C8D1E0")
-            )
-            MaintenanceMetricCard(
-                icon: "shippingbox.fill",
-                title: "Waiting Parts",
-                value: "\(assignedOrders.filter { $0.status == .waitingParts }.count)",
-                tint: Color(hex: "#FFC3AD")
-            )
+            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .pending)) {
+                MaintenanceMetricCard(
+                    icon: "list.clipboard.fill",
+                    title: "Open Orders",
+                    value: "\(activeAssignedOrders.count)",
+                    tint: maintenanceAccent
+                )
+            }
+            .buttonStyle(.plain)
+            
+            NavigationLink(destination: MaintenanceWorkOrdersView(showOnlyCritical: true)) {
+                MaintenanceMetricCard(
+                    icon: "exclamationmark.triangle.fill",
+                    title: "Critical",
+                    value: "\(assignedOrders.filter { $0.priority == .critical && $0.status != .completed }.count)",
+                    tint: maintenanceAccent
+                )
+            }
+            .buttonStyle(.plain)
+            
+            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .inProgress)) {
+                MaintenanceMetricCard(
+                    icon: "wrench.and.screwdriver.fill",
+                    title: "In Progress",
+                    value: "\(assignedOrders.filter { $0.status == .inProgress }.count)",
+                    tint: maintenanceAccent
+                )
+            }
+            .buttonStyle(.plain)
+            
+            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .waitingParts)) {
+                MaintenanceMetricCard(
+                    icon: "shippingbox.fill",
+                    title: "Waiting Parts",
+                    value: "\(assignedOrders.filter { $0.status == .waitingParts }.count)",
+                    tint: maintenanceAccent
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
