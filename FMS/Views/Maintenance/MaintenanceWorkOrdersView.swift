@@ -82,14 +82,13 @@ struct MaintenanceWorkOrdersView: View {
             ordersList
         }
         .navigationTitle("Work Orders")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     isShowingCalendar = true
                 } label: {
                     Image(systemName: "calendar")
-                        .foregroundStyle(ordersAccent)
                 }
             }
         }
@@ -152,16 +151,20 @@ struct MaintenanceWorkOrdersView: View {
                 .listRowSeparator(.hidden)
             } else {
                 ForEach(orders) { order in
-                    NavigationLink {
-                        MaintenanceWorkOrderDetailView(workOrder: order)
-                            .environment(appViewModel)
-                    } label: {
+                    ZStack {
                         MaintenanceWorkOrderCard(
                             order: order,
                             vehicle: appViewModel.service.vehicle(for: order.vehicleID)
                         )
+                        
+                        NavigationLink {
+                            MaintenanceWorkOrderDetailView(workOrder: order)
+                                .environment(appViewModel)
+                        } label: {
+                            EmptyView()
+                        }
+                        .opacity(0)
                     }
-                    .buttonStyle(.plain)
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button {
                             markOrderDone(order)
@@ -170,14 +173,10 @@ struct MaintenanceWorkOrdersView: View {
                         }
                         .tint(AppTheme.success)
                     }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 10, trailing: 16))
                 }
             }
         }
-        .appListStyle()
-        .scrollContentBackground(.hidden)
+        .listStyle(.plain)
     }
     
     private var legacyOrdersList: some View {
@@ -245,7 +244,7 @@ struct MaintenanceWorkOrdersView: View {
             case .all:          "All"
             case .pending:      "Pending"
             case .inProgress:   "In Progress"
-            case .waitingParts: "On Hold"
+            case .waitingParts: "Waiting on Parts"
             case .done:         "Done"
             }
         }
@@ -255,7 +254,7 @@ struct MaintenanceWorkOrdersView: View {
             case .all:          "Assigned work from admin will appear here."
             case .pending:      "No pending work orders right now."
             case .inProgress:   "No work orders are currently in progress."
-            case .waitingParts: "No orders are waiting on parts."
+            case .waitingParts: "No work orders are currently blocked by missing parts."
             case .done:         "Completed work will appear here after you mark it done."
             }
         }
@@ -278,164 +277,137 @@ struct MaintenanceWorkOrdersView: View {
         let vehicle: Vehicle?
         
         var body: some View {
-            VStack(alignment: .leading, spacing: 12) {
-                
-                // MARK: Top row: WO ID + priority/overdue badges
-                HStack(alignment: .top) {
-                    Text("#WO-\(String(order.id.uuidString.prefix(4)))")
-                        .font(.caption.monospaced().weight(.bold))
-                        .foregroundStyle(Color(hex: "#FF5A1F"))
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     
-                    Spacer()
-                    
-                    VStack(alignment: .trailing, spacing: 6) {
-                        Text(order.priority.rawValue.uppercased())
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(priorityTextColor)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(priorityBackgroundColor, in: Capsule())
+                    // MARK: Top row: WO ID + priority/overdue badges
+                    HStack(alignment: .center, spacing: 8) {
+                        Text("#WO-\(String(order.id.uuidString.prefix(4)))")
+                            .font(.caption.monospaced().weight(.bold))
+                            .foregroundStyle(Color.secondary)
+                        
+                        Spacer()
                         
                         if order.isOverdue {
-                            // AC3: Red background + text label so colour-blind users
-                            // are never relying on colour alone.
                             HStack(spacing: 4) {
                                 Image(systemName: "exclamationmark.clock.fill")
-                                    .font(.caption2.bold())
+                                    .font(.system(size: 9, weight: .bold))
                                 Text("OVERDUE")
-                                    .font(.caption2.bold())
+                                    .font(.system(size: 9, weight: .bold))
                             }
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.red, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .background(Color.red, in: Capsule())
                         } else if order.priority == .critical {
                             Text("URGENT")
-                                .font(.caption2.bold())
+                                .font(.system(size: 9, weight: .bold))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color.red, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                .background(Color.red, in: Capsule())
+                        }
+                        
+                        Text(order.priority.rawValue.uppercased())
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundStyle(priorityTextColor)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(priorityBackgroundColor, in: Capsule())
+                    }
+                    
+                    // MARK: Vehicle + title + details
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(order.title)
+                            .font(.headline)
+                            .foregroundStyle(Color(.label))
+                            .lineLimit(2)
+                        
+                        Text(vehicle?.displayName ?? "Assigned Vehicle")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Color.secondary)
+                        
+                        if !order.details.isEmpty {
+                            Text(order.details)
+                                .font(.footnote)
+                                .foregroundStyle(Color.secondary)
+                                .lineLimit(2)
+                                .padding(.top, 2)
                         }
                     }
-                }
-                
-                // MARK: Vehicle + title + details
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(vehicle?.displayName ?? "Assigned Vehicle")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
-                        .lineLimit(2)
                     
-                    Text(order.title)
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
-                        .lineLimit(2)
+                    Divider()
+                        .background(Color(.separator))
                     
-                    Text(order.details)
-                        .font(.body)
-                        .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#E3C8BE"))
-                        .lineLimit(2)
-                }
-                
-                Divider()
-                    .overlay(Color.dynamic(light: "#E6D8D2", dark: "#33343A"))
-                
-                // MARK: Footer: scheduled time + status
-                HStack(spacing: 8) {
-                    Label(order.scheduledDate.formatted(date: .omitted, time: .shortened), systemImage: "clock")
-                        .labelStyle(.titleAndIcon)
-                        .font(.caption.monospaced().weight(.semibold))
-                    
-                    Spacer()
-                    
-                    Label(order.status.rawValue.uppercased(), systemImage: statusIcon)
-                        .labelStyle(.titleAndIcon)
-                        .font(.caption.monospaced().weight(.bold))
-                        .foregroundStyle(statusColor)
-                }
-                .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
-            }
-            .padding(20)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    // AC3: Tint the card background red when overdue so it stands
-                    // out visually even before the badge is read.
-                    .fill(order.isOverdue
-                          ? Color.red.opacity(0.06)
-                          : Color.dynamic(light: "#FFFFFF", dark: "#191A20").opacity(0.96))
-                    .overlay(alignment: .leading) {
-                        // AC3: Left stripe is solid red for overdue orders.
-                        Rectangle()
-                            .fill(priorityStripeColor)
-                            .frame(width: 8)
+                    // MARK: Footer: scheduled time + status
+                    HStack(spacing: 8) {
+                        Label(order.scheduledDate.formatted(date: .omitted, time: .shortened), systemImage: "clock")
+                            .font(.caption.weight(.semibold))
+                        
+                        Spacer()
+                        
+                        Label(order.status.rawValue.uppercased(), systemImage: statusIcon)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(statusColor)
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(borderColor, lineWidth: borderWidth)
-                    )
-            )
+                    .foregroundStyle(Color.secondary)
+                }
+                
+                // MARK: iOS Navigation Chevron
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(.tertiaryLabel))
+                    .padding(.leading, 4)
+            }
+            .padding(.vertical, 8)
         }
         
         // MARK: - Derived style helpers
         
-        /// AC3: Overdue orders always get a solid red border regardless of priority.
         private var borderColor: Color {
-            if order.isOverdue { return Color.red }
-            return order.priority == .critical || order.priority == .high
-                ? Color.red
-                : Color.dynamic(light: "#E6D8D2", dark: "#3B3841")
+            if order.isOverdue { return Color.red.opacity(0.4) }
+            if order.priority == .critical { return Color.red.opacity(0.3) }
+            return Color(.separator)
         }
         
         private var borderWidth: CGFloat {
-            order.isOverdue ? 2 : (order.priority == .critical || order.priority == .high ? 3 : 1)
-        }
-        
-        /// AC3: Overdue orders get a solid red left stripe.
-        private var priorityStripeColor: Color {
-            if order.isOverdue { return Color.red }
-            switch order.priority {
-            case .low:      return AppTheme.success
-            case .medium:   return Color(hex: "#FFE436")
-            case .high:     return Color(hex: "#FF5A1F")
-            case .critical: return Color(hex: "#FFB0A3")
-            }
+            if order.isOverdue || order.priority == .critical { return 1.0 }
+            return 0.5
         }
         
         private var priorityTextColor: Color {
             switch order.priority {
-            case .low:      AppTheme.success
-            case .medium:   Color(hex: "#F9FF58")
-            case .high:     Color(hex: "#FF5A1F")
-            case .critical: Color(hex: "#FFB0A3")
+            case .low:      return AppTheme.success
+            case .medium:   return Color.orange
+            case .high:     return Color(hex: "#FF5A1F")
+            case .critical: return Color.red
             }
         }
         
         private var priorityBackgroundColor: Color {
             switch order.priority {
-            case .low:      AppTheme.success.opacity(0.14)
-            case .medium:   Color(hex: "#FFE436").opacity(0.18)
-            case .high:     Color(hex: "#FF5A1F").opacity(0.18)
-            case .critical: Color(hex: "#FFB0A3").opacity(0.18)
+            case .low:      return AppTheme.success.opacity(0.12)
+            case .medium:   return Color.orange.opacity(0.12)
+            case .high:     return Color(hex: "#FF5A1F").opacity(0.12)
+            case .critical: return Color.red.opacity(0.12)
             }
         }
         
         private var statusColor: Color {
             switch order.status {
-            case .open:         Color.dynamic(light: "#715B54", dark: "#E3C8BE")
-            case .inProgress:   Color(hex: "#2EA7FF")
-            case .waitingParts: AppTheme.warning
-            case .completed:    AppTheme.success
+            case .open:         return Color.secondary
+            case .inProgress:   return Color(hex: "#2EA7FF")
+            case .waitingParts: return AppTheme.warning
+            case .completed:    return AppTheme.success
             }
         }
         
         private var statusIcon: String {
             switch order.status {
-            case .open:         "ellipsis.circle"
-            case .inProgress:   "arrow.triangle.2.circlepath"
-            case .waitingParts: "shippingbox"
-            case .completed:    "checkmark.circle.fill"
+            case .open:         return "ellipsis.circle"
+            case .inProgress:   return "arrow.triangle.2.circlepath"
+            case .waitingParts: return "shippingbox"
+            case .completed:    return "checkmark.circle.fill"
             }
         }
     }

@@ -146,11 +146,6 @@ private struct DriverTabView: View {
                     driverVM
                 )
         }
-        .tint(
-            Color(
-                "AccentColor"
-            )
-        )
     }
 }
 
