@@ -64,12 +64,12 @@ struct DriverSafetyView: View {
                 Circle()
                     .trim(from: 0.15, to: 0.15 + 0.7 * (92.0 / 100.0))
                     .stroke(
-                        LinearGradient(colors: [DriverTheme.accent, DriverTheme.successGreen], startPoint: .leading, endPoint: .trailing),
+                        DriverTheme.accent,
                         style: StrokeStyle(lineWidth: 24, lineCap: .round)
                     )
                     .frame(width: 200, height: 200)
                     .rotationEffect(.degrees(90))
-                    .shadow(color: DriverTheme.successGreen.opacity(0.4), radius: 10, y: 5)
+                    .shadow(color: DriverTheme.accent.opacity(0.4), radius: 10, y: 5)
 
                 VStack(spacing: -4) {
                     Text("92")
@@ -91,78 +91,155 @@ struct DriverSafetyView: View {
 
     private var fatigueAndHoursGrid: some View {
         HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Fatigue Level")
-                    .font(.caption.bold())
-                    .foregroundStyle(DriverTheme.textSecondary)
+            // Fatigue Level Card
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Image(systemName: "eye.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DriverTheme.successGreen)
+                        .frame(width: 28, height: 28)
+                        .background(DriverTheme.successGreen.opacity(0.12), in: Circle())
+                    
+                    Spacer()
+                    
+                    Text("Low")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(DriverTheme.successGreen)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(DriverTheme.successGreen.opacity(0.12), in: Capsule())
+                }
                 
-                HStack(spacing: 4) {
-                    ForEach(0..<6, id: \.self) { idx in
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(idx < 2 ? DriverTheme.successGreen : DriverTheme.textSecondary.opacity(0.2))
-                            .frame(height: 24)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Fatigue Level")
+                        .font(.system(.caption2, design: .rounded).bold())
+                        .foregroundStyle(DriverTheme.textSecondary)
+                    
+                    Text("Fully Alert")
+                        .font(.system(.headline, design: .rounded).bold())
+                        .foregroundStyle(DriverTheme.textPrimary)
+                }
+                
+                HStack(spacing: 5) {
+                    ForEach(0..<5, id: \.self) { idx in
+                        Capsule()
+                            .fill(idx < 1 ? DriverTheme.successGreen : DriverTheme.textSecondary.opacity(0.15))
+                            .frame(height: 6)
+                    }
+                }
+                .padding(.top, 4)
+            }
+            .padding(16)
+            .background(DriverTheme.elevatedCard)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .strokeBorder(DriverTheme.accent.opacity(0.1), lineWidth: 1)
+            )
+
+            // Hours Driven Card
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Image(systemName: "clock.badge.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DriverTheme.accent)
+                        .frame(width: 28, height: 28)
+                        .background(DriverTheme.accent.opacity(0.12), in: Circle())
+                    
+                    Spacer()
+                    
+                    Text("Limit: 8h")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(DriverTheme.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(DriverTheme.textSecondary.opacity(0.1), in: Capsule())
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Hours Driven")
+                        .font(.system(.caption2, design: .rounded).bold())
+                        .foregroundStyle(DriverTheme.textSecondary)
+                    
+                    HStack(alignment: .lastTextBaseline, spacing: 2) {
+                        Text("4.5")
+                            .font(.system(.title2, design: .rounded).bold())
+                            .foregroundStyle(DriverTheme.textPrimary)
+                        Text("hrs")
+                            .font(.caption.bold())
+                            .foregroundStyle(DriverTheme.textSecondary)
                     }
                 }
                 
-                Text("Low")
-                    .font(.system(.title3, design: .rounded).bold())
-                    .foregroundStyle(DriverTheme.successGreen)
+                // Linear Progress bar representing hours driven vs limit
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(DriverTheme.textSecondary.opacity(0.15))
+                            .frame(height: 6)
+                        Capsule()
+                            .fill(DriverTheme.accent)
+                            .frame(width: geo.size.width * (4.5 / 8.0), height: 6)
+                    }
+                }
+                .frame(height: 6)
+                .padding(.top, 4)
             }
             .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Hours Driven")
-                    .font(.caption.bold())
-                    .foregroundStyle(DriverTheme.textSecondary)
-                
-                HStack(alignment: .bottom, spacing: 4) {
-                    Text("4.5")
-                        .font(.system(.title, design: .rounded).bold())
-                        .foregroundStyle(DriverTheme.textPrimary)
-                    Text("h")
-                        .font(.headline)
-                        .foregroundStyle(DriverTheme.textSecondary)
-                        .padding(.bottom, 4)
-                }
-                
-                HStack {
-                    Image(systemName: "clock.fill")
-                        .foregroundStyle(DriverTheme.accent)
-                    Text("Out of 8h")
-                        .font(.caption.bold())
-                        .foregroundStyle(DriverTheme.textSecondary)
-                }
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .background(DriverTheme.elevatedCard)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .strokeBorder(DriverTheme.accent.opacity(0.1), lineWidth: 1)
+            )
         }
     }
 
     private var crashDetectionStatusCard: some View {
         HStack(spacing: 16) {
-            Image(systemName: "checkmark.shield.fill")
-                .font(.title)
-                .foregroundStyle(DriverTheme.successGreen)
-                .frame(width: 48, height: 48)
-                .background(DriverTheme.successGreen.opacity(0.15), in: Circle())
-                .symbolEffect(.bounce, options: .nonRepeating)
-
+            ZStack {
+                // Glowing background radar ring
+                Circle()
+                    .stroke(DriverTheme.successGreen.opacity(0.2), lineWidth: 2)
+                    .frame(width: 48, height: 48)
+                
+                Image(systemName: "checkmark.shield.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
+                    .background(DriverTheme.successGreen, in: Circle())
+            }
+            
             VStack(alignment: .leading, spacing: 4) {
                 Text("Crash Detection Status")
                     .font(.system(.headline, design: .rounded))
                     .foregroundStyle(DriverTheme.textPrimary)
-                Text("Active & Monitoring")
-                    .font(.subheadline)
+                Text("Active & Monitoring in real-time")
+                    .font(.system(.caption, design: .rounded))
                     .foregroundStyle(DriverTheme.successGreen)
             }
+            
             Spacer()
+            
+            Text("SECURE")
+                .font(.system(size: 9, weight: .black))
+                .foregroundStyle(DriverTheme.successGreen)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(DriverTheme.successGreen.opacity(0.12))
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .strokeBorder(DriverTheme.successGreen.opacity(0.3), lineWidth: 1)
+                )
         }
         .padding(16)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 24).stroke(DriverTheme.successGreen.opacity(0.3), lineWidth: 1))
+        .background(DriverTheme.elevatedCard)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(DriverTheme.successGreen.opacity(0.15), lineWidth: 1.5)
+        )
     }
 
     private var recentEventsSection: some View {
@@ -241,7 +318,7 @@ struct DriverSafetyView: View {
                         path.addLine(to: CGPoint(x: width, y: height))
                         path.closeSubpath()
                     }
-                    .fill(LinearGradient(colors: [DriverTheme.accent.opacity(0.3), DriverTheme.accent.opacity(0.0)], startPoint: .top, endPoint: .bottom))
+                    .fill(DriverTheme.accent.opacity(0.15))
 
                     Path { path in
                         path.move(to: CGPoint(x: 0, y: height * (1.0 - (dataPoints[0] / 100.0))))
@@ -273,7 +350,8 @@ struct DriverSafetyView: View {
             }
         }
         .padding(20)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(DriverTheme.elevatedCard, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(DriverTheme.accent.opacity(0.1), lineWidth: 1))
     }
 
     private var drivingTipsCard: some View {
@@ -295,7 +373,8 @@ struct DriverSafetyView: View {
             }
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(DriverTheme.elevatedCard, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(DriverTheme.warningAmber.opacity(0.15), lineWidth: 1))
     }
 
     private var tripHistoryDoneByDriver: some View {
@@ -317,7 +396,8 @@ struct DriverSafetyView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
+                    .background(DriverTheme.elevatedCard, in: RoundedRectangle(cornerRadius: 24))
+                    .overlay(RoundedRectangle(cornerRadius: 24).stroke(DriverTheme.accent.opacity(0.1), lineWidth: 1))
                 } else {
                     LazyVStack(spacing: 12) {
                         ForEach(trips) { trip in
