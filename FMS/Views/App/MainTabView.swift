@@ -107,7 +107,7 @@ private struct DriverTabView: View {
                 Label(
                     "Trip",
                     systemImage:
-                    "truck.fill"
+                    "truck.box.fill"
                 )
             }
             .tag(1)
