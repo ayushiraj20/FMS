@@ -11,66 +11,69 @@ struct WorkOrderManagementView: View {
     var body: some View {
         List {
             ForEach(viewModel.filteredOrders) { order in
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 8) {
+                ZStack {
+                    NavigationLink(destination: WorkOrderChatView(workOrderID: order.id, onManage: {
+                        viewModel.prepareEditOrder(order)
+                    }).environment(appViewModel)) {
+                        EmptyView()
+                    }
+                    .opacity(0)
 
-                        // MARK: Top row: title + vehicle + priority
-                        HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(order.title)
-                                    .font(.headline)
-                                    .foregroundStyle(AppTheme.textPrimary)
-                                Text(viewModel.vehicle(for: order.vehicleID)?.displayName ?? "Vehicle")
-                                    .font(.subheadline)
-                                    .foregroundStyle(AppTheme.textSecondary)
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            // MARK: Top row: title + vehicle + priority
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(order.title)
+                                        .font(.headline)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                    Text(viewModel.vehicle(for: order.vehicleID)?.displayName ?? "Vehicle")
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                }
+                                Spacer()
+                                if order.isOverdue {
+                                    Text("Overdue")
+                                        .font(.footnote.weight(.bold))
+                                        .foregroundStyle(AppTheme.error)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(AppTheme.error.opacity(0.15))
+                                        .clipShape(Capsule())
+                                }
+                                Text(order.priority.rawValue)
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(priorityColor(order.priority))
                             }
-                            Spacer()
-                            if order.isOverdue {
-                                Text("Overdue")
-                                    .font(.footnote.weight(.bold))
-                                    .foregroundStyle(AppTheme.error)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(AppTheme.error.opacity(0.15))
-                                    .clipShape(Capsule())
-                            }
-                            Text(order.priority.rawValue)
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(priorityColor(order.priority))
-                        }
 
-                        Text(order.details)
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.textSecondary)
+                            Text(order.details)
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.textSecondary)
 
-                        // MARK: Bottom row: status + manage button
-                        HStack(spacing: 16) {
-                            Text(order.status.rawValue)
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(order.status == .completed ? AppTheme.success : AppTheme.warning)
-                            Spacer()
-                            
-                            NavigationLink(destination: WorkOrderChatView(workOrderID: order.id).environment(appViewModel)) {
-                                HStack(spacing: 4) {
+                            // MARK: Bottom row: status + navigation hint
+                            HStack(spacing: 16) {
+                                Text(order.status.rawValue)
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(order.status == .completed ? AppTheme.success : AppTheme.warning)
+                                Spacer()
+                                
+                                HStack(spacing: 6) {
                                     Image(systemName: "bubble.left.and.bubble.right.fill")
                                     Text("Repair Chat")
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 10, weight: .bold))
+                                    Text("Manage")
                                 }
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(AppTheme.brand)
                             }
-                            
-                            Button("Manage") {
-                                viewModel.prepareEditOrder(order)
-                            }
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.brand)
                         }
                     }
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(order.isOverdue ? AppTheme.error : Color.clear, lineWidth: 2)
+                    )
                 }
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(order.isOverdue ? AppTheme.error : Color.clear, lineWidth: 2)
-                )
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
