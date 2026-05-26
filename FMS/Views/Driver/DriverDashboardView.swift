@@ -33,27 +33,7 @@ struct DriverDashboardView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .background(
-                ZStack {
-                    DriverTheme.background.ignoresSafeArea()
-                    
-                    // iOS 26 Animated Mesh-like Background
-                    GeometryReader { geo in
-                        Circle()
-                            .fill(DriverTheme.accent.opacity(0.15))
-                            .frame(width: geo.size.width * 1.5, height: geo.size.width * 1.5)
-                            .blur(radius: 100)
-                            .offset(x: -geo.size.width * 0.2, y: -geo.size.height * 0.1)
-                            
-                        Circle()
-                            .fill(Color.blue.opacity(0.1))
-                            .frame(width: geo.size.width, height: geo.size.width)
-                            .blur(radius: 80)
-                            .offset(x: geo.size.width * 0.5, y: geo.size.height * 0.3)
-                    }
-                    .ignoresSafeArea()
-                }
-            )
+            .background(DriverTheme.background.ignoresSafeArea())
             .refreshable {
                 driverVM.isLoading = true
                 await appViewModel.service.syncWithDatabase()
@@ -77,8 +57,14 @@ struct DriverDashboardView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: NotificationsView()) {
-                        Image(systemName: appViewModel.unreadNotificationsCount > 0 ? "bell.badge.fill" : "bell.fill")
+                    HStack(spacing: 16) {
+                        NavigationLink(destination: NotificationsView()) {
+                            Image(systemName: appViewModel.unreadNotificationsCount > 0 ? "bell.badge.fill" : "bell.fill")
+                        }
+                        
+                        NavigationLink(destination: BroadcastInboxView()) {
+                            Image(systemName: "megaphone.fill")
+                        }
                     }
                 }
             }
@@ -377,6 +363,7 @@ struct DriverDashboardView: View {
     // MARK: - Quick Actions
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
+            /*
             Text("Actions")
                 .font(.system(.title2, design: .rounded).bold())
             
@@ -384,28 +371,17 @@ struct DriverDashboardView: View {
                 HStack(spacing: 16) {
                     let inspDone = currentUser.flatMap { appViewModel.service.todayInspection(for: $0.id) } != nil
                     
-                    Button {
-                        if let user = currentUser, let nextTrip = appViewModel.service.upcomingTrips(for: user.id).first {
-                            if inspDone {
-                                appViewModel.service.startScheduledTrip(id: nextTrip.id)
-                                driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
-                            } else {
-                                tripToStart = nextTrip
-                                showTripInspectionSheet = true
-                            }
-                        } else {
-                            driverVM.showToastMessage("No upcoming trips available.")
-                        }
-                    } label: {
-                        quickActionTile(icon: "play.fill", label: "Start Trip", color: DriverTheme.accent)
+                    NavigationLink(destination: inspDone ? AnyView(InspectionsView()) : AnyView(PreTripInspectionView())) {
+                        quickActionTile(icon: "clipboard.fill", label: "Inspection", color: .blue)
                     }
                     .buttonStyle(.plain)
-
-
+                    
+                    /*
                     Button { driverVM.showBreakLogSheet = true } label: {
                         quickActionTile(icon: "cup.and.saucer.fill", label: "Break Log", color: .orange)
                     }
                     .buttonStyle(.plain)
+                    */
                     
                     Button { driverVM.startSOSCountdown(service: appViewModel.service, user: currentUser) } label: {
                         quickActionTile(icon: "light.beacon.max.fill", label: "SOS", color: DriverTheme.criticalRed)
@@ -417,6 +393,21 @@ struct DriverDashboardView: View {
             .scrollTargetBehavior(.viewAligned)
             .contentMargins(.horizontal, 20, for: .scrollContent)
             .padding(.horizontal, -20)
+            */
+            
+            Button { driverVM.startSOSCountdown(service: appViewModel.service, user: currentUser) } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "light.beacon.max.fill")
+                        .font(.title2)
+                    Text("SOS Emergency")
+                        .font(.system(.headline, design: .rounded).bold())
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(DriverTheme.criticalRed, in: Capsule())
+            }
+            .buttonStyle(.plain)
         }
     }
     
