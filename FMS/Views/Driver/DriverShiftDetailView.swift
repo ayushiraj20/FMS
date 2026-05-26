@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 
+// MARK: - iOS 26 Native Design Overhaul
 struct DriverShiftDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppViewModel.self) private var appViewModel
@@ -13,14 +14,13 @@ struct DriverShiftDetailView: View {
         currentUser.flatMap { appViewModel.service.currentShift(for: $0.id) }
     }
 
-    // Toggle binding for Duty Status
     private var isOnDutyBinding: Binding<Bool> {
         Binding(
             get: {
                 guard let user = currentUser else { return false }
                 return appViewModel.service.dutyStatus(for: user.id) == .onDuty
             },
-            set: { newValue in
+            set: { _ in
                 guard let user = currentUser else { return }
                 appViewModel.service.toggleDutyStatus(for: user.id)
             }
@@ -29,176 +29,138 @@ struct DriverShiftDetailView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                // 1. Assigned Vehicle Card
+            VStack(spacing: 24) {
                 assignedVehicleCard
-
-                // 2. Shift Timings & Circular Ring Card
-                shiftTimingsCard
-
-                // 3. On Duty Toggle Switch
+                shiftTimingsWidget
                 onDutyToggleCard
-
-                // 4. Week Calendar view
-                weekCalendarCard
-
-                // 5. Upcoming Shifts
+                weekCalendarWidget
                 upcomingShiftsSection
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
-        .background(DriverTheme.background.ignoresSafeArea())
-        .navigationTitle("My Shift")
-        .navigationBarTitleDisplayMode(.inline)
+        .background(DriverScreenBackground())
+        .navigationTitle("Shift Details")
+        .navigationBarTitleDisplayMode(.large)
     }
 
     // MARK: - Assigned Vehicle Card
-
     private var assignedVehicleCard: some View {
-        DriverGlassCard {
+        VStack(alignment: .leading, spacing: 16) {
             if let vehicle = assignedVehicle {
                 HStack(spacing: 16) {
-                    // Vehicle Photo
                     Image("truck_placeholder")
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 90, height: 75)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .shadow(radius: 5)
                     
                     VStack(alignment: .leading, spacing: 6) {
                         Text(vehicle.plateNumber)
-                            .font(.system(size: 20, weight: .bold))
+                            .font(.system(.title3, design: .rounded).bold())
                             .foregroundStyle(DriverTheme.textPrimary)
                         
                         Text(vehicle.displayName)
-                            .font(.system(size: 14))
+                            .font(.subheadline)
                             .foregroundStyle(DriverTheme.textSecondary)
                         
-                        // Status Pill
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(vehicle.status == .active ? DriverTheme.successGreen : Color.gray)
-                                .frame(width: 8, height: 8)
-                            Text(vehicle.status.rawValue)
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(vehicle.status == .active ? DriverTheme.successGreen : DriverTheme.textSecondary)
-                        }
+                        Label(vehicle.status.rawValue, systemImage: "checkmark.circle.fill")
+                            .font(.caption.bold())
+                            .foregroundStyle(vehicle.status == .active ? DriverTheme.successGreen : DriverTheme.textSecondary)
+                            .padding(.top, 4)
                     }
                     Spacer()
                 }
             } else {
-                HStack {
-                    Image(systemName: "truck.box.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(DriverTheme.textSecondary)
+                HStack(spacing: 16) {
+                    Circle()
+                        .fill(DriverTheme.textSecondary.opacity(0.2))
+                        .frame(width: 60, height: 60)
+                        .overlay(Image(systemName: "truck.box.fill").foregroundStyle(DriverTheme.textSecondary))
+                    
                     Text("No Vehicle Assigned")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(.headline, design: .rounded))
                         .foregroundStyle(DriverTheme.textSecondary)
                     Spacer()
                 }
             }
         }
+        .padding(20)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .scrollTransition { content, phase in
+            content
+                .scaleEffect(phase.isIdentity ? 1 : 0.95)
+                .opacity(phase.isIdentity ? 1 : 0.8)
+        }
     }
 
-    // MARK: - Shift Timings & Circular Ring Card
-
-    private var shiftTimingsCard: some View {
-        DriverGlassCard {
-            HStack(spacing: 20) {
-                // Times
-                VStack(alignment: .leading, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Start")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(DriverTheme.textSecondary)
-                        Text(shift?.startTime.formatted(date: .omitted, time: .shortened) ?? "6:00 AM")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(DriverTheme.textPrimary)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("End")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(DriverTheme.textSecondary)
-                        Text(shift?.endTime.formatted(date: .omitted, time: .shortened) ?? "6:00 PM")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(DriverTheme.textPrimary)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Break")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(DriverTheme.textSecondary)
-                        Text(shift?.breakTime?.formatted(date: .omitted, time: .shortened) ?? "12:00 PM")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(DriverTheme.textPrimary)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Spacer()
-
-                // Shift Progress Ring
-                let progress = shift?.progress ?? 0.65
-                let totalHours = shift?.totalHours ?? 12.0
-                
-                VStack(spacing: 8) {
-                    ZStack {
-                        Circle()
-                            .stroke(Color.white.opacity(0.08), lineWidth: 12)
-                            .frame(width: 120, height: 120)
-
-                        Circle()
-                            .trim(from: 0, to: CGFloat(min(progress, 1.0)))
-                            .stroke(
-                                DriverTheme.accentGradient,
-                                style: StrokeStyle(lineWidth: 12, lineCap: .round)
-                            )
-                            .rotationEffect(.degrees(-90))
-                            .frame(width: 120, height: 120)
-
-                        VStack(spacing: 2) {
-                            Text("\(Int(progress * 100))%")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundStyle(DriverTheme.textPrimary)
-                            Text("\(Int(totalHours))h")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(DriverTheme.textSecondary)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity)
+    // MARK: - Shift Timings Widget
+    private var shiftTimingsWidget: some View {
+        HStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 16) {
+                timingRow(label: "Start", time: shift?.startTime.formatted(date: .omitted, time: .shortened) ?? "6:00 AM")
+                timingRow(label: "Break", time: shift?.breakTime?.formatted(date: .omitted, time: .shortened) ?? "12:00 PM")
+                timingRow(label: "End", time: shift?.endTime.formatted(date: .omitted, time: .shortened) ?? "6:00 PM")
             }
-            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer()
+
+            let progress = shift?.progress ?? 0.65
+            let totalHours = shift?.totalHours ?? 12.0
+            
+            ZStack {
+                CircularProgressRing(progress: progress, size: 130, strokeWidth: 14)
+                VStack(spacing: 4) {
+                    Text("\(Int(progress * 100))%")
+                        .font(.system(.title, design: .rounded).bold())
+                        .contentTransition(.numericText())
+                    Text("\(Int(totalHours))h")
+                        .font(.caption.bold())
+                        .foregroundStyle(DriverTheme.textSecondary)
+                }
+            }
+        }
+        .padding(24)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+    
+    private func timingRow(label: String, time: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(DriverTheme.textSecondary)
+            Text(time)
+                .font(.system(.title3, design: .rounded).bold())
         }
     }
 
     // MARK: - On Duty Toggle Card
-
     private var onDutyToggleCard: some View {
         HStack {
-            Text("On Duty")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(DriverTheme.textPrimary)
-            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Duty Status")
+                    .font(.system(.headline, design: .rounded))
+                Text(isOnDutyBinding.wrappedValue ? "Active and tracking" : "Currently resting")
+                    .font(.caption)
+                    .foregroundStyle(DriverTheme.textSecondary)
+            }
             Spacer()
-            
             Toggle("", isOn: isOnDutyBinding)
                 .labelsHidden()
                 .tint(DriverTheme.successGreen)
         }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill))
+        .padding(20)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
-    // MARK: - Week Calendar Card
-
-    private var weekCalendarCard: some View {
+    // MARK: - Week Calendar Widget
+    private var weekCalendarWidget: some View {
         let calendar = Calendar.current
         let today = Date()
         let weekdaySymbols = ["S", "M", "T", "W", "T", "F", "S"]
         
-        // Let's build 7 days centered or starting from sunday
         let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)) ?? today
         let days = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: startOfWeek) }
         
@@ -209,39 +171,40 @@ struct DriverShiftDetailView: View {
             driverShifts.contains { calendar.isDate($0.date, inSameDayAs: targetDate) }
         }
 
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("This Week")
+                .font(.system(.title2, design: .rounded).bold())
+            
             HStack(spacing: 0) {
                 ForEach(0..<7, id: \.self) { idx in
                     let date = days[idx]
                     let dayNum = calendar.component(.day, from: date)
                     let isToday = calendar.isDate(date, inSameDayAs: today)
                     
-                    VStack(spacing: 8) {
+                    VStack(spacing: 10) {
                         Text(weekdaySymbols[idx])
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.caption.bold())
                             .foregroundStyle(DriverTheme.textSecondary)
                         
                         Text("\(dayNum)")
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.system(.headline, design: .rounded).bold())
                             .foregroundStyle(isToday ? .white : DriverTheme.textPrimary)
-                            .frame(width: 32, height: 32)
-                            .background(isToday ? Circle().fill(DriverTheme.accent) : Circle().fill(Color.clear))
+                            .frame(width: 36, height: 36)
+                            .background(isToday ? DriverTheme.accent : Color.clear, in: Circle())
                         
-                        // Shift indicator dot
                         Circle()
-                            .fill(hasShiftOnDay(date) ? DriverTheme.accent : Color.clear)
-                            .frame(width: 4, height: 4)
+                            .fill(hasShiftOnDay(date) ? (isToday ? .white : DriverTheme.accent) : Color.clear)
+                            .frame(width: 6, height: 6)
                     }
                     .frame(maxWidth: .infinity)
                 }
             }
-            .padding(.vertical, 12)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill))
+            .padding(.vertical, 16)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
     }
 
     // MARK: - Upcoming Shifts Section
-
     private var upcomingShiftsSection: some View {
         let calendar = Calendar.current
         let todayStart = calendar.startOfDay(for: Date())
@@ -251,50 +214,59 @@ struct DriverShiftDetailView: View {
         let upcomingShifts = driverShifts.filter { $0.date > todayStart }
             .sorted { $0.date < $1.date }
 
-        return VStack(alignment: .leading, spacing: 12) {
-            Text("Upcoming Shifts")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(DriverTheme.textPrimary)
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("Upcoming")
+                .font(.system(.title2, design: .rounded).bold())
 
             if upcomingShifts.isEmpty {
-                Text("No upcoming shifts scheduled")
-                    .font(.system(size: 14))
+                Text("No upcoming shifts scheduled.")
+                    .font(.subheadline)
                     .foregroundStyle(DriverTheme.textSecondary)
-                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 16) {
                         ForEach(upcomingShifts) { shift in
-                            let dayString = shift.date.formatted(.dateTime.weekday(.abbreviated).day())
+                            let dayString = shift.date.formatted(.dateTime.weekday(.wide))
+                            let dateString = shift.date.formatted(.dateTime.day().month())
                             let timeString = shift.startTime.formatted(date: .omitted, time: .shortened)
-                            upcomingShiftCard(day: dayString, time: timeString, status: "Assigned")
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(dayString).font(.system(.headline, design: .rounded))
+                                        Text(dateString).font(.caption).foregroundStyle(DriverTheme.textSecondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "clock.fill").foregroundStyle(DriverTheme.accent)
+                                }
+                                Text(timeString).font(.title3.bold())
+                                Text("Assigned")
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(DriverTheme.accent)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(DriverTheme.accent.opacity(0.15), in: Capsule())
+                            }
+                            .padding(16)
+                            .frame(width: 160)
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                            .scrollTransition { content, phase in
+                                content
+                                    .scaleEffect(phase.isIdentity ? 1 : 0.9)
+                                    .opacity(phase.isIdentity ? 1 : 0.7)
+                            }
                         }
                     }
+                    .scrollTargetLayout()
                 }
+                .scrollTargetBehavior(.viewAligned)
+                .contentMargins(.horizontal, 20, for: .scrollContent)
+                .padding(.horizontal, -20)
             }
         }
-    }
-
-    private func upcomingShiftCard(day: String, time: String, status: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(day)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(DriverTheme.textPrimary)
-            
-            Text(time)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(DriverTheme.textSecondary)
-            
-            Text(status)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(DriverTheme.accent)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(DriverTheme.accent.opacity(0.15)))
-        }
-        .padding(16)
-        .frame(width: 130, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill))
     }
 }
 
@@ -302,11 +274,6 @@ struct DriverShiftDetailView: View {
     NavigationStack {
         DriverShiftDetailView()
             .environment(AppViewModel())
-            .environment(driverVMPreview)
+            .environment(DriverViewModel())
     }
-}
-
-private var driverVMPreview: DriverViewModel {
-    let vm = DriverViewModel()
-    return vm
 }

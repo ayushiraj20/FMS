@@ -651,3 +651,44 @@ struct BreakLogEntry: Identifiable, Codable, Hashable {
     }
 }
 
+// MARK: - Trip Start Inspection Models
+
+enum ItemStatus: String, Codable, Hashable {
+    case unchecked = "Unchecked"
+    case passed = "Passed"
+    case failed = "Failed"
+}
+
+struct InspectionItem2: Identifiable, Hashable {
+    let id: UUID
+    var title: String
+    var icon: String
+    var hint: String
+    var status: ItemStatus
+    var failureNote: String
+
+    init(id: UUID = UUID(), title: String, icon: String, hint: String, status: ItemStatus = .unchecked, failureNote: String = "") {
+        self.id = id
+        self.title = title
+        self.icon = icon
+        self.hint = hint
+        self.status = status
+        self.failureNote = failureNote
+    }
+
+    static func defaultList() -> [InspectionItem2] {
+        [
+            InspectionItem2(title: "Brakes", icon: "exclamationmark.circle.fill", hint: "Check brake pads, fluid level, and responsiveness"),
+            InspectionItem2(title: "Tyres / Wheels", icon: "circle.circle", hint: "Inspect tread depth, pressure, and wheel nuts"),
+            InspectionItem2(title: "Steering", icon: "steeringwheel", hint: "Check for play, leaks, and smooth operation"),
+            InspectionItem2(title: "Lights & Signals", icon: "lightbulb.fill", hint: "Test headlights, indicators, and brake lights"),
+            InspectionItem2(title: "Mirrors", icon: "rectangle.on.rectangle.angled", hint: "Ensure all mirrors are clean and properly adjusted"),
+            InspectionItem2(title: "Horn", icon: "speaker.wave.3.fill", hint: "Test horn functionality"),
+            InspectionItem2(title: "Windshield & Wipers", icon: "drop.fill", hint: "Check for cracks, wiper blades, and washer fluid"),
+            InspectionItem2(title: "Engine / Fluids", icon: "engine.combustion.fill", hint: "Check oil, coolant, and listen for unusual sounds"),
+            InspectionItem2(title: "Seatbelt", icon: "seatbelt.fill", hint: "Verify seatbelt locks and retracts properly"),
+            InspectionItem2(title: "Emergency Kit", icon: "cross.case.fill", hint: "First aid kit, fire extinguisher, and warning triangle"),
+        ]
+    }
+}
+

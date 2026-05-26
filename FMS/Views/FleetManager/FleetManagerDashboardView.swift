@@ -1,5 +1,4 @@
 import SwiftUI
-import MapKit
 
 struct FleetManagerDashboardView: View {
     @Environment(AppViewModel.self) private var appViewModel
@@ -21,9 +20,7 @@ struct FleetManagerDashboardView: View {
                         // MARK: - KPI Grid
                         kpiGrid
                         
-                        // MARK: - Pending Defect Banner
-                        pendingDefectBanner
-                        
+
                         // MARK: - Priority Alerts
                         alertsSection
                         
@@ -76,10 +73,8 @@ struct FleetManagerDashboardView: View {
                 NavigationLink(
                     destination: NotificationsView()
                 ) {
-
                     notificationBadge
                 }
-                .buttonStyle(.plain)
 
                 Button {
 
@@ -164,11 +159,10 @@ struct FleetManagerDashboardView: View {
             FuelSpendDetailView()
 
         case "Open Work Orders":
-//            WorkOrdersDetailView(
-//                service: appViewModel.service,
-//                currentOrgID: appViewModel.currentOrganization?.id
-//            )
-            EmptyView()
+            WorkOrderManagementView(
+                service: appViewModel.service,
+                currentOrgID: appViewModel.currentOrganization?.id
+            )
 
         case "Expiring Documents":
             ExpiringDocumentsDetailView()
@@ -188,12 +182,12 @@ struct FleetManagerDashboardView: View {
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
                     Spacer()
-//                    NavigationLink(destination: NotificationsView()) {
-//                        Text("See All")
-//                            .font(.subheadline.weight(.semibold))
-//                            .foregroundStyle(AppTheme.brand)
-//                    }
-//                    .buttonStyle(.plain)
+                    NavigationLink(destination: PriorityAlertsListView()) {
+                        Text("See All")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.brand)
+                    }
+                    .buttonStyle(.plain)
                 }
                 
                 HStack(alignment: .top, spacing: 0) {
@@ -207,18 +201,8 @@ struct FleetManagerDashboardView: View {
                     }
                     .buttonStyle(.plain)
                     
-                    NavigationLink(destination: PriorityAlertDetailView(category: "Maintenance", count: 2)) {
-                        alertIconItem(icon: "wrench.and.screwdriver.fill", color: Color("AccentColor"), count: 2, label: "Maintenance")
-                    }
-                    .buttonStyle(.plain)
-                    
-                    NavigationLink(destination: PriorityAlertDetailView(category: "Off-Route", count: 4)) {
-                        alertIconItem(icon: "location.slash.fill", color: Color("AccentColor"), count: 4, label: "Off-Route")
-                    }
-                    .buttonStyle(.plain)
-                    
-                    NavigationLink(destination: PriorityAlertDetailView(category: "Geofence", count: 1)) {
-                        alertIconItem(icon: "mappin.and.ellipse", color: Color("AccentColor"), count: 1, label: "Geofence")
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Overdue", count: 2)) {
+                        alertIconItem(icon: "clock.badge.exclamationmark.fill", color: Color("AccentColor"), count: 2, label: "Overdue")
                     }
                     .buttonStyle(.plain)
                 }
@@ -264,18 +248,18 @@ struct FleetManagerDashboardView: View {
                     .font(.title3.weight(.bold))
                     .foregroundStyle(AppTheme.textPrimary)
                 Spacer()
-                NavigationLink(destination: FleetMapFullView(vehicles: appViewModel.service.vehicles)) {
+                NavigationLink(destination: FleetMapFullView(service: appViewModel.service)) {
                     Text("See All")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.brand)
                 }
             }
             
-            FleetMapPreview(vehicles: appViewModel.service.vehicles)
+            FleetMapPreview(locations: appViewModel.service.nearbyFleetLocations())
                 .frame(height: 240)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(AppTheme.border, lineWidth: 0.5)
                 )
         }
@@ -409,18 +393,6 @@ struct FleetManagerDashboardView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(title: "Quick Access", subtitle: "Navigate to key management modules")
             
-            NavigationLink(destination: UserManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
-                quickLink(title: "User Management", subtitle: "Create and manage accounts", icon: "person.2.fill")
-            }
-            
-            NavigationLink(destination: VehicleManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
-                quickLink(title: "Vehicle Management", subtitle: "Track assets and assignments", icon: "truck.box.fill")
-            }
-            
-            NavigationLink(destination: WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
-                quickLink(title: "Work Orders", subtitle: "Create and monitor tasks", icon: "wrench.and.screwdriver.fill")
-            }
-            
             NavigationLink(destination: AssignDriverView(service: appViewModel.service)) {
                 quickLink(title: "Assign Driver", subtitle: "Pair available vehicles & drivers", icon: "person.badge.key.fill")
             }
@@ -525,247 +497,27 @@ struct FleetManagerDashboardView: View {
     }
     
     private var notificationBadge: some View {
-        ZStack(alignment: .topTrailing) {
-            Image(systemName: "bell")
+        ZStack {
+            Image(systemName: "bell.fill")
+                .font(.title3)
                 .foregroundStyle(AppTheme.textPrimary)
+                
             if appViewModel.unreadNotificationsCount > 0 {
-                Text("\(appViewModel.unreadNotificationsCount)")
+                Text(appViewModel.unreadNotificationsCount > 10 ? "10+" : "\(appViewModel.unreadNotificationsCount)")
                     .font(.caption2.bold())
                     .foregroundStyle(.white)
+                    .padding(.horizontal, appViewModel.unreadNotificationsCount > 10 ? 4 : 0)
                     .frame(minWidth: 18, minHeight: 18)
-                    .background(Color.red)
-                    .clipShape(Circle())
-                    .offset(x: 8, y: -8)
-                
-                
+                    .background(AppTheme.brand)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule().stroke(AppTheme.background, lineWidth: 2)
+                    )
+                    .offset(x: 10, y: -10)
+                    .zIndex(1)
             }
         }
-    }
-}
-
-// MARK: - Fleet Map Data
-
-struct VehicleMapPin: Identifiable {
-    let id: UUID
-    let name: String
-    let plateNumber: String
-    let coordinate: CLLocationCoordinate2D
-    let status: VehicleStatus
-}
-
-private func mockVehiclePins(for vehicles: [Vehicle]) -> [VehicleMapPin] {
-    let mockCoordinates: [CLLocationCoordinate2D] = [
-        CLLocationCoordinate2D(latitude: 12.3050, longitude: 76.6450),    // Mysuru
-        CLLocationCoordinate2D(latitude: 12.2900, longitude: 76.6300),    // Mysuru
-        CLLocationCoordinate2D(latitude: 12.3100, longitude: 76.6500),    // Mysuru
-        CLLocationCoordinate2D(latitude: 12.2800, longitude: 76.6200),    // Mysuru
-        CLLocationCoordinate2D(latitude: 12.3150, longitude: 76.6600),    // Mysuru
-        CLLocationCoordinate2D(latitude: 12.2700, longitude: 76.6100),    // Mysuru
-    ]
-    
-    return vehicles.enumerated().map { index, vehicle in
-        let coord = mockCoordinates[index % mockCoordinates.count]
-        return VehicleMapPin(
-            id: vehicle.id,
-            name: vehicle.displayName,
-            plateNumber: vehicle.plateNumber,
-            coordinate: coord,
-            status: vehicle.status
-        )
-    }
-}
-
-// MARK: - Fleet Map Preview (Dashboard Card)
-
-struct FleetMapPreview: View {
-    let vehicles: [Vehicle]
-    
-    var body: some View {
-        let pins = mockVehiclePins(for: vehicles)
-        let region = mapRegion(for: pins)
-        
-        Map(initialPosition: .region(region), interactionModes: []) {
-            ForEach(pins) { pin in
-                Annotation("", coordinate: pin.coordinate) {
-                    VehiclePinView(pin: pin, isCompact: true)
-                }
-            }
-            
-            // Route polyline connecting all pins
-            let allCoords = pins.map(\.coordinate)
-            if allCoords.count >= 2 {
-                MapPolyline(coordinates: allCoords)
-                    .stroke(AppTheme.brand, lineWidth: 4)
-            }
-        }
-        .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll, showsTraffic: false))
-        .colorScheme(.light)
-        .allowsHitTesting(false)
-    }
-    
-    private func mapRegion(for pins: [VehicleMapPin]) -> MKCoordinateRegion {
-        guard !pins.isEmpty else {
-            return MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: 22.5, longitude: 78.9),
-                span: MKCoordinateSpan(latitudeDelta: 20.0, longitudeDelta: 20.0)
-            )
-        }
-        let lats = pins.map(\.coordinate.latitude)
-        let lons = pins.map(\.coordinate.longitude)
-        let center = CLLocationCoordinate2D(
-            latitude: (lats.min()! + lats.max()!) / 2,
-            longitude: (lons.min()! + lons.max()!) / 2
-        )
-        let span = MKCoordinateSpan(
-            latitudeDelta: max((lats.max()! - lats.min()!) * 1.5, 0.5),
-            longitudeDelta: max((lons.max()! - lons.min()!) * 1.5, 0.5)
-        )
-        return MKCoordinateRegion(center: center, span: span)
-    }
-}
-
-// MARK: - Vehicle Pin View
-
-struct VehiclePinView: View {
-    let pin: VehicleMapPin
-    var isCompact: Bool = false
-    
-    private var rotation: Double {
-        // Vary tilt per pin for a natural look
-        let hash = abs(pin.id.hashValue)
-        let angles: [Double] = [-35, -20, 15, -40, 25, -10]
-        return angles[hash % angles.count]
-    }
-    
-    var body: some View {
-        Image(systemName: "car.fill")
-            .font(.system(size: isCompact ? 24 : 32))
-            .foregroundStyle(pin.status == .active || pin.status == .inService ? Color(hex: "#FF6B8B") : Color(hex: "#A0A0A0"))
-            .shadow(color: pin.status == .active || pin.status == .inService ? Color(hex: "#FF6B8B").opacity(0.6) : Color.black.opacity(0.2), radius: 4, y: 2)
-            .rotationEffect(.degrees(rotation))
-    }
-}
-
-// MARK: - Full Screen Fleet Map
-
-struct FleetMapFullView: View {
-    let vehicles: [Vehicle]
-    @State private var selectedPin: VehicleMapPin?
-    @State private var mapPosition: MapCameraPosition
-    
-    init(vehicles: [Vehicle]) {
-        self.vehicles = vehicles
-        let pins = mockVehiclePins(for: vehicles)
-        let lats = pins.map(\.coordinate.latitude)
-        let lons = pins.map(\.coordinate.longitude)
-        if let minLat = lats.min(), let maxLat = lats.max(),
-           let minLon = lons.min(), let maxLon = lons.max() {
-            let center = CLLocationCoordinate2D(
-                latitude: (minLat + maxLat) / 2,
-                longitude: (minLon + maxLon) / 2
-            )
-            let span = MKCoordinateSpan(
-                latitudeDelta: max((maxLat - minLat) * 1.5, 0.5),
-                longitudeDelta: max((maxLon - minLon) * 1.5, 0.5)
-            )
-            _mapPosition = State(initialValue: .region(MKCoordinateRegion(center: center, span: span)))
-        } else {
-            _mapPosition = State(initialValue: .region(MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: 22.5, longitude: 78.9),
-                span: MKCoordinateSpan(latitudeDelta: 20.0, longitudeDelta: 20.0)
-            )))
-        }
-    }
-    
-    var body: some View {
-        let pins = mockVehiclePins(for: vehicles)
-        
-        ZStack(alignment: .bottom) {
-            Map(position: $mapPosition) {
-                ForEach(pins) { pin in
-                    Annotation("", coordinate: pin.coordinate) {
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                selectedPin = selectedPin?.id == pin.id ? nil : pin
-                            }
-                        } label: {
-                            VehiclePinView(pin: pin)
-                        }
-                    }
-                }
-                
-                // Route connecting all vehicles
-                let allCoords = pins.map(\.coordinate)
-                if allCoords.count >= 2 {
-                    MapPolyline(coordinates: allCoords)
-                        .stroke(AppTheme.brand, lineWidth: 4)
-                }
-            }
-            .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll, showsTraffic: false))
-            .colorScheme(.light)
-            
-            // Vehicle detail card
-            if let pin = selectedPin {
-                vehicleDetailCard(pin)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
-            }
-        }
-        .navigationTitle("Live Fleet Map")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-    
-    private func vehicleDetailCard(_ pin: VehicleMapPin) -> some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(statusColor(pin.status).opacity(0.15))
-                    .frame(width: 48, height: 48)
-                Image(systemName: "truck.box.fill")
-                    .font(.title3)
-                    .foregroundStyle(statusColor(pin.status))
-            }
-            
-            VStack(alignment: .leading, spacing: 3) {
-                Text(pin.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                Text(pin.plateNumber)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
-                StatusBadgeView(text: pin.status.rawValue, color: statusColor(pin.status))
-            }
-            
-            Spacer()
-            
-            Button {
-                withAnimation { selectedPin = nil }
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.white.opacity(0.6))
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.white.opacity(0.12), lineWidth: 0.5)
-        )
-    }
-    
-    private func statusColor(_ status: VehicleStatus) -> Color {
-        switch status {
-        case .active: return AppTheme.brand
-        case .inService: return AppTheme.warning
-        case .idle: return AppTheme.textSecondary
-        case .outOfService: return AppTheme.error
-        }
+        .frame(width: 44, height: 44)
     }
 }
 

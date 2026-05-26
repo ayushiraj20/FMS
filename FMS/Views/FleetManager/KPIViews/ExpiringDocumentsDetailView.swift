@@ -109,16 +109,30 @@ struct ExpiringDocumentsDetailView: View {
 
                     Spacer()
 
-                    Button {
+                    HStack(spacing: 8) {
+                        Button {
+                            // View action placeholder
+                        } label: {
+                            Text("View")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.brand)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(AppTheme.brand.opacity(0.15))
+                                .clipShape(Capsule())
+                        }
+                        
+                        Button {
 
-                    } label: {
-                        Text("Renew")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(AppTheme.brand)
-                            .clipShape(Capsule())
+                        } label: {
+                            Text("Renew")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(AppTheme.brand)
+                                .clipShape(Capsule())
+                        }
                     }
                 }
             }

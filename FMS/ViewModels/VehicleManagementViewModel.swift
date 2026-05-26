@@ -31,6 +31,12 @@ final class VehicleManagementViewModel {
     var docType: DocumentType = .rc
     var docNumber = ""
     var docExpiryDate = Date.now.addingTimeInterval(86400 * 120)
+    var selectedFileURL: URL? = nil
+    var isPresentingFilePicker = false
+    
+    // Delete State
+    var vehicleToDelete: Vehicle? = nil
+    var isPresentingDeleteConfirmation = false
 
     init(service: MockDataService, currentOrgID: UUID?) {
         self.service = service
@@ -45,11 +51,7 @@ final class VehicleManagementViewModel {
             
             let matchesFilter: Bool
             if let filter = selectedStatusFilter {
-                if filter == .idle {
-                    matchesFilter = (vehicle.status == .idle || vehicle.status == .outOfService)
-                } else {
-                    matchesFilter = (vehicle.status == filter)
-                }
+                matchesFilter = (vehicle.status == filter)
             } else {
                 matchesFilter = true
             }
@@ -71,7 +73,11 @@ final class VehicleManagementViewModel {
     }
 
     var idleCount: Int {
-        service.vehicles.filter { $0.status == .idle || $0.status == .outOfService }.count
+        service.vehicles.filter { $0.status == .idle }.count
+    }
+
+    var maintenanceCount: Int {
+        service.vehicles.filter { $0.status == .outOfService }.count
     }
 
     var drivers: [User] {
@@ -98,8 +104,17 @@ final class VehicleManagementViewModel {
         service.defects.filter { $0.vehicleID == vehicleID }
     }
 
-    func deleteVehicle(_ vehicle: Vehicle) {
-        service.deleteVehicle(vehicle)
+    func confirmDelete(_ vehicle: Vehicle) {
+        vehicleToDelete = vehicle
+        isPresentingDeleteConfirmation = true
+    }
+
+    func deleteConfirmed() {
+        if let vehicle = vehicleToDelete {
+            service.deleteVehicle(vehicle)
+        }
+        vehicleToDelete = nil
+        isPresentingDeleteConfirmation = false
     }
 
     func prepareForAdd() {
@@ -113,6 +128,10 @@ final class VehicleManagementViewModel {
         assignedDriverID = nil
         nextServiceDate = Date.now.addingTimeInterval(86400 * 10)
         utilization = 70.0
+        docType = .rc
+        docNumber = ""
+        docExpiryDate = Date.now.addingTimeInterval(86400 * 120)
+        selectedFileURL = nil
         isPresentingForm = true
     }
 
@@ -127,6 +146,10 @@ final class VehicleManagementViewModel {
         assignedDriverID = vehicle.assignedDriverID
         nextServiceDate = vehicle.nextServiceDate
         utilization = Double(vehicle.utilization)
+        docType = .rc
+        docNumber = ""
+        docExpiryDate = Date.now.addingTimeInterval(86400 * 120)
+        selectedFileURL = nil
         isPresentingForm = true
     }
 
@@ -164,6 +187,16 @@ final class VehicleManagementViewModel {
                 )
             }
         }
+
+        if !docNumber.trimmingCharacters(in: .whitespaces).isEmpty {
+            service.addDocument(
+                vehicleID: vehicle.id,
+                type: docType,
+                number: docNumber,
+                expiryDate: docExpiryDate
+            )
+        }
+
         isPresentingForm = false
 
     }
