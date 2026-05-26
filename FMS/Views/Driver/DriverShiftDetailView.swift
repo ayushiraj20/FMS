@@ -39,19 +39,7 @@ struct DriverShiftDetailView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
-        .background(
-            ZStack {
-                DriverTheme.background.ignoresSafeArea()
-                GeometryReader { geo in
-                    Circle()
-                        .fill(DriverTheme.accent.opacity(0.1))
-                        .frame(width: geo.size.width * 1.2)
-                        .blur(radius: 80)
-                        .offset(x: geo.size.width * 0.3, y: -geo.size.height * 0.2)
-                }
-                .ignoresSafeArea()
-            }
-        )
+        .background(DriverScreenBackground())
         .navigationTitle("Shift Details")
         .navigationBarTitleDisplayMode(.large)
     }
