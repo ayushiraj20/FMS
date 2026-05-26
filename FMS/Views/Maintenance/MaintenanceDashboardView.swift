@@ -15,8 +15,6 @@ struct MaintenanceDashboardView: View {
                     LoadingStateView(title: "Loading workshop queue...")
                         .frame(height: 320)
                 } else {
-                    topBar
-                    dashboardHeader
                     metricsGrid
                     priorityQueue
                     maintenanceScheduleStrip
@@ -27,7 +25,29 @@ struct MaintenanceDashboardView: View {
             .padding(.bottom, 28)
         }
         .background(AppTheme.background.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("Dashboard")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                NavigationLink(destination: ProfileSettingsView()) {
+                    ZStack {
+                        Circle()
+                            .fill(maintenanceAccent)
+                            .frame(width: 36, height: 36)
+                        Text(userInitials)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .accessibilityIdentifier("PROFILE_BUTTON")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: NotificationsView()) {
+                    Image(systemName: "bell.fill")
+                }
+                .accessibilityIdentifier("BELL_BUTTON")
+            }
+        }
         .task {
             await appViewModel.loadNotifications()
             guard isLoading else { return }
@@ -93,6 +113,7 @@ struct MaintenanceDashboardView: View {
         }
     }
     private var assignedVehicleIDs: Set<UUID> { Set(assignedOrders.map(\.vehicleID)) }
+    private var waitingOnPartsCount: Int { assignedOrders.filter { $0.status == .waitingParts }.count }
     private var upcomingSchedules: [MaintenanceSchedule] {
         let schedules = appViewModel.service.schedules(for: assignedVehicleIDs.isEmpty ? nil : assignedVehicleIDs)
         return schedules.filter { $0.status != .completed }
@@ -148,8 +169,9 @@ struct MaintenanceDashboardView: View {
             NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .waitingParts)) {
                 MaintenanceMetricCard(
                     icon: "shippingbox.fill",
-                    title: "Waiting Parts",
-                    value: "\(assignedOrders.filter { $0.status == .waitingParts }.count)",
+                    title: "Waiting on Parts",
+                    subtitle: "Jobs paused until stock arrives",
+                    value: "\(waitingOnPartsCount)",
                     tint: maintenanceAccent
                 )
             }
@@ -302,8 +324,17 @@ struct MaintenanceDashboardView: View {
 private struct MaintenanceMetricCard: View {
     let icon: String
     let title: String
+    let subtitle: String?
     let value: String
     let tint: Color
+
+    init(icon: String, title: String, subtitle: String? = nil, value: String, tint: Color) {
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.value = value
+        self.tint = tint
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -321,12 +352,19 @@ private struct MaintenanceMetricCard: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
 
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(Color.dynamic(light: "#8A7066", dark: "#BDA39A"))
+                        .lineLimit(2)
+                }
+
                 Text(value)
                     .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.dynamic(light: "#1F2024", dark: "#F2E8E4"))
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 108, alignment: .leading)
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
