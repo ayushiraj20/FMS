@@ -670,6 +670,7 @@ struct DriverDashboardView: View {
 
             HStack(spacing: 12) {
                 // Action 1: Inspection — FIX: use "clipboard.fill" (available iOS 14+)
+                /*
                 let inspectionDone = currentUser.flatMap { appViewModel.service.todayInspection(for: $0.id) } != nil
                 if inspectionDone {
                     NavigationLink(destination: InspectionsView()) {
@@ -682,6 +683,7 @@ struct DriverDashboardView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                */
 
                 // Action 2: Start/Resume Trip
                 if let user = currentUser, let activeTrip = appViewModel.service.activeTrip(for: user.id) {

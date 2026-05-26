@@ -1,5 +1,5 @@
 import SwiftUI
-
+import UniformTypeIdentifiers
 struct VehicleManagementView: View {
     @State private var viewModel: VehicleManagementViewModel
 
@@ -9,80 +9,49 @@ struct VehicleManagementView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            List {
-                VStack(spacing: 20) {
-                    // Custom Search Bar
-                    HStack {
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(AppTheme.textSecondary)
-                            TextField("Search vehicles...", text: $viewModel.searchText)
-                                .foregroundStyle(AppTheme.textPrimary)
-                        }
-                        .padding(12)
-                        .background(AppTheme.surfaceSecondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        
-                        Button(action: {}) {
-                            Image(systemName: "line.3.horizontal.decrease")
-                                .font(.title2)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
+            VStack(spacing: 0) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        filterPill(title: "All", count: viewModel.allCount, status: nil)
+                        filterPill(title: "Active", count: viewModel.activeCount, status: .active)
+                        filterPill(title: "In Transit", count: viewModel.inTransitCount, status: .inService)
+                        filterPill(title: "Idle", count: viewModel.idleCount, status: .idle)
+                        filterPill(title: "Under Maintenance", count: viewModel.maintenanceCount, status: .outOfService)
                     }
                     .padding(.horizontal)
-
-                    // Filter Pills
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            filterPill(title: "All", count: viewModel.allCount, status: nil)
-                            filterPill(title: "Active", count: viewModel.activeCount, status: .active)
-                            filterPill(title: "In Transit", count: viewModel.inTransitCount, status: .inService)
-                            filterPill(title: "Idle", count: viewModel.idleCount, status: .idle)
-                        }
-                        .padding(.horizontal)
-                    }
                 }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
+                .padding(.vertical, 8)
+                .background(Color(.systemBackground))
 
-                // Vehicle List
-                ForEach(viewModel.filteredVehicles) { vehicle in
-                    ZStack {
-                        VehicleCardView(vehicle: vehicle)
+                List {
+                    ForEach(viewModel.filteredVehicles) { vehicle in
                         NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id)) {
-                            EmptyView()
+                            VehicleCardView(vehicle: vehicle)
                         }
-                        .opacity(0)
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            viewModel.deleteVehicle(vehicle)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                viewModel.confirmDelete(vehicle)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
-                    }
-                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                        Button {
-                            viewModel.prepareForEdit(vehicle)
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                viewModel.prepareForEdit(vehicle)
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(AppTheme.brand)
                         }
-                        .tint(AppTheme.brand)
                     }
                 }
-                
-                Color.clear
-                    .frame(height: 100) // Space for FAB
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                .listStyle(.insetGrouped)
+                .background(Color(.systemBackground))
+                .scrollContentBackground(.hidden)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .padding(.top, 10)
+            .navigationTitle("Vehicles")
+            .navigationBarTitleDisplayMode(.large)
+            .searchable(text: $viewModel.searchText, prompt: "Search vehicles...")
 
             // Floating Action Button
             Button(action: {
@@ -99,10 +68,24 @@ struct VehicleManagementView: View {
             .padding(.bottom, 24)
             .padding(.trailing, 24)
         }
-        .background(AppTheme.background)
-        .navigationTitle("Vehicles")
         .sheet(isPresented: $viewModel.isPresentingForm) {
             VehicleFormSheet(viewModel: viewModel)
+        }
+        .confirmationDialog(
+            "Delete Vehicle",
+            isPresented: $viewModel.isPresentingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                viewModel.deleteConfirmed()
+            }
+            Button("Cancel", role: .cancel) {
+                viewModel.vehicleToDelete = nil
+            }
+        } message: {
+            if let vehicle = viewModel.vehicleToDelete {
+                Text("Are you sure you want to delete \(vehicle.displayName)? This action cannot be undone.")
+            }
         }
     }
 
@@ -113,21 +96,18 @@ struct VehicleManagementView: View {
                 viewModel.selectedStatusFilter = status
             }
         } label: {
-            VStack(spacing: 4) {
+            HStack(spacing: 4) {
                 Text(title)
-                    .font(.subheadline)
-                    .foregroundStyle(isSelected ? AppTheme.textPrimary : AppTheme.textSecondary)
-                Text("\(count)")
-                    .font(.caption)
-                    .foregroundStyle(isSelected ? AppTheme.textPrimary : AppTheme.textSecondary)
+                Text("(\(count))")
             }
-            .frame(minWidth: 70)
+            .font(.subheadline)
+            .foregroundStyle(isSelected ? AppTheme.textPrimary : AppTheme.textSecondary)
             .padding(.vertical, 8)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 16)
             .background(isSelected ? AppTheme.surfaceSecondary : AppTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(Capsule())
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                Capsule()
                     .stroke(isSelected ? AppTheme.textSecondary.opacity(0.3) : Color.clear, lineWidth: 1)
             )
         }
@@ -139,49 +119,36 @@ private struct VehicleCardView: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Image Placeholder
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(AppTheme.surfaceSecondary)
-                    .frame(width: 80, height: 80)
-                Image(systemName: "box.truck.fill")
-                    .font(.largeTitle)
-                    .foregroundStyle(AppTheme.textSecondary)
-            }
+            Image(systemName: "box.truck.fill")
+                .font(.title2)
+                .foregroundStyle(Color(.systemGray))
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(vehicle.plateNumber)
-                        .font(.headline.weight(.black))
-                        .foregroundStyle(AppTheme.textPrimary)
-                    Spacer()
-                    Circle()
-                        .fill(statusColor)
-                        .frame(width: 10, height: 10)
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(vehicle.plateNumber)
+                    .font(.headline)
+                    .foregroundStyle(Color(.label))
 
                 Text(statusText)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(statusColor)
 
-                HStack {
-                    Text(mockRoute)
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.textSecondary)
-                    Spacer()
-                    Text("\(vehicle.utilization)%")
-                        .font(.headline)
-                        .foregroundStyle(AppTheme.textPrimary)
-                }
+                Text(mockRoute)
+                    .font(.subheadline)
+                    .foregroundStyle(Color(.secondaryLabel))
+            }
+
+            Spacer()
+
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 8, height: 8)
+                Text("\(vehicle.utilization)%")
+                    .font(.subheadline)
+                    .foregroundStyle(Color(.label))
             }
         }
-        .padding(16)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(AppTheme.border, lineWidth: 1)
-        )
+        .padding(.vertical, 4)
     }
 
     private var statusColor: Color {
@@ -337,6 +304,61 @@ private struct VehicleFormSheet: View {
                                 value: $viewModel.utilization,
                                 color: AppTheme.brand
                             )
+                        }
+
+                        // ── Documents ──
+                        formSection(title: "Documents", icon: "doc.fill") {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Document Type")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Picker("Document Type", selection: $viewModel.docType) {
+                                    ForEach(DocumentType.allCases, id: \.self) { type in
+                                        Text(type.rawValue).tag(type)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .tint(AppTheme.textPrimary)
+                            }
+                            divider
+                            formField(label: "Document Number", placeholder: "e.g. DOC-123", text: $viewModel.docNumber)
+                            divider
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Upload File")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Button {
+                                    viewModel.isPresentingFilePicker = true
+                                } label: {
+                                    HStack {
+                                        Image(systemName: viewModel.selectedFileURL == nil ? "tray.and.arrow.down" : "doc.fill")
+                                        Text(viewModel.selectedFileURL?.lastPathComponent ?? "Select PDF or Image")
+                                        Spacer()
+                                    }
+                                    .padding()
+                                    .background(AppTheme.surfaceSecondary)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                                .tint(AppTheme.textPrimary)
+                                .fileImporter(isPresented: $viewModel.isPresentingFilePicker, allowedContentTypes: [.pdf, .image]) { result in
+                                    switch result {
+                                    case .success(let url):
+                                        viewModel.selectedFileURL = url
+                                    case .failure(let error):
+                                        print("Error selecting document: \(error)")
+                                    }
+                                }
+                            }
+                            divider
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Expiry Date")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                DatePicker("", selection: $viewModel.docExpiryDate, displayedComponents: .date)
+                                    .datePickerStyle(.compact)
+                                    .labelsHidden()
+                                    .tint(AppTheme.brand)
+                            }
                         }
 
                         // Save button

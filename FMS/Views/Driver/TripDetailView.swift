@@ -30,6 +30,7 @@ struct TripDetailView: View {
     ]
 
     @State private var cameraPosition: MapCameraPosition = .automatic
+    @State private var showPostTripInspection = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -59,6 +60,12 @@ struct TripDetailView: View {
                 center: center,
                 span: MKCoordinateSpan(latitudeDelta: 1.0, longitudeDelta: 1.0)
             ))
+        }
+        .sheet(isPresented: $showPostTripInspection) {
+            TripEndInspectionSheet(trip: trip) {
+                dismiss()
+            }
+            .environment(appViewModel)
         }
     }
 
@@ -159,6 +166,9 @@ struct TripDetailView: View {
                     if let driver = driver {
                         driverContactCard(driver: driver)
                     }
+
+                    // 3.5 Route Info & Notes
+                    routeInfoSection
 
                     // 4. Metrics Bar
                     metricsBarSection
@@ -343,6 +353,40 @@ struct TripDetailView: View {
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill.opacity(0.6)))
     }
 
+    // MARK: - Route Info Section
+
+    @ViewBuilder
+    private var routeInfoSection: some View {
+        if trip.routeDetails != nil || trip.notes != nil {
+            VStack(alignment: .leading, spacing: 12) {
+                if let route = trip.routeDetails, !route.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Route Suggestions")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(DriverTheme.textSecondary)
+                        Text(route)
+                            .font(.system(size: 15))
+                            .foregroundStyle(DriverTheme.textPrimary)
+                    }
+                }
+                
+                if let note = trip.notes, !note.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Admin Notes")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(DriverTheme.textSecondary)
+                        Text(note)
+                            .font(.system(size: 15))
+                            .foregroundStyle(DriverTheme.textPrimary)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill.opacity(0.6)))
+        }
+    }
+
     // MARK: - Action Button Section
 
     @ViewBuilder
@@ -365,8 +409,9 @@ struct TripDetailView: View {
             .disabled(!inspectionDone)
         } else if trip.status == .inProgress {
             Button {
-                appViewModel.service.endTrip(trip)
-                dismiss()
+                // appViewModel.service.endTrip(trip)
+                // dismiss()
+                showPostTripInspection = true
             } label: {
                 Text("End Trip")
                     .font(.system(size: 17, weight: .bold))
