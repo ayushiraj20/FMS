@@ -384,11 +384,24 @@ struct DriverDashboardView: View {
                 HStack(spacing: 16) {
                     let inspDone = currentUser.flatMap { appViewModel.service.todayInspection(for: $0.id) } != nil
                     
-                    NavigationLink(destination: inspDone ? AnyView(InspectionsView()) : AnyView(PreTripInspectionView())) {
-                        quickActionTile(icon: "clipboard.fill", label: "Inspection", color: .blue)
+                    Button {
+                        if let user = currentUser, let nextTrip = appViewModel.service.upcomingTrips(for: user.id).first {
+                            if inspDone {
+                                appViewModel.service.startScheduledTrip(id: nextTrip.id)
+                                driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
+                            } else {
+                                tripToStart = nextTrip
+                                showTripInspectionSheet = true
+                            }
+                        } else {
+                            driverVM.showToastMessage("No upcoming trips available.")
+                        }
+                    } label: {
+                        quickActionTile(icon: "play.fill", label: "Start Trip", color: DriverTheme.accent)
                     }
                     .buttonStyle(.plain)
-                    
+
+
                     Button { driverVM.showBreakLogSheet = true } label: {
                         quickActionTile(icon: "cup.and.saucer.fill", label: "Break Log", color: .orange)
                     }
