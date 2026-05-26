@@ -3,24 +3,27 @@ import SwiftUI
 struct SOSSheetView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @Environment(DriverViewModel.self) private var driverVM
+    
+    @State private var isPulsing = false
 
     var body: some View {
         ZStack {
-            DriverTheme.criticalRed.ignoresSafeArea()
+            // Pure black background for high contrast, night-vision preservation, and battery saving in emergencies.
+            Color.black.ignoresSafeArea()
             
-            GeometryReader { geo in
+            // Pulsing background emergency aura
+            if !driverVM.sosConfirmed {
                 Circle()
-                    .fill(.red.opacity(0.8))
-                    .frame(width: geo.size.width)
-                    .blur(radius: 60)
-                    .offset(x: geo.size.width * 0.2, y: geo.size.height * 0.1)
-                
-                Circle()
-                    .fill(.orange.opacity(0.5))
-                    .frame(width: geo.size.width * 0.8)
-                    .blur(radius: 80)
-                    .offset(x: -geo.size.width * 0.2, y: -geo.size.height * 0.1)
-            }.ignoresSafeArea()
+                    .fill(Color.red.opacity(0.15))
+                    .frame(width: 260, height: 260)
+                    .scaleEffect(isPulsing ? 1.2 : 0.8)
+                    .blur(radius: 30)
+                    .onAppear {
+                        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                            isPulsing = true
+                        }
+                    }
+            }
 
             if driverVM.sosConfirmed {
                 confirmedView
@@ -35,6 +38,7 @@ struct SOSSheetView: View {
 
     private var countdownView: some View {
         VStack(spacing: 40) {
+            // Top Cancel bar
             HStack {
                 Spacer()
                 Button {
@@ -45,7 +49,11 @@ struct SOSSheetView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
-                        .background(.ultraThinMaterial, in: Capsule())
+                        .background(Color.white.opacity(0.15), in: Capsule())
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                        )
                 }
             }
             .padding(.horizontal, 20)
@@ -54,25 +62,29 @@ struct SOSSheetView: View {
             Spacer()
 
             VStack(spacing: 12) {
-                Text("EMERGENCY")
-                    .font(.system(.largeTitle, design: .rounded).weight(.heavy))
-                    .foregroundStyle(.white)
-                    .shadow(color: .white.opacity(0.5), radius: 10, x: 0, y: 0)
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .font(.title2)
+                    Text("EMERGENCY")
+                        .font(.system(.largeTitle, design: .rounded).weight(.heavy))
+                }
+                .foregroundStyle(.white)
+                .shadow(color: Color.red.opacity(0.6), radius: 10, x: 0, y: 0)
 
                 Text("Alert will be sent in")
                     .font(.system(.title3, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(.white.opacity(0.85))
             }
 
             // Countdown ring
             ZStack {
                 Circle()
-                    .stroke(.white.opacity(0.2), lineWidth: 12)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 12)
                     .frame(width: 200, height: 200)
 
                 Circle()
                     .trim(from: 0, to: CGFloat(driverVM.sosCountdown) / 10.0)
-                    .stroke(.white, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .stroke(DriverTheme.criticalRed, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                     .frame(width: 200, height: 200)
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 1), value: driverVM.sosCountdown)
@@ -84,11 +96,11 @@ struct SOSSheetView: View {
                         .contentTransition(.numericText())
                 }
             }
-            .shadow(color: .black.opacity(0.2), radius: 20, y: 10)
+            .shadow(color: Color.red.opacity(0.3), radius: 25, y: 0)
 
             Text("Tap Cancel to abort")
                 .font(.system(.headline, design: .rounded))
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.6))
 
             Spacer()
 
@@ -97,11 +109,11 @@ struct SOSSheetView: View {
             } label: {
                 Text("Send Now")
                     .font(.system(.title2, design: .rounded).bold())
-                    .foregroundStyle(DriverTheme.criticalRed)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 64)
-                    .background(.white, in: Capsule())
-                    .shadow(color: .white.opacity(0.3), radius: 15, y: 5)
+                    .background(DriverTheme.criticalRed, in: Capsule())
+                    .shadow(color: DriverTheme.criticalRed.opacity(0.4), radius: 15, y: 5)
             }
             .padding(.horizontal, 32)
             .padding(.bottom, 40)
@@ -114,13 +126,13 @@ struct SOSSheetView: View {
 
             ZStack {
                 Circle()
-                    .fill(.white.opacity(0.2))
-                    .frame(width: 160, height: 160)
-                    .blur(radius: 20)
+                    .fill(Color.green.opacity(0.15))
+                    .frame(width: 200, height: 200)
+                    .blur(radius: 10)
                 
                 Image(systemName: "checkmark.shield.fill")
                     .font(.system(size: 100))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.green)
                     .symbolEffect(.bounce, options: .nonRepeating)
             }
 
@@ -131,7 +143,7 @@ struct SOSSheetView: View {
 
                 Text("Help is on the way")
                     .font(.system(.title3, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(.white.opacity(0.95))
 
                 Text("Fleet Manager has been notified with your exact location.")
                     .font(.subheadline)
@@ -147,10 +159,14 @@ struct SOSSheetView: View {
             } label: {
                 Text("Close")
                     .font(.system(.title3, design: .rounded).bold())
-                    .foregroundStyle(DriverTheme.criticalRed)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 60)
-                    .background(.white, in: Capsule())
+                    .background(Color.white.opacity(0.15), in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(Color.white.opacity(0.25), lineWidth: 1)
+                    )
             }
             .padding(.horizontal, 40)
             .padding(.bottom, 40)

@@ -16,7 +16,7 @@ struct DriverDashboardView: View {
         @Bindable var driverVM = driverVM
         
         ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 20) {
                     if driverVM.isLoading {
                         ProgressView("Loading iOS 26 Dashboard...")
                             .frame(maxWidth: .infinity, minHeight: 300)
@@ -177,8 +177,8 @@ struct DriverDashboardView: View {
                         .foregroundStyle(.tertiary)
                 }
                 .padding()
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(firstAlert.severity == .critical ? DriverTheme.criticalRed.opacity(0.5) : DriverTheme.warningAmber.opacity(0.5), lineWidth: 1))
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(firstAlert.severity == .critical ? DriverTheme.criticalRed.opacity(0.5) : DriverTheme.warningAmber.opacity(0.5), lineWidth: 1))
             }
         }
     }
@@ -192,19 +192,18 @@ struct DriverDashboardView: View {
                     .environment(appViewModel)
                     .environment(driverVM)
             } label: {
-                VStack(alignment: .leading, spacing: 12) {
-                    ZStack(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ZStack(alignment: .center) {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(DriverTheme.accent.opacity(0.1))
-                            .frame(height: 80)
+                            .frame(height: 56)
                         Image(systemName: "truck.box.fill")
-                            .font(.system(size: 40))
+                            .font(.system(size: 32))
                             .foregroundStyle(DriverTheme.accent)
-                            .offset(x: 10, y: 10)
-                            .opacity(0.5)
+                            .opacity(0.6)
                     }
                     
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 2) {
                         HStack {
                             Text(assignedVehicle?.plateNumber ?? "TRK-2847")
                                 .font(.system(.headline, design: .rounded))
@@ -217,7 +216,7 @@ struct DriverDashboardView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
             .buttonStyle(.plain)
 
@@ -247,7 +246,7 @@ struct DriverDashboardView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
             .buttonStyle(.plain)
         }
@@ -258,7 +257,7 @@ struct DriverDashboardView: View {
         Group {
             if let user = currentUser, let activeTrip = appViewModel.service.activeTrip(for: user.id) {
                 NavigationLink(destination: TripDetailView(trip: activeTrip).environment(appViewModel)) {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Label("Active Trip", systemImage: "map.fill")
                                 .font(.system(.subheadline, design: .rounded).bold())
@@ -299,21 +298,21 @@ struct DriverDashboardView: View {
                             Text("View Live Map")
                                 .font(.system(.subheadline, design: .rounded).bold())
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 10)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
                                 .background(DriverTheme.accent, in: Capsule())
                         }
                     }
-                    .padding(20)
+                    .padding(16)
                     .background(
-                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .fill(.ultraThinMaterial)
-                            .shadow(color: DriverTheme.accent.opacity(0.1), radius: 15, x: 0, y: 10)
+                            .shadow(color: DriverTheme.accent.opacity(0.1), radius: 12, x: 0, y: 8)
                     )
                 }
                 .buttonStyle(.plain)
             } else if let user = currentUser, let nextTrip = appViewModel.service.upcomingTrips(for: user.id).first {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Label("Upcoming Trip", systemImage: "calendar.badge.clock")
                             .font(.system(.subheadline, design: .rounded).bold())
@@ -329,8 +328,8 @@ struct DriverDashboardView: View {
                             Text("Details")
                                 .font(.system(.subheadline, design: .rounded).bold())
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                                .padding(.vertical, 10)
+                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
                         }
                         .buttonStyle(.plain)
                         
@@ -348,8 +347,8 @@ struct DriverDashboardView: View {
                                 .font(.system(.subheadline, design: .rounded).bold())
                                 .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(DriverTheme.accent, in: RoundedRectangle(cornerRadius: 12))
+                                .padding(.vertical, 10)
+                                .background(DriverTheme.accent, in: RoundedRectangle(cornerRadius: 10))
                         }
                         .buttonStyle(.plain)
                     }
@@ -359,8 +358,8 @@ struct DriverDashboardView: View {
                         .font(.caption.bold())
                         .foregroundStyle(inspDone ? DriverTheme.successGreen : DriverTheme.warningAmber)
                 }
-                .padding(20)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .padding(16)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
         }
     }
@@ -409,7 +408,7 @@ struct DriverDashboardView: View {
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 56)
+                .frame(height: 48)
                 .background(DriverTheme.criticalRed, in: Capsule())
             }
             .buttonStyle(.plain)
@@ -454,7 +453,7 @@ struct DriverDashboardView: View {
     }
     
     private func statBox(title: String, value: String, unit: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(DriverTheme.textSecondary)
@@ -467,8 +466,8 @@ struct DriverDashboardView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .padding(12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var todayDistanceValue: Int {
