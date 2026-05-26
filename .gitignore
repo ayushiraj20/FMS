@@ -4,7 +4,7 @@
 # gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
 
 ## User settings
-xcuserdata/
+FMS.xcodeproj/project.pbxproj
 xcuserdata/
 *.xcuserstate
 FMS.xcodeproj/project.xcworkspace/xcuserdata/mac.xcuserdatad/UserInterfaceState.xcuserstate
