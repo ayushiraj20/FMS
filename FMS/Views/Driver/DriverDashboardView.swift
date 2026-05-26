@@ -55,17 +55,22 @@ struct DriverDashboardView: View {
                             customColor: DriverTheme.accent
                         )
                     }
+                    .buttonStyle(.plain)
+                    .glassEffect(.identity)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 16) {
-                        NavigationLink(destination: NotificationsView()) {
-                            Image(systemName: appViewModel.unreadNotificationsCount > 0 ? "bell.badge.fill" : "bell.fill")
-                        }
-                        
-                        NavigationLink(destination: BroadcastInboxView()) {
-                            Image(systemName: "megaphone.fill")
-                        }
+                    NavigationLink(destination: BroadcastInboxView()) {
+                        Image(systemName: "megaphone.fill")
                     }
+                    .buttonStyle(.plain)
+                    .glassEffect(.identity)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: NotificationsView()) {
+                        Image(systemName: appViewModel.unreadNotificationsCount > 0 ? "bell.badge.fill" : "bell.fill")
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.identity)
                 }
             }
 
