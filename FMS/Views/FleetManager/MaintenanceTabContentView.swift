@@ -6,10 +6,7 @@ struct MaintenanceTabContentView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // MARK: - Header
-                headerSection
-
-                // MARK: - Stats Grid
+                // MARK: - Stats Grid                // MARK: - Stats Grid
                 statsGrid
 
                 // MARK: - Quick Access
@@ -22,7 +19,6 @@ struct MaintenanceTabContentView: View {
             .padding(.bottom, 20)
         }
         .background(AppTheme.background)
-        .navigationTitle("Maintenance")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
@@ -34,15 +30,6 @@ struct MaintenanceTabContentView: View {
         .task {
             // Sync defect reports whenever the maintenance tab is opened
             await appViewModel.service.syncDefectsAndWorkOrders()
-        }
-    }
-
-    // MARK: - Header
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Fleet health and service oversight.")
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.textSecondary)
         }
     }
 

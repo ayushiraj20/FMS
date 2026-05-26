@@ -251,8 +251,7 @@ struct ThemeConfigurator {
     static func configure() {
         // MARK: Tab Bar
         let tabAppearance = UITabBarAppearance()
-        tabAppearance.configureWithOpaqueBackground()
-        tabAppearance.backgroundColor = UIColor.systemBackground
+        tabAppearance.configureWithDefaultBackground()
         tabAppearance.shadowColor = UIColor.separator
 
         tabAppearance.stackedLayoutAppearance.normal.iconColor = UIColor.secondaryLabel
