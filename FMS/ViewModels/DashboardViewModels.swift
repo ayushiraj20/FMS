@@ -30,7 +30,7 @@ final class FleetManagerDashboardViewModel {
             ),
             KPIStat(
                 title: "Fuel Spend",
-                value: "$\(formattedNumber(totalFuelSpend))",
+                value: "₹\(formattedNumber(totalFuelSpend))",
                 detail: "Estimated monthly fuel expenditure",
                 trend: "Within budget",
                 iconName: "fuelpump.fill"

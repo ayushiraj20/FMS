@@ -332,7 +332,7 @@ struct DriverProfileView: View {
                 .padding(14)
                 .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 12))
                 .keyboardType(keyboard)
-                .autocapitalization(keyboard == .emailAddress ? .none : .words)
+                .textInputAutocapitalization(keyboard == .emailAddress ? .never : .words)
         }
     }
 }

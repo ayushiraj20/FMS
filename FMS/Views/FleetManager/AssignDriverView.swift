@@ -107,7 +107,7 @@ struct AssignDriverView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedVehicle)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedDriver)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.isShowingSuccessToast)

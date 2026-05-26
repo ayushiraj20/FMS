@@ -1,58 +1,58 @@
 import SwiftUI
 
 struct NotificationsView: View {
-
-    @Environment(AppViewModel.self)
-    private var appViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     var body: some View {
+        let unreadNotifications = appViewModel.notifications.filter { !$0.isRead }
+        
         List {
-            ForEach(appViewModel.notifications) { notification in
-                HStack(alignment: .top, spacing: 14) {
-                    if !notification.isRead {
+            if unreadNotifications.isEmpty {
+                EmptyStateView(
+                    icon: "bell.slash",
+                    title: "All Caught Up!",
+                    message: "You have no unread notifications at the moment."
+                )
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            } else {
+                ForEach(unreadNotifications) { notification in
+                    HStack(alignment: .top, spacing: 14) {
                         Circle()
-                            .fill(Color(.systemBlue))
-                            .frame(width: 10, height: 10)
+                            .fill(AppTheme.brand)
+                            .frame(width: 8, height: 8)
                             .padding(.top, 7)
-                    } else {
-                        Circle()
-                            .fill(Color.clear)
-                            .frame(width: 10, height: 10)
-                            .padding(.top, 7)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(notification.title)
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.textPrimary)
+
+                            Text(notification.message)
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .padding(.bottom, 2)
+
+                            Text(notification.date.formatted(date: .abbreviated, time: .shortened))
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary.opacity(0.8))
+                        }
                     }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(notification.title)
-                            .font(.headline)
-                            .foregroundStyle(Color(.label))
-
-                        Text(notification.message)
-                            .font(.subheadline)
-                            .foregroundStyle(Color(.secondaryLabel))
-                            .padding(.bottom, 2)
-
-                        Text(notification.date.formatted(date: .abbreviated, time: .shortened))
-                            .font(.caption)
-                            .foregroundStyle(Color(.tertiaryLabel))
-                    }
-                }
-                .padding(.vertical, 4)
-                .listRowBackground(Color(.secondarySystemBackground))
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    if !notification.isRead {
-                        Button {
+                    .padding(.vertical, 6)
+                    .listRowBackground(AppTheme.cardBackground)
+                    .listRowSeparatorTint(AppTheme.border)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                             appViewModel.service.markNotificationRead(notification)
                             appViewModel.notifications = appViewModel.service.notifications(for: appViewModel.currentUser)
-                        } label: {
-                            Label("Mark Read", systemImage: "checkmark")
                         }
-                        .tint(.blue)
                     }
                 }
             }
         }
         .listStyle(.insetGrouped)
-        .background(Color(.systemBackground))
+        .background(AppTheme.background)
         .scrollContentBackground(.hidden)
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)
@@ -64,12 +64,8 @@ struct NotificationsView: View {
 }
 
 #Preview {
-
     NavigationStack {
-
         NotificationsView()
-            .environment(
-                AppViewModel()
-            )
+            .environment(AppViewModel())
     }
 }

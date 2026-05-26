@@ -45,7 +45,7 @@ private struct FleetManagerTabView: View {
                 FleetManagerTripsView()
             }
             .tabItem {
-                Label("Trips", systemImage: "shippingbox.fill")
+                Label("Trips", systemImage: "truck.box.fill")
             }
 
             NavigationStack {
@@ -107,7 +107,7 @@ private struct DriverTabView: View {
                 Label(
                     "Trip",
                     systemImage:
-                    "map.fill"
+                    "truck.fill"
                 )
             }
             .tag(1)

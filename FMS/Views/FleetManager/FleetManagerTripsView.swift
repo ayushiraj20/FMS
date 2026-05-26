@@ -80,7 +80,7 @@ struct FleetManagerTripsView: View {
                 .padding(.bottom, 24)
             }
             .background(AppTheme.background)
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $isPresentingAssignDriverTripModal) {
                 AssignDriverTripView(service: appViewModel.service)
             }

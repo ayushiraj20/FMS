@@ -62,7 +62,7 @@ struct TeamView: View {
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
             .background(AppTheme.background)
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             
             // MARK: - Floating Add Button
             .overlay(alignment: .bottomTrailing) {
