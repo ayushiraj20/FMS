@@ -66,77 +66,125 @@ enum AppTheme {
     static let badgeSuccess = Color.dynamic(light: "#34C759", dark: "#30D158")
 }
 
-// MARK: - Driver Theme (Adaptive Light/Dark)
+// MARK: - Driver Theme (Adaptive Light/Dark — Orange Accent)
 enum DriverTheme {
-    static let accent = Color(hex: "FD5D23")
-
-    /// Adaptive: deep dark in dark mode, white in light mode
-    static let background = Color(UIColor { trait in
+    // Primary orange accent — the single brand color
+    static let accent = Color(UIColor { trait in
         trait.userInterfaceStyle == .dark
-            ? UIColor(red: 0.071, green: 0.071, blue: 0.090, alpha: 1) // #121217
-            : UIColor.systemBackground
+            ? UIColor(red: 1.0, green: 0.56, blue: 0.24, alpha: 1.0)   // #FF8F3D
+            : UIColor(red: 1.0, green: 0.478, blue: 0.184, alpha: 1.0) // #FF7A2F
     })
 
-    /// Adaptive: dark card in dark mode, light card in light mode
+    // Base background is system native (white in light, dark in dark)
+    static let background = Color(UIColor.systemBackground)
+
+    // Cards abide by a shade of the accent orange color
     static let cardFill = Color(UIColor { trait in
         trait.userInterfaceStyle == .dark
-            ? UIColor(red: 0.110, green: 0.110, blue: 0.129, alpha: 1) // #1C1C21
-            : UIColor.secondarySystemBackground
+            ? UIColor(red: 0.12, green: 0.08, blue: 0.06, alpha: 1.0)  // warm dark orange-tinted
+            : UIColor(red: 0.996, green: 0.965, blue: 0.941, alpha: 1.0) // very light warm orange shade (#FFF6F0)
     })
 
     static let elevatedCard = Color(UIColor { trait in
         trait.userInterfaceStyle == .dark
-            ? UIColor(red: 0.110, green: 0.110, blue: 0.129, alpha: 1) // #1C1C21
-            : UIColor.systemBackground
+            ? UIColor(red: 0.16, green: 0.11, blue: 0.08, alpha: 1.0)  // elevated warm dark card
+            : UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)      // white card
     })
 
-    /// Adaptive: white in dark mode, near-black in light mode
-    static let textPrimary = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor.white : UIColor.label
-    })
+    static let textPrimary = Color(UIColor.label)
+    static let textSecondary = Color(UIColor.secondaryLabel)
+    static let separator = Color(UIColor.separator)
 
-    static let textSecondary = Color(UIColor { trait in
+    // Semantic status colors — real colors, not primary
+    static let criticalRed = Color(UIColor { trait in
         trait.userInterfaceStyle == .dark
-            ? UIColor(red: 0.557, green: 0.557, blue: 0.576, alpha: 1) // #8E8E93
-            : UIColor.secondaryLabel
+            ? UIColor(red: 1.0, green: 0.27, blue: 0.23, alpha: 1.0)  // #FF453A
+            : UIColor(red: 1.0, green: 0.23, blue: 0.19, alpha: 1.0)  // #FF3B30
     })
 
-    static let separator = Color(UIColor { trait in
+    static let successGreen = Color(UIColor { trait in
         trait.userInterfaceStyle == .dark
-            ? UIColor.white.withAlphaComponent(0.12)
-            : UIColor.separator
+            ? UIColor(red: 0.19, green: 0.82, blue: 0.35, alpha: 1.0) // #30D158
+            : UIColor(red: 0.20, green: 0.78, blue: 0.35, alpha: 1.0) // #34C759
     })
 
-    static let criticalRed = Color(hex: "FF3B30")
-    static let successGreen = Color(hex: "34C759")
-    static let warningAmber = Color(hex: "FF9500")
+    static let warningAmber = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor(red: 1.0, green: 0.70, blue: 0.25, alpha: 1.0)  // #FFB340
+            : UIColor(red: 1.0, green: 0.584, blue: 0.0, alpha: 1.0)  // #FF9500
+    })
 
+    // Card border with subtle warm tint
     static let cardBorder = Color(UIColor { trait in
         trait.userInterfaceStyle == .dark
-            ? UIColor.white.withAlphaComponent(0.08)
-            : UIColor.black.withAlphaComponent(0.10)
+            ? UIColor(red: 1.0, green: 0.6, blue: 0.3, alpha: 0.12)
+            : UIColor(red: 1.0, green: 0.6, blue: 0.3, alpha: 0.15)
     })
 
     static let cardShadow = Color(UIColor { trait in
         trait.userInterfaceStyle == .dark
-            ? UIColor.black.withAlphaComponent(0.30)
-            : UIColor.black.withAlphaComponent(0.08)
+            ? UIColor.black.withAlphaComponent(0.35)
+            : UIColor(red: 0.9, green: 0.55, blue: 0.2, alpha: 0.10)
     })
 
-    static let glassWhite = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark
-            ? UIColor.white.withAlphaComponent(0.08)
-            : UIColor.black.withAlphaComponent(0.04)
-    })
+    static let glassWhite = Color(UIColor.systemBackground).opacity(0.5)
 
     static let accentGradient = LinearGradient(
-        colors: [Color(hex: "FD5D23"), Color(hex: "FF7A45")],
+        colors: [
+            Color(hex: "#FF7A2F"),
+            Color(hex: "#FF9F5A")
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    /// Warm ambient gradient for screen backgrounds
+    static let ambientGradient = LinearGradient(
+        colors: [
+            Color(UIColor { trait in
+                trait.userInterfaceStyle == .dark
+                    ? UIColor(red: 0.12, green: 0.07, blue: 0.03, alpha: 0.6)
+                    : UIColor(red: 1.0, green: 0.55, blue: 0.2, alpha: 0.12)
+            }),
+            Color(UIColor { trait in
+                trait.userInterfaceStyle == .dark
+                    ? UIColor(red: 0.08, green: 0.04, blue: 0.02, alpha: 0.3)
+                    : UIColor(red: 1.0, green: 0.65, blue: 0.3, alpha: 0.06)
+            }),
+            Color.clear
+        ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 }
 
-// MARK: - Driver Glass Card (adaptive light/dark)
+// MARK: - Warm Driver Screen Background
+struct DriverScreenBackground: View {
+    var body: some View {
+        ZStack {
+            DriverTheme.background.ignoresSafeArea()
+
+            GeometryReader { geo in
+                // Top-left warm orange glow
+                Circle()
+                    .fill(DriverTheme.accent.opacity(0.12))
+                    .frame(width: geo.size.width * 1.3, height: geo.size.width * 1.3)
+                    .blur(radius: 90)
+                    .offset(x: -geo.size.width * 0.3, y: -geo.size.height * 0.15)
+
+                // Bottom-right subtle amber glow
+                Circle()
+                    .fill(DriverTheme.accent.opacity(0.06))
+                    .frame(width: geo.size.width * 0.9, height: geo.size.width * 0.9)
+                    .blur(radius: 70)
+                    .offset(x: geo.size.width * 0.5, y: geo.size.height * 0.6)
+            }
+            .ignoresSafeArea()
+        }
+    }
+}
+
+// MARK: - Driver Glass Card (adaptive light/dark with orange tint)
 struct DriverGlassCard<Content: View>: View {
     let content: Content
 
@@ -152,9 +200,9 @@ struct DriverGlassCard<Content: View>: View {
                     .fill(DriverTheme.elevatedCard)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(DriverTheme.cardBorder, lineWidth: 0.5)
+                            .stroke(DriverTheme.cardBorder, lineWidth: 1)
                     )
-                    .shadow(color: DriverTheme.cardShadow, radius: 8, x: 0, y: 2)
+                    .shadow(color: DriverTheme.cardShadow, radius: 10, x: 0, y: 4)
             )
     }
 }
@@ -173,6 +221,7 @@ struct DriverAccentButtonStyle: ButtonStyle {
             .background(
                 Capsule()
                     .fill(isDestructive ? DriverTheme.criticalRed : DriverTheme.accent)
+                    .shadow(color: (isDestructive ? DriverTheme.criticalRed : DriverTheme.accent).opacity(0.35), radius: 8, y: 4)
                     .opacity(configuration.isPressed ? 0.85 : 1)
             )
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
@@ -193,6 +242,7 @@ struct DriverPillButtonStyle: ButtonStyle {
             .background(
                 Capsule()
                     .fill(fillColor)
+                    .shadow(color: fillColor.opacity(0.3), radius: 6, y: 3)
                     .opacity(configuration.isPressed ? 0.85 : 1)
             )
             .scaleEffect(configuration.isPressed ? 0.97 : 1)

@@ -58,19 +58,7 @@ struct FuelReceiptView: View {
                     }
                 }
             }
-            .background(
-                ZStack {
-                    DriverTheme.background.ignoresSafeArea()
-                    GeometryReader { geo in
-                        Circle()
-                            .fill(DriverTheme.accent.opacity(0.1))
-                            .frame(width: geo.size.width)
-                            .blur(radius: 60)
-                            .offset(x: -geo.size.width * 0.2, y: geo.size.height * 0.3)
-                    }
-                    .ignoresSafeArea()
-                }
-            )
+            .background(DriverScreenBackground())
         }
         .presentationDetents(isScanning || isProcessingCapturedPhoto ? [.large] : [.medium, .large])
         .fullScreenCover(isPresented: $showCamera) {

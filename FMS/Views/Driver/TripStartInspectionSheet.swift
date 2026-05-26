@@ -73,18 +73,7 @@ struct TripStartInspectionSheet: View {
 
                 submitButton
             }
-            .background(
-                ZStack {
-                    DriverTheme.background.ignoresSafeArea()
-                    GeometryReader { geo in
-                        Circle()
-                            .fill(DriverTheme.accent.opacity(0.1))
-                            .frame(width: geo.size.width)
-                            .blur(radius: 60)
-                            .offset(x: geo.size.width * 0.4, y: -geo.size.height * 0.1)
-                    }.ignoresSafeArea()
-                }
-            )
+            .background(DriverScreenBackground())
             .navigationTitle("Pre-Trip Inspection")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -169,40 +158,110 @@ struct TripStartInspectionSheet: View {
 
     private func itemRow(idx: Int, item: InspectionItem2) -> some View {
         VStack(spacing: 0) {
-            Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                    switch items[idx].status {
-                    case .unchecked: items[idx].status = .passed
-                    case .passed: items[idx].status = .failed
-                    case .failed:
-                        items[idx].status = .unchecked
-                        items[idx].failureNote = ""
-                    }
-                    expandedItemID = items[idx].status == .failed ? item.id : nil
-                }
-            } label: {
-                HStack(spacing: 16) {
-                    Image(systemName: item.icon)
-                        .font(.title2)
-                        .foregroundStyle(iconColor(item.status))
-                        .frame(width: 32)
-                        .symbolEffect(.bounce, value: item.status)
+            HStack(spacing: 16) {
+                // Category Icon
+                Image(systemName: item.icon)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(
+                        item.status == .passed ? DriverTheme.successGreen :
+                        item.status == .failed ? DriverTheme.criticalRed :
+                        DriverTheme.textSecondary
+                    )
+                    .frame(width: 32)
+                    .symbolEffect(.bounce, value: item.status)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(item.title).font(.system(.headline, design: .rounded))
-                        Text(item.hint).font(.caption).foregroundStyle(DriverTheme.textSecondary)
-                    }
-                    Spacer()
-                    statusBadge(item.status)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.title)
+                        .font(.system(.headline, design: .rounded))
+                        .foregroundStyle(DriverTheme.textPrimary)
+                    Text(item.hint)
+                        .font(.caption)
+                        .foregroundStyle(DriverTheme.textSecondary)
                 }
-                .padding(16)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(item.status == .failed ? DriverTheme.criticalRed.opacity(0.5) : Color.clear, lineWidth: 2))
+                
+                Spacer()
+                
+                // Explicit Pass / Fail selector buttons
+                HStack(spacing: 16) {
+                    // Pass Option
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            if items[idx].status == .passed {
+                                items[idx].status = .unchecked
+                            } else {
+                                items[idx].status = .passed
+                            }
+                            expandedItemID = nil
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: item.status == .passed ? "checkmark.circle.fill" : "circle")
+                                .font(.title3)
+                            Text("Pass")
+                                .font(.caption.bold())
+                        }
+                        .foregroundStyle(item.status == .passed ? DriverTheme.successGreen : Color.gray.opacity(0.4))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(item.status == .passed ? DriverTheme.successGreen.opacity(0.12) : Color.clear)
+                        )
+                    }
+                    .buttonStyle(.borderless)
+                    
+                    // Fail Option
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            if items[idx].status == .failed {
+                                items[idx].status = .unchecked
+                                items[idx].failureNote = ""
+                                expandedItemID = nil
+                            } else {
+                                items[idx].status = .failed
+                                expandedItemID = item.id
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: item.status == .failed ? "xmark.circle.fill" : "circle")
+                                .font(.title3)
+                            Text("Fail")
+                                .font(.caption.bold())
+                        }
+                        .foregroundStyle(item.status == .failed ? DriverTheme.criticalRed : Color.gray.opacity(0.4))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(item.status == .failed ? DriverTheme.criticalRed.opacity(0.12) : Color.clear)
+                        )
+                    }
+                    .buttonStyle(.borderless)
+                }
             }
-            .buttonStyle(.plain)
+            .padding(16)
+            .background(DriverTheme.elevatedCard)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(
+                        item.status == .failed ? DriverTheme.criticalRed.opacity(0.4) :
+                        item.status == .passed ? DriverTheme.successGreen.opacity(0.4) :
+                        DriverTheme.accent.opacity(0.1),
+                        lineWidth: 1.5
+                    )
+            )
+            .shadow(
+                color: item.status == .failed ? DriverTheme.criticalRed.opacity(0.04) :
+                       item.status == .passed ? DriverTheme.successGreen.opacity(0.04) :
+                       Color.clear,
+                radius: 6,
+                y: 3
+            )
 
             if item.status == .failed {
-                VStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Describe the issue:")
                         .font(.caption.bold())
                         .foregroundStyle(DriverTheme.textSecondary)
@@ -210,16 +269,20 @@ struct TripStartInspectionSheet: View {
                         .font(.subheadline)
                         .padding(12)
                         .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(DriverTheme.criticalRed.opacity(0.25), lineWidth: 1)
+                        )
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(DriverTheme.criticalRed.opacity(0.05))
+                .background(DriverTheme.criticalRed.opacity(0.04))
                 .clipShape(CustomCorners(corners: [.bottomLeft, .bottomRight], radius: 16))
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .scrollTransition { content, phase in
-            content.scaleEffect(phase.isIdentity ? 1 : 0.95).opacity(phase.isIdentity ? 1 : 0.8)
+            content.scaleEffect(phase.isIdentity ? 1 : 0.96).opacity(phase.isIdentity ? 1 : 0.8)
         }
     }
 

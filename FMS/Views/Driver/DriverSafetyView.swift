@@ -38,18 +38,7 @@ struct DriverSafetyView: View {
             }
             .padding(20)
         }
-        .background(
-            ZStack {
-                DriverTheme.background.ignoresSafeArea()
-                GeometryReader { geo in
-                    Circle()
-                        .fill(DriverTheme.accent.opacity(0.1))
-                        .frame(width: geo.size.width)
-                        .blur(radius: 80)
-                        .offset(x: -geo.size.width * 0.2, y: geo.size.height * 0.1)
-                }.ignoresSafeArea()
-            }
-        )
+        .background(DriverScreenBackground())
         .navigationTitle("Safety")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
