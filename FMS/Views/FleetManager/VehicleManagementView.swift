@@ -1,73 +1,49 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import UIKit
+import PhotosUI
+
 struct VehicleManagementView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var viewModel: VehicleManagementViewModel
+    @State private var displayMode: VehicleDisplayMode = .cards
+    @State private var showAttentionOnly = false
 
     init(service: MockDataService, currentOrgID: UUID?) {
         _viewModel = State(wrappedValue: VehicleManagementViewModel(service: service, currentOrgID: currentOrgID))
     }
 
+    private var displayedVehicles: [Vehicle] {
+        viewModel.filteredVehicles.filter { !showAttentionOnly || viewModel.needsAttention($0) }
+    }
+
+    private var analyticsColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: horizontalSizeClass == .compact ? 160 : 210), spacing: 16)]
+    }
+
+    private var vehicleColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: horizontalSizeClass == .compact ? 320 : 360), spacing: 16)]
+    }
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            VStack(spacing: 0) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        filterPill(title: "All", count: viewModel.allCount, status: nil)
-                        filterPill(title: "Active", count: viewModel.activeCount, status: .active)
-                        filterPill(title: "In Transit", count: viewModel.inTransitCount, status: .inService)
-                        filterPill(title: "Idle", count: viewModel.idleCount, status: .idle)
-                        filterPill(title: "Under Maintenance", count: viewModel.maintenanceCount, status: .outOfService)
-                    }
-                    .padding(.horizontal)
-                }
-                .padding(.vertical, 8)
-                .background(Color(.systemBackground))
+            VehicleSectionBackground()
 
-                List {
-                    ForEach(viewModel.filteredVehicles) { vehicle in
-                        NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id)) {
-                            VehicleCardView(vehicle: vehicle)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                viewModel.confirmDelete(vehicle)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                            Button {
-                                viewModel.prepareForEdit(vehicle)
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            .tint(AppTheme.brand)
-                        }
-                    }
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 24) {
+                    heroSection
+                    controlsSection
+                    vehiclesSection
                 }
-                .listStyle(.insetGrouped)
-                .background(Color(.systemBackground))
-                .scrollContentBackground(.hidden)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 120)
             }
-            .navigationTitle("Vehicles")
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $viewModel.searchText, prompt: "Search vehicles...")
 
-            // Floating Action Button
-            Button(action: {
-                viewModel.prepareForAdd()
-            }) {
-                Image(systemName: "plus")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(AppTheme.brand)
-                    .clipShape(Circle())
-                    .shadow(color: AppTheme.brand.opacity(0.7), radius: 15, y: 0)
-            }
-            .padding(.bottom, 24)
-            .padding(.trailing, 24)
+            addVehicleButton
         }
+        .navigationTitle("Vehicles")
+        .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $viewModel.isPresentingForm) {
             VehicleFormSheet(viewModel: viewModel)
         }
@@ -89,99 +65,192 @@ struct VehicleManagementView: View {
         }
     }
 
-    private func filterPill(title: String, count: Int, status: VehicleStatus?) -> some View {
+    private var heroSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Fleet Status")
+                        .font(.headline)
+                        .foregroundStyle(VehicleStudioTheme.secondary)
+                    
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(viewModel.readinessScore > 80 ? VehicleStudioTheme.success : VehicleStudioTheme.warning)
+                            .frame(width: 10, height: 10)
+                        Text("\(viewModel.readinessScore)% Readiness")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundStyle(VehicleStudioTheme.primary)
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("\(viewModel.activeCount + viewModel.inTransitCount) Active")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(VehicleStudioTheme.accent)
+                    
+                    Text("\(viewModel.liveTrackingCount) Live")
+                        .font(.caption)
+                        .foregroundStyle(VehicleStudioTheme.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(VehicleStudioTheme.accent.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            
+            HStack(spacing: 12) {
+                summaryMetric(title: "Idle", value: "\(viewModel.idleCount)", icon: "pause.fill", color: VehicleStatus.idle.dashboardColor)
+                summaryMetric(title: "Service", value: "\(viewModel.maintenanceCount)", icon: "wrench.and.screwdriver.fill", color: VehicleStatus.outOfService.dashboardColor)
+                summaryMetric(title: "Fuel Avg", value: "\(viewModel.averageFuelLevel)%", icon: "fuelpump.fill", color: fuelTint(for: viewModel.averageFuelLevel))
+            }
+        }
+        .padding(.vertical, 10)
+    }
+
+    private func summaryMetric(title: String, value: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(color)
+            
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(VehicleStudioTheme.primary)
+                Text(title)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(VehicleStudioTheme.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(color.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(color.opacity(0.15), lineWidth: 1)
+        )
+    }
+
+// Removed unused heroMetricPill.
+
+    private var controlsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(VehicleStudioTheme.secondary)
+                
+                TextField("Search fleet...", text: $viewModel.searchText)
+                    .font(.body)
+                
+                if !viewModel.searchText.isEmpty {
+                    Button { viewModel.searchText = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(VehicleStudioTheme.tertiary)
+                    }
+                }
+            }
+            .padding(12)
+            .background(VehicleStudioTheme.softFill)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            
+            HStack(spacing: 10) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        filterChip(title: "All", count: viewModel.allCount, status: nil, icon: "square.grid.2x2")
+                        filterChip(title: "Active", count: viewModel.activeCount, status: .active, icon: "bolt")
+                        filterChip(title: "In Transit", count: viewModel.inTransitCount, status: .inService, icon: "location")
+                        filterChip(title: "Idle", count: viewModel.idleCount, status: .idle, icon: "pause")
+                        filterChip(title: "Service", count: viewModel.maintenanceCount, status: .outOfService, icon: "wrench")
+                    }
+                }
+            }
+        }
+    }
+
+    private func filterChip(title: String, count: Int, status: VehicleStatus?, icon: String) -> some View {
         let isSelected = viewModel.selectedStatusFilter == status
-        return Button {
-            withAnimation {
+        return VehicleFilterChip(
+            title: title,
+            icon: icon,
+            count: count,
+            isSelected: isSelected
+        ) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                 viewModel.selectedStatusFilter = status
             }
-        } label: {
-            HStack(spacing: 4) {
-                Text(title)
-                Text("(\(count))")
+        }
+    }
+
+// Removed unused analyticsSection definition.
+
+    private var vehiclesSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Vehicles (\(displayedVehicles.count))")
+                .font(.headline)
+                .foregroundStyle(VehicleStudioTheme.primary)
+            
+            if displayedVehicles.isEmpty {
+                VehicleEmptyStateCard(
+                    icon: "car.2",
+                    title: "No matches",
+                    message: "Current filters returned no results."
+                )
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(displayedVehicles) { vehicle in
+                        NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id)) {
+                            VehicleRowView(viewModel: viewModel, vehicle: vehicle)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button { viewModel.prepareForEdit(vehicle) } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            Button(role: .destructive) { viewModel.confirmDelete(vehicle) } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
             }
-            .font(.subheadline)
-            .foregroundStyle(isSelected ? AppTheme.textPrimary : AppTheme.textSecondary)
-            .padding(.vertical, 8)
-            .padding(.horizontal, 16)
-            .background(isSelected ? AppTheme.surfaceSecondary : AppTheme.surface)
-            .clipShape(Capsule())
-            .overlay(
+        }
+    }
+
+    private var addVehicleButton: some View {
+        Button {
+            viewModel.prepareForAdd()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "plus")
+                    .font(.headline.weight(.bold))
+                Text("Add Vehicle")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
                 Capsule()
-                    .stroke(isSelected ? AppTheme.textSecondary.opacity(0.3) : Color.clear, lineWidth: 1)
+                    .fill(VehicleStudioTheme.accentGradient)
+                    .shadow(color: VehicleStudioTheme.accent.opacity(0.28), radius: 20, x: 0, y: 12)
             )
         }
-    }
-}
-
-private struct VehicleCardView: View {
-    let vehicle: Vehicle
-
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: "box.truck.fill")
-                .font(.title2)
-                .foregroundStyle(Color(.systemGray))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(vehicle.plateNumber)
-                    .font(.headline)
-                    .foregroundStyle(Color(.label))
-
-                Text(statusText)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(statusColor)
-
-                Text(mockRoute)
-                    .font(.subheadline)
-                    .foregroundStyle(Color(.secondaryLabel))
-            }
-
-            Spacer()
-
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 8, height: 8)
-                Text("\(vehicle.utilization)%")
-                    .font(.subheadline)
-                    .foregroundStyle(Color(.label))
-            }
-        }
-        .padding(.vertical, 4)
+        .buttonStyle(VehiclePressableStyle())
+        .padding(.trailing, 20)
+        .padding(.bottom, 24)
     }
 
-    private var statusColor: Color {
-        switch vehicle.status {
-        case .active: return Color(hex: "#00a2ff") // Blue
-        case .inService: return Color(hex: "#cddb32") // Yellow-green
-        case .idle: return Color(hex: "#34c759") // Green
-        case .outOfService: return Color(hex: "#ff3b30") // Red
-        }
-    }
-
-    private var statusText: String {
-        switch vehicle.status {
-        case .active: return "On Route"
-        case .inService: return "In Transit!"
-        case .idle: return "Idle"
-        case .outOfService: return "Maintenance"
-        }
-    }
-
-    private var mockRoute: String {
-        switch vehicle.status {
-        case .active: return "Mumbai → Pune"
-        case .inService: return "Pune → Nashik"
-        case .idle: return "Nagpur Yard"
-        case .outOfService: return "Workshop"
-        }
-    }
+// Removed unused resultLabel.
 }
 
 private struct VehicleFormSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var viewModel: VehicleManagementViewModel
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
 
     private var isEditing: Bool { viewModel.selectedVehicle != nil }
     private var canSave: Bool {
@@ -194,294 +263,326 @@ private struct VehicleFormSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppTheme.background.ignoresSafeArea()
+                VehicleSectionBackground()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 24) {
+                    VStack(spacing: 20) {
+                        VehicleGlassPanel {
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack(spacing: 14) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(VehicleStudioTheme.accent.opacity(0.16))
+                                            .frame(width: 62, height: 62)
+                                        Image(systemName: isEditing ? "square.and.pencil.circle.fill" : "plus.circle.fill")
+                                            .font(.system(size: 30, weight: .semibold))
+                                            .foregroundStyle(VehicleStudioTheme.accent)
+                                    }
 
-                        // Hero icon
-                        VStack(spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .fill(AppTheme.brand.opacity(0.15))
-                                    .frame(width: 72, height: 72)
-                                Image(systemName: isEditing ? "pencil.circle.fill" : "plus.circle.fill")
-                                    .font(.system(size: 40))
-                                    .foregroundStyle(AppTheme.brand)
-                            }
-                            Text(isEditing ? "Edit Vehicle Info" : "Add New Vehicle")
-                                .font(.title3.weight(.bold))
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text(isEditing ? "Update the details below and tap Save." : "Fill in the details to register a new vehicle.")
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.textSecondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 24)
-                        }
-                        .padding(.top, 8)
-
-                        // ── Vehicle Details Card ──
-                        formSection(title: "Vehicle Details", icon: "car.fill") {
-                            formField(label: "Display Name", placeholder: "e.g. Truck Alpha", text: $viewModel.displayName)
-                            divider
-                            formField(label: "Plate Number", placeholder: "e.g. MH12AB1234", text: $viewModel.plateNumber)
-                            divider
-                            formField(label: "Model", placeholder: "e.g. Tata Ace", text: $viewModel.model)
-                            divider
-                            formField(label: "Odometer (km)", placeholder: "e.g. 52000", text: $viewModel.odometer, keyboard: .numberPad)
-                            divider
-
-                            // Status picker
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Status")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 10) {
-                                        ForEach(VehicleStatus.allCases, id: \.self) { s in
-                                            let selected = viewModel.status == s
-                                            Button { viewModel.status = s } label: {
-                                                Text(s.rawValue)
-                                                    .font(.caption.weight(.semibold))
-                                                    .foregroundStyle(selected ? .white : AppTheme.textSecondary)
-                                                    .padding(.horizontal, 14)
-                                                    .padding(.vertical, 8)
-                                                    .background(selected ? AppTheme.brand : AppTheme.surfaceSecondary)
-                                                    .clipShape(Capsule())
-                                                    .overlay(Capsule().stroke(selected ? AppTheme.brand : AppTheme.border, lineWidth: 1))
-                                                    .animation(.easeInOut(duration: 0.2), value: selected)
-                                            }
-                                        }
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(isEditing ? "Refine Vehicle Profile" : "Create Vehicle Profile")
+                                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                                            .foregroundStyle(VehicleStudioTheme.primary)
+                                        Text("Keep the fleet record polished with assignment, service, and document details.")
+                                            .font(.subheadline)
+                                            .foregroundStyle(VehicleStudioTheme.secondary)
                                     }
                                 }
                             }
                         }
 
-                        // ── Assignment Card ──
-                        formSection(title: "Assignment & Metrics", icon: "person.badge.key.fill") {
+                        formSection(title: "Identity", icon: "car.side.fill") {
+                            formField(label: "Display Name", placeholder: "e.g. Truck Alpha", text: $viewModel.displayName)
+                            formField(label: "Plate Number", placeholder: "e.g. MH12AB1234", text: $viewModel.plateNumber)
+                            formField(label: "Model", placeholder: "e.g. Tata Ace", text: $viewModel.model)
+                            formField(label: "Odometer (km)", placeholder: "e.g. 52000", text: $viewModel.odometer, keyboard: .numberPad)
 
-                            // Driver picker
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Status")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(VehicleStudioTheme.secondary)
+
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 10) {
+                                        ForEach(VehicleStatus.allCases, id: \.self) { status in
+                                            let selected = viewModel.status == status
+                                            Button {
+                                                viewModel.status = status
+                                            } label: {
+                                                HStack(spacing: 8) {
+                                                    Image(systemName: status.iconName)
+                                                        .font(.caption.weight(.bold))
+                                                    Text(status.rawValue)
+                                                        .font(.caption.weight(.semibold))
+                                                }
+                                                .foregroundStyle(selected ? .white : status.dashboardColor)
+                                                .padding(.horizontal, 14)
+                                                .padding(.vertical, 10)
+                                                .background(
+                                                    Capsule()
+                                                        .fill(selected ? status.dashboardColor : status.dashboardColor.opacity(0.12))
+                                                )
+                                            }
+                                            .buttonStyle(VehiclePressableStyle())
+                                        }
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+                            }
+                        }
+
+                        formSection(title: "Operations", icon: "person.crop.circle.badge.checkmark") {
+                            VStack(alignment: .leading, spacing: 10) {
                                 Text("Assigned Driver")
                                     .font(.caption.weight(.semibold))
-                                    .foregroundStyle(AppTheme.textSecondary)
+                                    .foregroundStyle(VehicleStudioTheme.secondary)
+
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 10) {
                                         driverChip(name: "Unassigned", id: nil)
-                                        ForEach(viewModel.drivers) { d in
-                                            driverChip(name: d.name, id: d.id)
+                                        ForEach(viewModel.drivers) { driver in
+                                            driverChip(name: driver.name, id: driver.id)
                                         }
                                     }
+                                    .padding(.vertical, 2)
                                 }
                             }
-                            divider
 
-                            // Next Service Date
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Next Service Date")
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Next Service")
                                     .font(.caption.weight(.semibold))
-                                    .foregroundStyle(AppTheme.textSecondary)
+                                    .foregroundStyle(VehicleStudioTheme.secondary)
+
                                 DatePicker("", selection: $viewModel.nextServiceDate, displayedComponents: .date)
                                     .datePickerStyle(.compact)
                                     .labelsHidden()
-                                    .tint(AppTheme.brand)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                            .fill(VehicleStudioTheme.softFill)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                                    .stroke(VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
+                                            )
+                                    )
                             }
-                            divider
 
-                            // Fuel level slider
                             sliderRow(
                                 label: "Fuel Level",
                                 icon: "fuelpump.fill",
                                 value: $viewModel.fuelLevel,
-                                color: viewModel.fuelLevel > 50 ? Color(hex: "#34c759") : viewModel.fuelLevel > 20 ? Color(hex: "#ffcc00") : Color(hex: "#ff3b30")
+                                color: fuelTint(for: Int(viewModel.fuelLevel))
                             )
-                            divider
 
-                            // Utilization slider
                             sliderRow(
                                 label: "Utilization",
-                                icon: "chart.bar.fill",
+                                icon: "speedometer",
                                 value: $viewModel.utilization,
-                                color: AppTheme.brand
+                                color: VehicleStudioTheme.accent
                             )
                         }
 
-                        // ── Documents ──
-                        formSection(title: "Documents", icon: "doc.fill") {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Document Type")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                Picker("Document Type", selection: $viewModel.docType) {
-                                    ForEach(DocumentType.allCases, id: \.self) { type in
-                                        Text(type.rawValue).tag(type)
+                        formSection(title: "Compliance Info", icon: "doc.richtext.fill") {
+                            Text("All documents are mandatory for vehicle approval.")
+                                .font(.caption)
+                                .foregroundStyle(VehicleStudioTheme.secondary)
+                                .padding(.bottom, 8)
+
+                            ForEach(DocumentType.allCases) { type in
+                                VStack(alignment: .leading, spacing: 14) {
+                                    Text(type.rawValue)
+                                        .font(.subheadline.weight(.bold))
+                                        .foregroundStyle(VehicleStudioTheme.accent)
+
+                                    formField(label: "Number", placeholder: "e.g. \(exampleNumberFor(type))", text: Binding(
+                                        get: { viewModel.documentNumbers[type] ?? "" },
+                                        set: { viewModel.documentNumbers[type] = $0 }
+                                    ))
+
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("Expiry")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(VehicleStudioTheme.secondary)
+
+                                        DatePicker("", selection: Binding(
+                                            get: { viewModel.documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120) },
+                                            set: { viewModel.documentExpiries[type] = $0 }
+                                        ), displayedComponents: .date)
+                                        .datePickerStyle(.compact)
+                                        .labelsHidden()
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 12)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                                .fill(VehicleStudioTheme.softFill)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                                        .stroke(VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
+                                                )
+                                        )
                                     }
                                 }
-                                .pickerStyle(.menu)
-                                .tint(AppTheme.textPrimary)
-                            }
-                            divider
-                            formField(label: "Document Number", placeholder: "e.g. DOC-123", text: $viewModel.docNumber)
-                            divider
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Upload File")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                Button {
-                                    viewModel.isPresentingFilePicker = true
-                                } label: {
-                                    HStack {
-                                        Image(systemName: viewModel.selectedFileURL == nil ? "tray.and.arrow.down" : "doc.fill")
-                                        Text(viewModel.selectedFileURL?.lastPathComponent ?? "Select PDF or Image")
-                                        Spacer()
-                                    }
-                                    .padding()
-                                    .background(AppTheme.surfaceSecondary)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                }
-                                .tint(AppTheme.textPrimary)
-                                .fileImporter(isPresented: $viewModel.isPresentingFilePicker, allowedContentTypes: [.pdf, .image]) { result in
-                                    switch result {
-                                    case .success(let url):
-                                        viewModel.selectedFileURL = url
-                                    case .failure(let error):
-                                        print("Error selecting document: \(error)")
-                                    }
-                                }
-                            }
-                            divider
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Expiry Date")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                DatePicker("", selection: $viewModel.docExpiryDate, displayedComponents: .date)
-                                    .datePickerStyle(.compact)
-                                    .labelsHidden()
-                                    .tint(AppTheme.brand)
+                                .padding(.bottom, 16)
                             }
                         }
+                    
+                    
 
-                        // Save button
                         Button {
                             viewModel.saveVehicle()
                             dismiss()
                         } label: {
-                            HStack(spacing: 8) {
+                            HStack(spacing: 10) {
                                 Image(systemName: isEditing ? "checkmark.circle.fill" : "plus.circle.fill")
                                 Text(isEditing ? "Save Changes" : "Add Vehicle")
-                                    .font(.system(size: 16, weight: .bold))
+                                    .font(.system(size: 16, weight: .bold, design: .rounded))
                             }
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
+                            .padding(.vertical, 18)
                             .background(
-                                canSave
-                                ? LinearGradient(colors: [AppTheme.brand, AppTheme.brand.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
-                                : LinearGradient(colors: [AppTheme.surfaceSecondary, AppTheme.surfaceSecondary], startPoint: .leading, endPoint: .trailing)
+                                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                    .fill(canSave ? VehicleStudioTheme.accentGradient : LinearGradient(colors: [VehicleStudioTheme.neutral, VehicleStudioTheme.neutral], startPoint: .leading, endPoint: .trailing))
+                                    .shadow(color: canSave ? VehicleStudioTheme.accent.opacity(0.28) : .clear, radius: 18, x: 0, y: 10)
                             )
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .shadow(color: canSave ? AppTheme.brand.opacity(0.4) : .clear, radius: 10, y: 4)
-                            .animation(.easeInOut(duration: 0.2), value: canSave)
                         }
-                        .disabled(!canSave)
-                        .padding(.bottom, 32)
+                        .buttonStyle(VehiclePressableStyle())
+                        .disabled(!canSave || DocumentType.allCases.contains { type in
+                            (viewModel.documentNumbers[type] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
+                        })
+                        .padding(.bottom, 28)
                     }
                     .padding(.horizontal, 20)
+                    .padding(.top, 12)
                 }
             }
             .navigationTitle(isEditing ? "Edit Vehicle" : "Add Vehicle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundStyle(AppTheme.brand)
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundStyle(VehicleStudioTheme.accent)
+                }
+            }
+            .photosPicker(isPresented: $viewModel.isPresentingImagePicker, selection: $selectedPhotoItem, matching: .images)
+            .onChange(of: selectedPhotoItem) { _, newItem in
+                Task {
+                    if let data = try? await newItem?.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data),
+                       let type = viewModel.activeDocumentTypeForPhoto {
+                        viewModel.documentImages[type] = image
+                    }
+                    selectedPhotoItem = nil
                 }
             }
         }
     }
 
-    // MARK: – Helpers
-
-    private var divider: some View {
-        Divider().background(AppTheme.border)
-    }
-
     private func formSection<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.brand)
-                Text(title)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .textCase(.uppercase)
-                    .tracking(0.5)
-            }
-            VStack(spacing: 14) {
+        VehicleGlassPanel {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 8) {
+                    Image(systemName: icon)
+                        .foregroundStyle(VehicleStudioTheme.accent)
+                    Text(title)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(VehicleStudioTheme.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.7)
+                }
+
                 content()
             }
-            .padding(16)
-            .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.border, lineWidth: 1))
         }
     }
 
     private func formField(label: String, placeholder: String, text: Binding<String>, keyboard: UIKeyboardType = .default) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(label)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(AppTheme.textSecondary)
+                .foregroundStyle(VehicleStudioTheme.secondary)
+
             TextField(placeholder, text: text)
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.textPrimary)
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .foregroundStyle(VehicleStudioTheme.primary)
                 .keyboardType(keyboard)
+                .textInputAutocapitalization(.words)
                 .autocorrectionDisabled()
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(VehicleStudioTheme.softFill)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
+                        )
+                )
         }
     }
 
     private func driverChip(name: String, id: UUID?) -> some View {
         let selected = viewModel.assignedDriverID == id
-        return Button { viewModel.assignedDriverID = id } label: {
-            HStack(spacing: 6) {
-                if id != nil {
-                    AvatarView(name: name, size: 20)
+        return Button {
+            viewModel.assignedDriverID = id
+        } label: {
+            HStack(spacing: 8) {
+                if id == nil {
+                    Image(systemName: "person.crop.circle.badge.xmark")
+                        .font(.caption.weight(.bold))
                 } else {
-                    Image(systemName: "person.slash")
-                        .font(.caption2)
-                        .foregroundStyle(selected ? .white : AppTheme.textSecondary)
+                    AvatarView(name: name, size: 22, customColor: VehicleStudioTheme.accent)
                 }
+
                 Text(name)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(selected ? .white : AppTheme.textSecondary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(selected ? AppTheme.brand : AppTheme.surfaceSecondary)
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(selected ? AppTheme.brand : AppTheme.border, lineWidth: 1))
-            .animation(.easeInOut(duration: 0.2), value: selected)
+            .foregroundStyle(selected ? .white : VehicleStudioTheme.primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(selected ? VehicleStudioTheme.accent : VehicleStudioTheme.softFill)
+                    .overlay(
+                        Capsule()
+                            .stroke(selected ? VehicleStudioTheme.accent : VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
+                    )
+            )
         }
+        .buttonStyle(VehiclePressableStyle())
     }
 
     private func sliderRow(label: String, icon: String, value: Binding<Double>, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundStyle(color)
-                Text(label)
+                Label(label, systemImage: icon)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(AppTheme.textSecondary)
+                    .foregroundStyle(VehicleStudioTheme.secondary)
                 Spacer()
                 Text("\(Int(value.wrappedValue))%")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(AppTheme.textPrimary)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(VehicleStudioTheme.primary)
                     .monospacedDigit()
             }
+
             Slider(value: value, in: 0...100, step: 1)
                 .tint(color)
+
+            VehicleProgressBar(progress: value.wrappedValue / 100, tint: color)
+        }
+    }
+
+    private func exampleNumberFor(_ type: DocumentType) -> String {
+        switch type {
+        case .rc: return "RC-1234567"
+        case .insurance: return "INS-998877"
+        case .puc: return "PUC-554433"
+        case .permit: return "PRM-112233"
         }
     }
 }
@@ -491,7 +592,11 @@ private struct VehicleDetailView: View {
     let vehicleID: UUID
 
     enum VehicleActionSheet: String, Identifiable {
-        case liveView, tripDetails, ping, more
+        case liveView
+        case tripDetails
+        case ping
+        case insights
+
         var id: String { rawValue }
     }
 
@@ -499,44 +604,32 @@ private struct VehicleDetailView: View {
     @State private var showEditSheet = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack(spacing: 8) {
-                ZStack {
-                    Circle().fill(AppTheme.brand).frame(width: 24, height: 24)
-                    Text("1").font(.caption.weight(.bold)).foregroundStyle(.white)
+        ZStack {
+            VehicleSectionBackground()
+
+            ScrollView(showsIndicators: false) {
+                if let vehicle = viewModel.vehicle(for: vehicleID) {
+                    VStack(spacing: 20) {
+                        heroCard(for: vehicle)
+                        metricStrip(for: vehicle)
+                        actionStrip
+                        insightsSection(for: vehicle)
+                        documentsSection(for: vehicle)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 36)
+                } else {
+                    VehicleEmptyStateCard(
+                        icon: "car.2",
+                        title: "Vehicle not found",
+                        message: "This record is no longer available in the fleet inventory."
+                    )
+                    .padding(20)
                 }
-                Text("Vehicle Details")
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.textPrimary)
-                Text("(AI Prioritized)")
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.textSecondary)
-                Spacer()
             }
-            .padding()
-
-            if let vehicle = viewModel.vehicle(for: vehicleID) {
-                VehicleCarouselCard(viewModel: viewModel, vehicle: vehicle, isSelected: true)
-            } else {
-                Spacer()
-                Text("Vehicle not found")
-                    .foregroundStyle(AppTheme.textPrimary)
-                Spacer()
-            }
-
-            // Action Bar
-            HStack(spacing: 12) {
-                actionButton(icon: "viewfinder", title: "Live View") { activeSheet = .liveView }
-                actionButton(icon: "doc.text", title: "Trip Details") { activeSheet = .tripDetails }
-                actionButton(icon: "antenna.radiowaves.left.and.right", title: "Ping") { activeSheet = .ping }
-                actionButton(icon: "ellipsis", title: "More") { activeSheet = .more }
-            }
-            .padding(.horizontal)
-            .padding(.top, 20)
-            .padding(.bottom, 30)
         }
-        .background(AppTheme.background.ignoresSafeArea())
+        .navigationTitle("Vehicle")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -546,33 +639,35 @@ private struct VehicleDetailView: View {
                         showEditSheet = true
                     }
                 } label: {
-                    Label("Edit", systemImage: "pencil")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(AppTheme.brand)
+                    Label("Edit", systemImage: "square.and.pencil")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(VehicleStudioTheme.accent)
                 }
             }
         }
         .sheet(isPresented: $showEditSheet) {
             VehicleFormSheet(viewModel: viewModel)
         }
+        .sheet(isPresented: $viewModel.isPresentingDocumentSheet) {
+            DocumentUploadSheet(viewModel: viewModel, vehicleID: vehicleID)
+        }
         .sheet(item: $activeSheet) { sheet in
             NavigationStack {
                 ZStack {
-                    AppTheme.background.ignoresSafeArea()
-                    VStack {
-                        Spacer()
+                    VehicleSectionBackground()
+
+                    VStack(spacing: 20) {
                         Image(systemName: sheetIcon(for: sheet))
-                            .font(.system(size: 60))
-                            .foregroundStyle(Color("AccentColor"))
-                            .padding(.bottom, 20)
+                            .font(.system(size: 56, weight: .semibold))
+                            .foregroundStyle(VehicleStudioTheme.accent)
                         Text(sheetTitle(for: sheet))
-                            .font(.title2.weight(.bold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                        Text("Details coming soon.")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundStyle(VehicleStudioTheme.primary)
+                        Text("A dedicated surface for this control is ready to plug into the live data flow.")
                             .font(.subheadline)
-                            .foregroundStyle(AppTheme.textSecondary)
-                            .padding(.top, 8)
-                        Spacer()
+                            .foregroundStyle(VehicleStudioTheme.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
                     }
                 }
                 .navigationTitle(sheetTitle(for: sheet))
@@ -589,12 +684,292 @@ private struct VehicleDetailView: View {
         }
     }
 
+    private func heroCard(for vehicle: Vehicle) -> some View {
+        VehicleGlassPanel {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .top, spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [vehicle.status.dashboardColor.opacity(0.18), VehicleStudioTheme.softFill],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        Image(systemName: vehicle.status == .outOfService ? "wrench.and.screwdriver.fill" : "car.side.fill")
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundStyle(vehicle.status.dashboardColor)
+                    }
+                    .frame(width: 72, height: 72)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(vehicle.displayName)
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundStyle(VehicleStudioTheme.primary)
+                        Text(vehicle.plateNumber)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(VehicleStudioTheme.secondary)
+                        Text(vehicle.model)
+                            .font(.subheadline)
+                            .foregroundStyle(VehicleStudioTheme.secondary)
+                    }
+
+                    Spacer(minLength: 8)
+                }
+
+                HStack(spacing: 8) {
+                    VehicleStatusBadge(title: vehicle.status.rawValue, tint: vehicle.status.dashboardColor, icon: vehicle.status.iconName)
+                    VehicleStatusBadge(
+                        title: viewModel.isLiveTracked(vehicle) ? "Live Tracking" : "Standby",
+                        tint: viewModel.isLiveTracked(vehicle) ? VehicleStudioTheme.accent : VehicleStudioTheme.secondary,
+                        icon: viewModel.isLiveTracked(vehicle) ? "dot.radiowaves.left.and.right" : "pause.circle.fill"
+                    )
+                }
+
+                HStack(spacing: 12) {
+                    detailInfoPill(
+                        icon: "person.fill",
+                        title: "Assigned Driver",
+                        value: viewModel.driverName(for: vehicle)
+                    )
+                    detailInfoPill(
+                        icon: "point.topleft.down.curvedto.point.bottomright.up.fill",
+                        title: "Route Context",
+                        value: vehicleRouteText(for: vehicle)
+                    )
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(vehicleTags(for: vehicle, in: viewModel)) { tag in
+                            VehicleStatusBadge(title: tag.title, tint: tag.tint, icon: tag.icon)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func detailInfoPill(icon: String, title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(title, systemImage: icon)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(VehicleStudioTheme.secondary)
+            Text(value)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(VehicleStudioTheme.primary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(VehicleStudioTheme.softFill)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
+                )
+        )
+    }
+
+    private func metricStrip(for vehicle: Vehicle) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 14)], spacing: 14) {
+            VehicleMetricTile(
+                title: "Fuel",
+                value: "\(vehicle.fuelLevel)%",
+                caption: "Reserve",
+                tint: fuelTint(for: vehicle.fuelLevel),
+                icon: "fuelpump.fill"
+            )
+
+            VehicleMetricTile(
+                title: "Utilization",
+                value: "\(vehicle.utilization)%",
+                caption: "Workload",
+                tint: VehicleStudioTheme.accent,
+                icon: "speedometer"
+            )
+
+            VehicleMetricTile(
+                title: "Alerts",
+                value: "\(viewModel.activeAlertCount(for: vehicle) + viewModel.unresolvedDefectCount(for: vehicle))",
+                caption: "Open signals",
+                tint: viewModel.needsAttention(vehicle) ? VehicleStudioTheme.warning : VehicleStudioTheme.success,
+                icon: "bell.badge.fill"
+            )
+
+            let days = viewModel.maintenanceDaysRemaining(for: vehicle)
+            VehicleMetricTile(
+                title: "Service",
+                value: serviceLabel(for: days),
+                caption: "Next window",
+                tint: serviceTint(for: days),
+                icon: "calendar"
+            )
+        }
+    }
+
+    private var actionStrip: some View {
+        VehicleGlassPanel {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    actionButton(icon: "viewfinder", title: "Live View") { activeSheet = .liveView }
+                    actionButton(icon: "doc.text.magnifyingglass", title: "Trip Details") { activeSheet = .tripDetails }
+                    actionButton(icon: "antenna.radiowaves.left.and.right", title: "Ping") { activeSheet = .ping }
+                    actionButton(icon: "doc.badge.plus", title: "Upload Doc") { viewModel.prepareForDocumentUpload() }
+                    actionButton(icon: "sparkles", title: "Insights") { activeSheet = .insights }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+
+    private func actionButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 10) {
+                Image(systemName: icon)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(VehicleStudioTheme.accent)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(VehicleStudioTheme.primary)
+                    .lineLimit(1)
+            }
+            .frame(width: 120, alignment: .leading)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(VehicleStudioTheme.softFill)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .stroke(VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(VehiclePressableStyle())
+    }
+
+    private func insightsSection(for vehicle: Vehicle) -> some View {
+        VehicleGlassPanel {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Attention & Insights")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(VehicleStudioTheme.primary)
+
+                let alerts = Array(viewModel.alerts(for: vehicle.id).prefix(2))
+                let defects = Array(viewModel.defects(for: vehicle.id).filter { !$0.isResolved }.prefix(2))
+
+                if alerts.isEmpty && defects.isEmpty {
+                    ForEach(vehiclePositiveInsights(for: vehicle)) { insight in
+                        insightRow(icon: insight.icon, tint: insight.tint, title: insight.title)
+                    }
+                } else {
+                    ForEach(alerts) { alert in
+                        insightRow(
+                            icon: alert.severity == .critical ? "exclamationmark.triangle.fill" : "bell.badge.fill",
+                            tint: alert.severity == .critical ? VehicleStudioTheme.danger : VehicleStudioTheme.warning,
+                            title: alert.alertDescription
+                        )
+                    }
+
+                    ForEach(defects) { defect in
+                        insightRow(
+                            icon: "wrench.and.screwdriver.fill",
+                            tint: defect.severity.priorityColor,
+                            title: defect.title ?? defect.description
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private func insightRow(icon: String, tint: Color, title: String) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(tint.opacity(0.12))
+                    .frame(width: 34, height: 34)
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(tint)
+            }
+
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(VehicleStudioTheme.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func documentsSection(for vehicle: Vehicle) -> some View {
+        VehicleGlassPanel {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text("Documents")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(VehicleStudioTheme.primary)
+                    Spacer()
+                    Button("Upload") {
+                        viewModel.prepareForDocumentUpload()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(VehicleStudioTheme.accent)
+                }
+
+                let documents = viewModel.documents(for: vehicle.id)
+                if documents.isEmpty {
+                    Text("No compliance documents uploaded yet.")
+                        .font(.subheadline)
+                        .foregroundStyle(VehicleStudioTheme.secondary)
+                } else {
+                    ForEach(documents.prefix(4)) { document in
+                        HStack(spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(VehicleStudioTheme.softFill)
+                                Image(systemName: "doc.text.fill")
+                                    .foregroundStyle(VehicleStudioTheme.accent)
+                            }
+                            .frame(width: 42, height: 42)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(document.type.rawValue)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(VehicleStudioTheme.primary)
+                                Text(document.documentNumber)
+                                    .font(.caption)
+                                    .foregroundStyle(VehicleStudioTheme.secondary)
+                            }
+
+                            Spacer()
+
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text(document.expiryDate.formatted(.dateTime.month(.abbreviated).day()))
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(VehicleStudioTheme.primary)
+                                VehicleStatusBadge(
+                                    title: document.isVerified ? "Verified" : "Pending",
+                                    tint: document.isVerified ? VehicleStudioTheme.success : VehicleStudioTheme.warning,
+                                    icon: document.isVerified ? "checkmark.seal.fill" : "clock.fill"
+                                )
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+        }
+    }
+
     private func sheetIcon(for sheet: VehicleActionSheet) -> String {
         switch sheet {
         case .liveView: return "viewfinder"
-        case .tripDetails: return "doc.text"
+        case .tripDetails: return "doc.text.magnifyingglass"
         case .ping: return "antenna.radiowaves.left.and.right"
-        case .more: return "ellipsis"
+        case .insights: return "sparkles"
         }
     }
 
@@ -603,195 +978,7 @@ private struct VehicleDetailView: View {
         case .liveView: return "Live View"
         case .tripDetails: return "Trip Details"
         case .ping: return "Ping Vehicle"
-        case .more: return "More Options"
-        }
-    }
-
-    private func actionButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.title3)
-                Text(title)
-                    .font(.caption)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(AppTheme.surfaceSecondary)
-            .foregroundStyle(AppTheme.textPrimary)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
-}
-
-private struct VehicleCarouselCard: View {
-    @Bindable var viewModel: VehicleManagementViewModel
-    let vehicle: Vehicle
-    let isSelected: Bool
-
-    var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Mock Image area
-                ZStack {
-                    Rectangle()
-                        .fill(AppTheme.surfaceSecondary)
-                    
-                    Image(systemName: "box.truck.fill")
-                        .font(.system(size: 60))
-                        .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
-                }
-                .frame(height: geometry.size.height * 0.45)
-                .overlay(
-                    LinearGradient(colors: [Color.black.opacity(0.1), AppTheme.cardBackground], startPoint: .top, endPoint: .bottom)
-                )
-
-                // Content
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(vehicle.plateNumber)
-                                .font(.title2.weight(.bold))
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text("Driver \(viewModel.user(for: vehicle.assignedDriverID)?.name.components(separatedBy: " ").first ?? "Unassigned")")
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                        Spacer()
-                        if vehicle.status == .outOfService || vehicle.utilization < 50 {
-                            Text("Critical")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(Color(hex: "#ff3b30"))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(Color(hex: "#ff3b30").opacity(0.15))
-                                .clipShape(Capsule())
-                                .overlay(Capsule().stroke(Color(hex: "#ff3b30").opacity(0.3), lineWidth: 1))
-                        }
-                    }
-
-                    // Dynamic AI Insights & Alerts
-                    VStack(alignment: .leading, spacing: 10) {
-                        let activeAlerts = viewModel.alerts(for: vehicle.id)
-                        let activeDefects = viewModel.defects(for: vehicle.id).filter { !$0.isResolved }
-                        
-                        if !activeAlerts.isEmpty || !activeDefects.isEmpty {
-                            ForEach(activeAlerts.prefix(2)) { alert in
-                                HStack(spacing: 8) {
-                                    Image(systemName: alert.severity == .critical ? "exclamationmark.triangle.fill" : "exclamationmark.circle.fill")
-                                        .foregroundStyle(alert.severity == .critical ? Color(hex: "#ff3b30") : Color(hex: "#ffcc00"))
-                                    Text(alert.alertDescription)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                        .lineLimit(1)
-                                }
-                            }
-                            ForEach(activeDefects.prefix(2 - activeAlerts.count)) { defect in
-                                HStack(spacing: 8) {
-                                    Image(systemName: "wrench.and.screwdriver.fill")
-                                        .foregroundStyle(defect.severity == .critical || defect.severity == .high ? Color(hex: "#ff3b30") : Color(hex: "#ff9500"))
-                                    Text(defect.title ?? defect.description)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                        .lineLimit(1)
-                                }
-                            }
-                        } else {
-                            switch vehicle.status {
-                            case .active, .inService:
-                                HStack(spacing: 8) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(Color(hex: "#34c759"))
-                                    Text("On Route — Optimal Performance")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                }
-                                HStack(spacing: 8) {
-                                    Image(systemName: "leaf.fill")
-                                        .foregroundStyle(Color(hex: "#34c759"))
-                                    Text("Eco-Driving Style Detected")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                }
-                            case .idle:
-                                HStack(spacing: 8) {
-                                    Image(systemName: "clock.fill")
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                    Text("Parked — Idle Status")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                }
-                                HStack(spacing: 8) {
-                                    Image(systemName: "battery.100percent")
-                                        .foregroundStyle(Color(hex: "#34c759"))
-                                    Text("Battery Health: 98% (Optimal)")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                }
-                            case .outOfService:
-                                HStack(spacing: 8) {
-                                    Image(systemName: "wrench.and.screwdriver.fill")
-                                        .foregroundStyle(Color(hex: "#ff3b30"))
-                                    Text("In Workshop for Diagnostics")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                }
-                                HStack(spacing: 8) {
-                                    Image(systemName: "exclamationmark.circle.fill")
-                                        .foregroundStyle(Color(hex: "#ffcc00"))
-                                    Text("Inspection Log Pending")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer()
-
-                    // Fuel
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Fuel")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Spacer()
-                            Text("\(vehicle.fuelLevel)%")
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(AppTheme.textPrimary)
-                        }
-                        
-                        let fuelColor: Color = {
-                            if vehicle.fuelLevel > 50 { return Color(hex: "#34c759") } // Green
-                            else if vehicle.fuelLevel > 20 { return Color(hex: "#ffcc00") } // Yellow
-                            else { return Color(hex: "#ff3b30") } // Red
-                        }()
-                        
-                        GeometryReader { barGeo in
-                            ZStack(alignment: .leading) {
-                                Capsule()
-                                    .fill(Color(hex: "#2A2A2A"))
-                                Capsule()
-                                    .fill(fuelColor)
-                                    .frame(width: barGeo.size.width * CGFloat(vehicle.fuelLevel) / 100.0)
-                            }
-                        }
-                        .frame(height: 6)
-                    }
-                }
-                .padding(20)
-            }
-            .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(isSelected ? AppTheme.brand : AppTheme.border, lineWidth: isSelected ? 2 : 1)
-            )
-            .shadow(color: isSelected ? AppTheme.brand.opacity(0.6) : .clear, radius: 15, y: 0)
-            .padding(.horizontal, isSelected ? 20 : 40)
-            .scaleEffect(isSelected ? 1.0 : 0.9)
-            .opacity(isSelected ? 1.0 : 0.6)
-            .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.8), value: isSelected)
+        case .insights: return "Fleet Insights"
         }
     }
 }
@@ -800,32 +987,709 @@ private struct DocumentUploadSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var viewModel: VehicleManagementViewModel
     let vehicleID: UUID
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
 
     var body: some View {
         NavigationStack {
-            Form {
-                Picker("Document Type", selection: $viewModel.docType) {
-                    ForEach(DocumentType.allCases) { type in
-                        Text(type.rawValue).tag(type)
+            ZStack {
+                VehicleSectionBackground()
+
+                VStack(spacing: 20) {
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 22) {
+                            VehicleGlassPanel {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "doc.text.fill")
+                                            .foregroundStyle(VehicleStudioTheme.accent)
+                                        Text("Compliance Documents")
+                                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                                            .foregroundStyle(VehicleStudioTheme.primary)
+                                    }
+                                    Text("Please provide the following mandatory identification and permit details for the fleet. All fields must be completed.")
+                                        .font(.subheadline)
+                                        .foregroundStyle(VehicleStudioTheme.secondary)
+                                }
+                            }
+
+                            ForEach(DocumentType.allCases) { type in
+                                documentInputSection(type: type)
+                            }
+                        }
+                        .padding(.vertical, 12)
                     }
                 }
-                TextField("Document Number", text: $viewModel.docNumber)
-                DatePicker("Expiry Date", selection: $viewModel.docExpiryDate, displayedComponents: .date)
+                .padding(.horizontal, 20)
             }
             .navigationTitle("Upload Document")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button("Save All") {
                         viewModel.saveDocument(for: vehicleID)
                         dismiss()
                     }
-                    .disabled(viewModel.docNumber.isEmpty)
+                    .disabled(DocumentType.allCases.contains { type in
+                        (viewModel.documentNumbers[type] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
+                    })
+                }
+            }
+            .photosPicker(isPresented: $viewModel.isPresentingImagePicker, selection: $selectedPhotoItem, matching: .images)
+            .onChange(of: selectedPhotoItem) { _, newItem in
+                Task {
+                    if let data = try? await newItem?.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data),
+                       let type = viewModel.activeDocumentTypeForPhoto {
+                        viewModel.documentImages[type] = image
+                    }
+                    selectedPhotoItem = nil
                 }
             }
         }
+    }
+
+    private func documentInputSection(type: DocumentType) -> some View {
+        VehicleGlassPanel {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack {
+                    Text(type.rawValue)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(VehicleStudioTheme.accent)
+                    Spacer()
+                    Image(systemName: (viewModel.documentNumbers[type] ?? "").isEmpty ? "circle" : "checkmark.circle.fill")
+                        .foregroundStyle((viewModel.documentNumbers[type] ?? "").isEmpty ? VehicleStudioTheme.tertiary : VehicleStudioTheme.success)
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Document Number")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(VehicleStudioTheme.secondary)
+
+                    TextField("e.g. \(exampleNumber(for: type))", text: Binding(
+                        get: { viewModel.documentNumbers[type] ?? "" },
+                        set: { viewModel.documentNumbers[type] = $0 }
+                    ))
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .foregroundStyle(VehicleStudioTheme.primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(VehicleStudioTheme.softFill)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
+                            )
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Expiry Date")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(VehicleStudioTheme.secondary)
+
+                    DatePicker("", selection: Binding(
+                        get: { viewModel.documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120) },
+                        set: { viewModel.documentExpiries[type] = $0 }
+                    ), displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(VehicleStudioTheme.softFill)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
+                            )
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Document Photo")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(VehicleStudioTheme.secondary)
+
+                    HStack(spacing: 12) {
+                        if let image = viewModel.documentImages[type] as? UIImage {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 80, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(VehicleStudioTheme.stroke.opacity(0.5), lineWidth: 1)
+                                )
+                            
+                            Button(role: .destructive) {
+                                withAnimation {
+                                    viewModel.documentImages[type] = nil
+                                }
+                            } label: {
+                                Label("Remove", systemImage: "trash")
+                                    .font(.caption.weight(.semibold))
+                            }
+                        } else {
+                            Button {
+                                viewModel.activeDocumentTypeForPhoto = type
+                                viewModel.isPresentingImagePicker = true
+                            } label: {
+                                VStack(spacing: 8) {
+                                    Image(systemName: "camera.fill")
+                                        .font(.system(size: 20))
+                                    Text("Add Photo")
+                                        .font(.caption.weight(.bold))
+                                }
+                                .foregroundStyle(VehicleStudioTheme.accent)
+                                .frame(width: 80, height: 80)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(VehicleStudioTheme.accent.opacity(0.1))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(VehicleStudioTheme.accent.opacity(0.3), lineWidth: 1)
+                                )
+                            }
+                        }
+                        
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+
+    private func exampleNumber(for type: DocumentType) -> String {
+        switch type {
+        case .rc: return "RC-1234567"
+        case .insurance: return "INS-998877"
+        case .puc: return "PUC-554433"
+        case .permit: return "PRM-112233"
+        }
+    }
+}
+
+private enum VehicleDisplayMode: String, CaseIterable, Identifiable {
+    case cards = "Cards"
+    case table = "Table"
+
+    var id: String { rawValue }
+}
+
+private enum VehicleStudioTheme {
+    static let accent = AppTheme.brand
+    static let accentSoft = AppTheme.brandDark
+    static let mint = AppTheme.success
+    static let success = AppTheme.success
+    static let warning = AppTheme.warning
+    static let danger = AppTheme.error
+    static let primary = AppTheme.textPrimary
+    static let secondary = AppTheme.textSecondary
+    static let tertiary = AppTheme.textSecondary.opacity(0.72)
+    static let neutral = AppTheme.surfaceSecondary
+    static let stroke = AppTheme.border
+    static let softFill = AppTheme.surfaceSecondary
+    static let glassFill = AppTheme.cardBackground
+    static let backgroundTop = AppTheme.background
+    static let backgroundBottom = AppTheme.background
+    static let accentGradient = AppTheme.gradient
+}
+
+private struct VehicleSectionBackground: View {
+    var body: some View {
+        ZStack {
+            AppTheme.background
+                .ignoresSafeArea()
+
+            AppTheme.ambientGradient
+                .opacity(0.72)
+                .ignoresSafeArea()
+
+            Circle()
+                .fill(VehicleStudioTheme.accent.opacity(0.18))
+                .frame(width: 260, height: 260)
+                .blur(radius: 80)
+                .offset(x: -120, y: -280)
+
+            Circle()
+                .fill(VehicleStudioTheme.accentSoft.opacity(0.14))
+                .frame(width: 220, height: 220)
+                .blur(radius: 90)
+                .offset(x: 150, y: -180)
+
+            Circle()
+                .fill(AppTheme.surfaceSecondary.opacity(0.9))
+                .frame(width: 260, height: 260)
+                .blur(radius: 100)
+                .offset(x: 120, y: 220)
+        }
+    }
+}
+
+private struct VehicleGlassPanel<Content: View>: View {
+    let padding: CGFloat
+    let content: Content
+
+    init(padding: CGFloat = 18, @ViewBuilder content: () -> Content) {
+        self.padding = padding
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(padding)
+            .background(
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .fill(VehicleStudioTheme.glassFill.opacity(0.9))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .stroke(VehicleStudioTheme.stroke.opacity(0.8), lineWidth: 1)
+                    )
+                    .shadow(color: AppTheme.cardShadowColor.opacity(0.08), radius: 18, x: 0, y: 8)
+            )
+    }
+}
+
+// Removed legacy VehicleAnalyticsCard.
+
+// Removed legacy VehicleStatusDistributionView.
+
+private struct VehicleFilterChip: View {
+    let title: String
+    let icon: String
+    let count: Int
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.caption.weight(.bold))
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text("\(count)")
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(isSelected ? Color.white.opacity(0.18) : VehicleStudioTheme.accent.opacity(0.12))
+                    )
+            }
+            .foregroundStyle(isSelected ? .white : VehicleStudioTheme.primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(isSelected ? VehicleStudioTheme.accentGradient : LinearGradient(colors: [VehicleStudioTheme.softFill, VehicleStudioTheme.softFill], startPoint: .leading, endPoint: .trailing))
+                    .overlay(
+                        Capsule()
+                            .stroke(isSelected ? Color.clear : VehicleStudioTheme.stroke.opacity(0.75), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(VehiclePressableStyle())
+    }
+}
+
+private struct VehicleStatusBadge: View {
+    let title: String
+    let tint: Color
+    let icon: String?
+
+    init(title: String, tint: Color, icon: String? = nil) {
+        self.title = title
+        self.tint = tint
+        self.icon = icon
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(.caption2.weight(.bold))
+            }
+            Text(title)
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            Capsule()
+                .fill(tint.opacity(0.12))
+                .overlay(
+                    Capsule()
+                        .stroke(tint.opacity(0.18), lineWidth: 1)
+                )
+        )
+    }
+}
+
+// Removed VehicleAnalyticsCard as it is consolidated in the hero section.
+// Removed VehicleMetricTile.
+
+private struct VehicleMetricTile: View {
+    let title: String
+    let value: String
+    let caption: String
+    let tint: Color
+    let icon: String
+
+    var body: some View {
+        VehicleGlassPanel {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: icon)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(tint)
+                    Spacer()
+                }
+
+                Text(value)
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundStyle(VehicleStudioTheme.primary)
+                    .lineLimit(1)
+
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(VehicleStudioTheme.primary)
+
+                Text(caption)
+                    .font(.caption)
+                    .foregroundStyle(VehicleStudioTheme.secondary)
+            }
+        }
+    }
+}
+
+private struct VehicleProgressBar: View {
+    let progress: Double
+    let tint: Color
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(VehicleStudioTheme.neutral.opacity(0.45))
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [tint.opacity(0.65), tint],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: geometry.size.width * max(0, min(progress, 1)))
+            }
+        }
+        .frame(height: 8)
+    }
+}
+
+private struct VehicleRowView: View {
+    let viewModel: VehicleManagementViewModel
+    let vehicle: Vehicle
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(vehicle.status.dashboardColor.opacity(0.1))
+                Image(systemName: vehicle.status == .outOfService ? "wrench.and.screwdriver.fill" : "car.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(vehicle.status.dashboardColor)
+            }
+            .frame(width: 52, height: 52)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(vehicle.displayName)
+                    .font(.headline)
+                    .foregroundStyle(VehicleStudioTheme.primary)
+                Text(vehicle.plateNumber)
+                    .font(.subheadline)
+                    .foregroundStyle(VehicleStudioTheme.secondary)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 6) {
+                HStack(spacing: 4) {
+                    Image(systemName: "fuelpump.fill")
+                        .font(.caption2)
+                    Text("\(vehicle.fuelLevel)%")
+                        .font(.caption.weight(.bold))
+                }
+                .foregroundStyle(fuelTint(for: vehicle.fuelLevel))
+                
+                Text(vehicle.status.rawValue)
+                    .font(.caption2.weight(.bold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(vehicle.status.dashboardColor.opacity(0.1))
+                    .foregroundStyle(vehicle.status.dashboardColor)
+                    .clipShape(Capsule())
+            }
+            
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(VehicleStudioTheme.tertiary)
+        }
+        .padding(12)
+        .background(VehicleStudioTheme.glassFill)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(VehicleStudioTheme.stroke.opacity(0.5), lineWidth: 1)
+        )
+    }
+}
+
+// Removed legacy VehicleDeckCard and VehicleTablePanel.
+
+private struct VehicleEmptyStateCard: View {
+    let icon: String
+    let title: String
+    let message: String
+
+    var body: some View {
+        VehicleGlassPanel {
+            VStack(alignment: .center, spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(VehicleStudioTheme.accent.opacity(0.12))
+                        .frame(width: 64, height: 64)
+                    Image(systemName: icon)
+                        .font(.system(size: 28, weight: .semibold))
+                        .foregroundStyle(VehicleStudioTheme.accent)
+                }
+
+                Text(title)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(VehicleStudioTheme.primary)
+
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(VehicleStudioTheme.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 360)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+        }
+    }
+}
+
+private struct VehicleActionMenu: View {
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        Menu {
+            Button(action: onEdit) {
+                Label("Edit Vehicle", systemImage: "square.and.pencil")
+            }
+
+            Button(role: .destructive, action: onDelete) {
+                Label("Delete Vehicle", systemImage: "trash")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle.fill")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(VehicleStudioTheme.secondary)
+                .background(
+                    Circle()
+                        .fill(VehicleStudioTheme.glassFill.opacity(0.95))
+                        .frame(width: 30, height: 30)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct VehiclePressableStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.94 : 1)
+            .animation(.spring(response: 0.28, dampingFraction: 0.8), value: configuration.isPressed)
+    }
+}
+
+private struct VehicleTag: Identifiable {
+    let title: String
+    let icon: String
+    let tint: Color
+
+    var id: String { "\(icon)-\(title)" }
+}
+
+private struct VehiclePositiveInsight: Identifiable {
+    let icon: String
+    let tint: Color
+    let title: String
+
+    var id: String { "\(icon)-\(title)" }
+}
+
+private extension VehicleStatus {
+    var dashboardColor: Color {
+        switch self {
+        case .active:
+            return VehicleStudioTheme.accent
+        case .inService:
+            return VehicleStudioTheme.mint
+        case .idle:
+            return VehicleStudioTheme.secondary
+        case .outOfService:
+            return VehicleStudioTheme.danger
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .active:
+            return "bolt.fill"
+        case .inService:
+            return "location.fill"
+        case .idle:
+            return "pause.circle.fill"
+        case .outOfService:
+            return "wrench.and.screwdriver.fill"
+        }
+    }
+}
+
+private extension WorkOrderPriority {
+    var priorityColor: Color {
+        switch self {
+        case .critical:
+            return VehicleStudioTheme.danger
+        case .high:
+            return VehicleStudioTheme.warning
+        case .medium:
+            return VehicleStudioTheme.accent
+        case .low:
+            return VehicleStudioTheme.secondary
+        }
+    }
+}
+
+private func fuelTint(for level: Int) -> Color {
+    if level > 60 {
+        return VehicleStudioTheme.success
+    }
+    if level > 30 {
+        return VehicleStudioTheme.warning
+    }
+    return VehicleStudioTheme.danger
+}
+
+private func serviceLabel(for days: Int) -> String {
+    if days < 0 {
+        return "\(-days)d overdue"
+    }
+    if days == 0 {
+        return "Due today"
+    }
+    if days <= 7 {
+        return "\(days)d left"
+    }
+    return "\(days)d out"
+}
+
+private func serviceTint(for days: Int) -> Color {
+    if days <= 0 {
+        return VehicleStudioTheme.danger
+    }
+    if days <= 7 {
+        return VehicleStudioTheme.warning
+    }
+    return VehicleStudioTheme.success
+}
+
+private func vehicleRouteText(for vehicle: Vehicle) -> String {
+    switch vehicle.status {
+    case .active:
+        return "Mumbai to Pune"
+    case .inService:
+        return "Pune to Nashik"
+    case .idle:
+        return "Nagpur Yard"
+    case .outOfService:
+        return "Workshop Bay"
+    }
+}
+
+private func vehicleTags(for vehicle: Vehicle, in viewModel: VehicleManagementViewModel) -> [VehicleTag] {
+    var tags: [VehicleTag] = []
+
+    let alertCount = viewModel.activeAlertCount(for: vehicle)
+    if alertCount > 0 {
+        tags.append(VehicleTag(title: "\(alertCount) live alerts", icon: "bell.badge.fill", tint: VehicleStudioTheme.warning))
+    }
+
+    let defectCount = viewModel.unresolvedDefectCount(for: vehicle)
+    if defectCount > 0 {
+        tags.append(VehicleTag(title: "\(defectCount) open defects", icon: "wrench.and.screwdriver.fill", tint: VehicleStudioTheme.danger))
+    }
+
+    let days = viewModel.maintenanceDaysRemaining(for: vehicle)
+    if days <= 0 {
+        tags.append(VehicleTag(title: "Service overdue", icon: "calendar.badge.exclamationmark", tint: VehicleStudioTheme.danger))
+    } else if days <= 7 {
+        tags.append(VehicleTag(title: "Service in \(days)d", icon: "calendar", tint: VehicleStudioTheme.warning))
+    }
+
+    if vehicle.fuelLevel <= 25 {
+        tags.append(VehicleTag(title: "Fuel reserve low", icon: "fuelpump.fill", tint: VehicleStudioTheme.warning))
+    }
+
+    if tags.isEmpty {
+        tags.append(
+            VehicleTag(
+                title: viewModel.isLiveTracked(vehicle) ? "Tracking healthy" : "Standing by",
+                icon: viewModel.isLiveTracked(vehicle) ? "checkmark.circle.fill" : "pause.circle.fill",
+                tint: viewModel.isLiveTracked(vehicle) ? VehicleStudioTheme.success : VehicleStudioTheme.secondary
+            )
+        )
+    }
+
+    return Array(tags.prefix(3))
+}
+
+private func vehiclePositiveInsights(for vehicle: Vehicle) -> [VehiclePositiveInsight] {
+    switch vehicle.status {
+    case .active, .inService:
+        return [
+            VehiclePositiveInsight(icon: "checkmark.circle.fill", tint: VehicleStudioTheme.success, title: "Route performance is stable and the vehicle is dispatching cleanly."),
+            VehiclePositiveInsight(icon: "leaf.fill", tint: VehicleStudioTheme.mint, title: "Efficiency trend remains healthy for the current assignment window.")
+        ]
+    case .idle:
+        return [
+            VehiclePositiveInsight(icon: "pause.circle.fill", tint: VehicleStudioTheme.secondary, title: "Vehicle is staged and available for the next dispatch slot."),
+            VehiclePositiveInsight(icon: "battery.100percent", tint: VehicleStudioTheme.success, title: "Standby health is strong with no active fault signals.")
+        ]
+    case .outOfService:
+        return [
+            VehiclePositiveInsight(icon: "wrench.and.screwdriver.fill", tint: VehicleStudioTheme.warning, title: "Service workflow is active and the unit is safely isolated from dispatch."),
+            VehiclePositiveInsight(icon: "doc.text.fill", tint: VehicleStudioTheme.accent, title: "Maintenance documentation can be updated directly from this detail surface.")
+        ]
     }
 }
 
