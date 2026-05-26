@@ -427,11 +427,7 @@ struct DriverDashboardView: View {
                     }
                     .buttonStyle(.plain)
 
-                    NavigationLink(destination: inspDone ? AnyView(InspectionsView()) : AnyView(PreTripInspectionView())) {
-                        quickActionTile(icon: "clipboard.fill", label: "Inspection", color: DriverTheme.textPrimary)
-                    }
-                    .buttonStyle(.plain)
-                    
+
                     Button { driverVM.showBreakLogSheet = true } label: {
                         quickActionTile(icon: "cup.and.saucer.fill", label: "Break Log", color: DriverTheme.textPrimary)
                     }
