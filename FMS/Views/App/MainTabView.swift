@@ -107,24 +107,10 @@ private struct DriverTabView: View {
                 Label(
                     "Trip",
                     systemImage:
-                    "truck.fill"
+                    "truck.box.fill"
                 )
             }
             .tag(1)
-
-            // NEW TAB
-
-            NavigationStack {
-                BroadcastInboxView()
-            }
-            .tabItem {
-                Label(
-                    "Broadcasts",
-                    systemImage:
-                    "megaphone.fill"
-                )
-            }
-            .tag(2)
 
         }
         .tint(
