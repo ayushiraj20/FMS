@@ -18,18 +18,18 @@ struct ProfileSettingsView: View {
                 let phone = user?.phone ?? "+91-98765-43210"
                 let title = user?.title ?? "Fleet Manager"
                 
-                VStack(spacing: 32) {
+                VStack(spacing: 20) {
                     
                     // Avatar Section
-                    VStack(spacing: 16) {
-                        AvatarView(name: name, size: 96, customColor: roleColor)
+                    VStack(spacing: 12) {
+                        AvatarView(name: name, size: 72, customColor: roleColor)
                             .overlay(alignment: .bottomTrailing) {
                                 ZStack {
                                     Circle()
                                         .fill(AppTheme.background)
-                                        .frame(width: 28, height: 28)
+                                        .frame(width: 22, height: 22)
                                     Image(systemName: "checkmark.shield.fill")
-                                        .font(.system(size: 18))
+                                        .font(.system(size: 14))
                                         .foregroundStyle(roleColor)
                                 }
                                 .offset(x: 2, y: 2)
@@ -73,7 +73,7 @@ struct ProfileSettingsView: View {
                             }
                         }
                     }
-                    .padding(.top, 24)
+                    .padding(.top, 12)
                     
                     // Info Card
                     GlassCard {
@@ -142,11 +142,11 @@ struct ProfileSettingsView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
                             Text("Logout")
-                                .font(.system(size: 16, weight: .bold))
+                                .font(.system(size: 15, weight: .bold))
                         }
                         .foregroundStyle(AppTheme.error)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .padding(.vertical, 12)
                         .background(
                             Capsule()
                                 .fill(AppTheme.surfaceSecondary)

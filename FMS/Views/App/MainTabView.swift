@@ -196,9 +196,7 @@ private struct MaintenanceTabView: View {
         }
 
         .tint(
-            Color(
-                "AccentColor"
-            )
+            Color(hex: "#FF5A1F")
         )
     }
 }

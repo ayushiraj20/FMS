@@ -69,7 +69,7 @@ struct MaintenanceWorkOrdersView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, 6)
                 .background(Color.red.opacity(0.06))
                 .overlay(
                     Rectangle()
@@ -109,33 +109,32 @@ struct MaintenanceWorkOrdersView: View {
     
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 ForEach(MaintenanceOrderProgressFilter.allCases) { filter in
                     Button {
                         selectedFilter = filter
                     } label: {
                         Text(filter.title)
-                            .font(.subheadline.weight(.bold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(selectedFilter == filter ? Color.white : warmSecondaryText)
                             .lineLimit(1)
                             .minimumScaleFactor(0.82)
-                            .padding(.horizontal, 20)
-                            .frame(height: 44)
+                            .padding(.horizontal, 14)
+                            .frame(height: 32)
                             .background(
                                 Capsule()
                                     .fill(selectedFilter == filter ? ordersAccent : Color.dynamic(light: "#FFFFFF", dark: "#202127"))
                             )
                             .overlay(
                                 Capsule()
-                                    .stroke(selectedFilter == filter ? ordersAccent.opacity(0.2) : Color.dynamic(light: "#E6D8D2", dark: "#3B3841"), lineWidth: 1)
+                                    .stroke(selectedFilter == filter ? ordersAccent.opacity(0.15) : Color.dynamic(light: "#E6D8D2", dark: "#3B3841").opacity(0.5), lineWidth: 0.5)
                             )
-                            .shadow(color: selectedFilter == filter ? ordersAccent.opacity(0.28) : .clear, radius: 12, x: 0, y: 6)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, 8)
         }
     }
     
@@ -177,40 +176,6 @@ struct MaintenanceWorkOrdersView: View {
             }
         }
         .listStyle(.plain)
-    }
-    
-    private var legacyOrdersList: some View {
-        List {
-            ForEach(orders) { order in
-                Button {
-                    selectedOrder = order
-                } label: {
-                    GlassCard {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(order.title)
-                                .font(.headline)
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text(order.details)
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.textSecondary)
-                            HStack {
-                                Text(order.status.rawValue)
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(order.status == .completed ? AppTheme.success : AppTheme.warning)
-                                Spacer()
-                                Text(appViewModel.service.vehicle(for: order.vehicleID)?.plateNumber ?? "")
-                                    .font(.footnote)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                            }
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
-        }
-        .appListStyle()
     }
     
     private var ordersAccent: Color { Color(hex: "#FF5A1F") }
@@ -278,7 +243,7 @@ struct MaintenanceWorkOrdersView: View {
         
         var body: some View {
             HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
                     
                     // MARK: Top row: WO ID + priority/overdue badges
                     HStack(alignment: .center, spacing: 8) {
@@ -291,28 +256,28 @@ struct MaintenanceWorkOrdersView: View {
                         if order.isOverdue {
                             HStack(spacing: 4) {
                                 Image(systemName: "exclamationmark.clock.fill")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.system(size: 8, weight: .bold))
                                 Text("OVERDUE")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.system(size: 8, weight: .bold))
                             }
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
                             .background(Color.red, in: Capsule())
                         } else if order.priority == .critical {
                             Text("URGENT")
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
                                 .background(Color.red, in: Capsule())
                         }
                         
                         Text(order.priority.rawValue.uppercased())
-                            .font(.system(size: 9, weight: .black))
+                            .font(.system(size: 8, weight: .black))
                             .foregroundStyle(priorityTextColor)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
                             .background(priorityBackgroundColor, in: Capsule())
                     }
                     
@@ -357,9 +322,9 @@ struct MaintenanceWorkOrdersView: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Color(.tertiaryLabel))
-                    .padding(.leading, 4)
+                    .padding(.leading, 2)
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, 4)
         }
         
         // MARK: - Derived style helpers
