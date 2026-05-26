@@ -17,92 +17,70 @@ struct TeamView: View {
     @State private var selectedSegment: CrewSegment = .drivers
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // MARK: - Custom Header
-                VStack(spacing: 16) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Crew Management")
-                            .font(.system(size: 34, weight: .bold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                        Spacer()
-                    }
-                    
-                    // MARK: - Search Bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(AppTheme.textSecondary)
-                        TextField("Search crew members...", text: $viewModel.searchText)
-                            .foregroundStyle(AppTheme.textPrimary)
-                    }
-                    .padding(12)
-                    .background(AppTheme.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    
-                    // MARK: - Segmented Control
-                    Picker("Crew Segment", selection: $selectedSegment) {
-                        ForEach(CrewSegment.allCases, id: \.self) { segment in
-                            Text(segment.rawValue).tag(segment)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+        VStack(spacing: 0) {
+            // MARK: - Segmented Control
+            Picker("Crew Segment", selection: $selectedSegment) {
+                ForEach(CrewSegment.allCases, id: \.self) { segment in
+                    Text(segment.rawValue).tag(segment)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-                .padding(.bottom, 16)
-                
-                // MARK: - Content Switcher
-                TabView(selection: $selectedSegment) {
-                    DriverAssignmentManagementView(service: viewModel.service)
-                        .tag(CrewSegment.drivers)
-                    
-                    MaintenanceTabContentView()
-                        .tag(CrewSegment.maintenance)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
             }
-            .background(AppTheme.background)
-            .navigationBarHidden(true)
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
             
-            // MARK: - Floating Add Button
-            .overlay(alignment: .bottomTrailing) {
-                Button {
-                    if selectedSegment == .drivers {
-                        viewModel.newRole = .driver
-                    } else {
-                        viewModel.newRole = .maintenance
-                    }
-                    viewModel.showAddMember = true
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 56, height: 56)
-                        .background(AppTheme.brand)
-                        .clipShape(Circle())
-                        .shadow(color: AppTheme.brand.opacity(0.4), radius: 10, y: 4)
-                }
-                .padding(.trailing, 24)
-                .padding(.bottom, 24)
+            // MARK: - Content Switcher
+            TabView(selection: $selectedSegment) {
+                DriverAssignmentManagementView(service: viewModel.service)
+                    .tag(CrewSegment.drivers)
+                
+                MaintenanceTabContentView()
+                    .tag(CrewSegment.maintenance)
             }
-            .sheet(isPresented: $viewModel.showAddMember) {
-                AddTeamMemberSheet(viewModel: viewModel)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+        }
+        .background(AppTheme.background)
+        .navigationTitle("Crew Management")
+        .navigationBarTitleDisplayMode(.large)
+        .searchable(text: $viewModel.searchText, prompt: "Search crew members...")
+        
+        // MARK: - Floating Add Button
+        .overlay(alignment: .bottomTrailing) {
+            Button {
+                if selectedSegment == .drivers {
+                    viewModel.newRole = .driver
+                } else {
+                    viewModel.newRole = .maintenance
+                }
+                viewModel.showAddMember = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(AppTheme.brand)
+                    .clipShape(Circle())
+                    .shadow(color: AppTheme.brand.opacity(0.4), radius: 10, y: 4)
             }
-            .confirmationDialog(
-                "Delete Team Member",
-                isPresented: $viewModel.isPresentingDeleteConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete", role: .destructive) {
-                    viewModel.deleteConfirmed()
-                }
-                Button("Cancel", role: .cancel) {
-                    viewModel.memberToDelete = nil
-                }
-            } message: {
-                if let member = viewModel.memberToDelete {
-                    Text("Are you sure you want to delete \(member.name)? This action cannot be undone.")
-                }
+            .padding(.trailing, 24)
+            .padding(.bottom, 24)
+        }
+        .sheet(isPresented: $viewModel.showAddMember) {
+            AddTeamMemberSheet(viewModel: viewModel)
+        }
+        .confirmationDialog(
+            "Delete Team Member",
+            isPresented: $viewModel.isPresentingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                viewModel.deleteConfirmed()
+            }
+            Button("Cancel", role: .cancel) {
+                viewModel.memberToDelete = nil
+            }
+        } message: {
+            if let member = viewModel.memberToDelete {
+                Text("Are you sure you want to delete \(member.name)? This action cannot be undone.")
             }
         }
     }

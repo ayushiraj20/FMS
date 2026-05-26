@@ -13,11 +13,6 @@ struct AssignedRoutesView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Assigned Routes")
-                    .font(.system(.largeTitle, design: .rounded).bold())
-                    .foregroundStyle(DriverTheme.textPrimary)
-                    .padding(.top, 16)
-                    .padding(.bottom, 8)
 
                 if allTrips.isEmpty {
                     emptyState
@@ -47,7 +42,8 @@ struct AssignedRoutesView: View {
                 .ignoresSafeArea()
             }
         )
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("Assigned Routes")
+        .navigationBarTitleDisplayMode(.large)
     }
 
     private var emptyState: some View {

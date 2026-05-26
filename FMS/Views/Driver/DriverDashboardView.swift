@@ -15,8 +15,7 @@ struct DriverDashboardView: View {
     var body: some View {
         @Bindable var driverVM = driverVM
         
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
+        ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 24) {
                     if driverVM.isLoading {
                         ProgressView("Loading iOS 26 Dashboard...")
@@ -34,13 +33,35 @@ struct DriverDashboardView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .background(DriverScreenBackground())
+            .background(
+                ZStack {
+                    DriverTheme.background.ignoresSafeArea()
+                    
+                    // iOS 26 Animated Mesh-like Background
+                    GeometryReader { geo in
+                        Circle()
+                            .fill(DriverTheme.accent.opacity(0.15))
+                            .frame(width: geo.size.width * 1.5, height: geo.size.width * 1.5)
+                            .blur(radius: 100)
+                            .offset(x: -geo.size.width * 0.2, y: -geo.size.height * 0.1)
+                            
+                        Circle()
+                            .fill(Color.blue.opacity(0.1))
+                            .frame(width: geo.size.width, height: geo.size.width)
+                            .blur(radius: 80)
+                            .offset(x: geo.size.width * 0.5, y: geo.size.height * 0.3)
+                    }
+                    .ignoresSafeArea()
+                }
+            )
             .refreshable {
                 driverVM.isLoading = true
                 await appViewModel.service.syncWithDatabase()
                 await driverVM.load()
                 await appViewModel.loadNotifications()
             }
+            .navigationTitle("Dashboard")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
@@ -53,41 +74,11 @@ struct DriverDashboardView: View {
                             size: 36,
                             customColor: DriverTheme.accent
                         )
-                        .overlay(
-                            Circle()
-                                .strokeBorder(DriverTheme.accent.opacity(0.3), lineWidth: 1.5)
-                        )
-                        .shadow(color: DriverTheme.accent.opacity(0.15), radius: 4, x: 0, y: 2)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(destination: NotificationsView()) {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: appViewModel.unreadNotificationsCount > 0 ? "bell.badge.fill" : "bell.fill")
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(
-                                    appViewModel.unreadNotificationsCount > 0 ? DriverTheme.criticalRed : DriverTheme.accent,
-                                    DriverTheme.accent
-                                )
-                                .font(.system(size: 20, weight: .medium))
-                                .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial, in: Circle())
-
-                            if appViewModel.unreadNotificationsCount > 0 {
-                                Text("\(min(appViewModel.unreadNotificationsCount, 99))")
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.white)
-                                    .frame(minWidth: 16, minHeight: 16)
-                                    .background(DriverTheme.criticalRed, in: Circle())
-                                    .overlay(
-                                        Circle()
-                                            .strokeBorder(.white, lineWidth: 1.5)
-                                    )
-                                    .offset(x: 4, y: -4)
-                                    .transition(.scale.combined(with: .opacity))
-                                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: appViewModel.unreadNotificationsCount)
-                            }
-                        }
+                        Image(systemName: appViewModel.unreadNotificationsCount > 0 ? "bell.badge.fill" : "bell.fill")
                     }
                 }
             }
@@ -123,7 +114,6 @@ struct DriverDashboardView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: driverVM.showToast)
                 }
-            }
         }
     }
 
@@ -236,12 +226,7 @@ struct DriverDashboardView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(DriverTheme.elevatedCard)
-                        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(DriverTheme.cardBorder, lineWidth: 1))
-                        .shadow(color: DriverTheme.cardShadow, radius: 10, x: 0, y: 4)
-                )
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
             .buttonStyle(.plain)
 
@@ -271,12 +256,7 @@ struct DriverDashboardView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(DriverTheme.elevatedCard)
-                        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(DriverTheme.cardBorder, lineWidth: 1))
-                        .shadow(color: DriverTheme.cardShadow, radius: 10, x: 0, y: 4)
-                )
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
             .buttonStyle(.plain)
         }
@@ -336,9 +316,8 @@ struct DriverDashboardView: View {
                     .padding(20)
                     .background(
                         RoundedRectangle(cornerRadius: 28, style: .continuous)
-                            .fill(DriverTheme.elevatedCard)
-                            .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(DriverTheme.accent.opacity(0.2), lineWidth: 1))
-                            .shadow(color: DriverTheme.accent.opacity(0.12), radius: 16, x: 0, y: 8)
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: DriverTheme.accent.opacity(0.1), radius: 15, x: 0, y: 10)
                     )
                 }
                 .buttonStyle(.plain)
@@ -390,12 +369,7 @@ struct DriverDashboardView: View {
                         .foregroundStyle(inspDone ? DriverTheme.successGreen : DriverTheme.warningAmber)
                 }
                 .padding(20)
-                .background(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .fill(DriverTheme.elevatedCard)
-                        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(DriverTheme.cardBorder, lineWidth: 1))
-                        .shadow(color: DriverTheme.cardShadow, radius: 10, x: 0, y: 4)
-                )
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
             }
         }
     }
@@ -410,35 +384,18 @@ struct DriverDashboardView: View {
                 HStack(spacing: 16) {
                     let inspDone = currentUser.flatMap { appViewModel.service.todayInspection(for: $0.id) } != nil
                     
-                    Button {
-                        if let user = currentUser, let nextTrip = appViewModel.service.upcomingTrips(for: user.id).first {
-                            if inspDone {
-                                appViewModel.service.startScheduledTrip(id: nextTrip.id)
-                                driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
-                            } else {
-                                tripToStart = nextTrip
-                                showTripInspectionSheet = true
-                            }
-                        } else {
-                            driverVM.showToastMessage("No upcoming trips available.")
-                        }
-                    } label: {
-                        quickActionTile(icon: "play.fill", label: "Start Trip", color: DriverTheme.accent)
-                    }
-                    .buttonStyle(.plain)
-
                     NavigationLink(destination: inspDone ? AnyView(InspectionsView()) : AnyView(PreTripInspectionView())) {
-                        quickActionTile(icon: "clipboard.fill", label: "Inspection", color: DriverTheme.textPrimary)
+                        quickActionTile(icon: "clipboard.fill", label: "Inspection", color: .blue)
                     }
                     .buttonStyle(.plain)
                     
                     Button { driverVM.showBreakLogSheet = true } label: {
-                        quickActionTile(icon: "cup.and.saucer.fill", label: "Break Log", color: DriverTheme.textPrimary)
+                        quickActionTile(icon: "cup.and.saucer.fill", label: "Break Log", color: .orange)
                     }
                     .buttonStyle(.plain)
                     
                     Button { driverVM.startSOSCountdown(service: appViewModel.service, user: currentUser) } label: {
-                        quickActionTile(icon: "light.beacon.max.fill", label: "SOS", color: DriverTheme.textPrimary)
+                        quickActionTile(icon: "light.beacon.max.fill", label: "SOS", color: DriverTheme.criticalRed)
                     }
                     .buttonStyle(.plain)
                 }
@@ -465,12 +422,7 @@ struct DriverDashboardView: View {
         }
         .frame(width: 90)
         .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(DriverTheme.elevatedCard)
-                .overlay(RoundedRectangle(cornerRadius: 20).stroke(DriverTheme.cardBorder, lineWidth: 1))
-                .shadow(color: DriverTheme.cardShadow, radius: 8, x: 0, y: 3)
-        )
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
         .scrollTransition { content, phase in
             content
                 .scaleEffect(phase.isIdentity ? 1 : 0.9)
@@ -507,12 +459,7 @@ struct DriverDashboardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(DriverTheme.elevatedCard)
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(DriverTheme.cardBorder, lineWidth: 1))
-                .shadow(color: DriverTheme.cardShadow, radius: 8, x: 0, y: 3)
-        )
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private var todayDistanceValue: Int {
@@ -562,12 +509,7 @@ struct DriverDashboardView: View {
                             .lineLimit(2)
                     }
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(DriverTheme.elevatedCard)
-                            .overlay(RoundedRectangle(cornerRadius: 20).stroke(DriverTheme.cardBorder, lineWidth: 1))
-                            .shadow(color: DriverTheme.cardShadow, radius: 8, x: 0, y: 3)
-                    )
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
                 }
             }
         }
@@ -601,12 +543,8 @@ struct DriverDashboardView: View {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 14)
-        .background(
-            Capsule()
-                .fill(DriverTheme.elevatedCard)
-                .overlay(Capsule().stroke(DriverTheme.cardBorder, lineWidth: 1))
-        )
-        .shadow(color: DriverTheme.cardShadow, radius: 10)
+        .background(.ultraThinMaterial, in: Capsule())
+        .shadow(radius: 10)
         .padding(.top, 16)
     }
 }
@@ -634,11 +572,7 @@ struct BreakLogSheet: View {
                 }
                 .pickerStyle(.wheel)
                 .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(DriverTheme.elevatedCard)
-                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(DriverTheme.cardBorder, lineWidth: 1))
-                )
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
 
                 Button("Start Break") {
                     if let user = appViewModel.currentUser {
@@ -651,7 +585,7 @@ struct BreakLogSheet: View {
                 Spacer()
             }
             .padding(24)
-            .background(DriverScreenBackground())
+            .background(DriverTheme.background.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -690,11 +624,7 @@ struct VehicleAlertDetailSheet: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(DriverTheme.elevatedCard)
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(DriverTheme.cardBorder, lineWidth: 1))
-                )
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
 
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Action Required").font(.headline)
@@ -702,11 +632,7 @@ struct VehicleAlertDetailSheet: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(DriverTheme.elevatedCard)
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(DriverTheme.cardBorder, lineWidth: 1))
-                )
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
 
                 Spacer()
 
@@ -717,7 +643,7 @@ struct VehicleAlertDetailSheet: View {
                 .buttonStyle(DriverAccentButtonStyle())
             }
             .padding(24)
-            .background(DriverScreenBackground())
+            .background(DriverTheme.background.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
