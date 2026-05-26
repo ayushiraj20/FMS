@@ -33,7 +33,7 @@ struct SOSSheetView: View {
                     .transition(.scale.combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: driverVM.sosConfirmed)
+        .animation(.spring(duration: 0.6, bounce: 0.2), value: driverVM.sosConfirmed)
     }
 
     private var countdownView: some View {

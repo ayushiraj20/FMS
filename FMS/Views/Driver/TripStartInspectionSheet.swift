@@ -153,7 +153,7 @@ struct TripStartInspectionSheet: View {
                     Capsule()
                         .fill(allChecked ? DriverTheme.successGreen : DriverTheme.accent)
                         .frame(width: geo.size.width * progress, height: 6)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.7), value: progress)
+                        .animation(.spring(duration: 0.5, bounce: 0.3), value: progress)
                 }
             }
             .frame(height: 6)
@@ -200,7 +200,7 @@ struct TripStartInspectionSheet: View {
                 HStack(spacing: 8) {
                     // Pass Button
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        withAnimation(.spring(duration: 0.3, bounce: 0.3)) {
                             items[idx].status = (items[idx].status == .passed) ? .unchecked : .passed
                             expandedItemID = nil
                         }
@@ -215,7 +215,7 @@ struct TripStartInspectionSheet: View {
                     
                     // Fail Button
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        withAnimation(.spring(duration: 0.3, bounce: 0.3)) {
                             if items[idx].status == .failed {
                                 items[idx].status = .unchecked
                                 items[idx].failureNote = ""

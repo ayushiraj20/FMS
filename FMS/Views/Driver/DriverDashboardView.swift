@@ -15,96 +15,97 @@ struct DriverDashboardView: View {
     var body: some View {
         @Bindable var driverVM = driverVM
         
-        ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    if driverVM.isLoading {
-                        ProgressView("Loading iOS 26 Dashboard...")
-                            .frame(maxWidth: .infinity, minHeight: 300)
-                    } else {
-                        greetingRow
-                        vehicleAlertBanner
-                        vehicleAndShiftRow
-                        activeTripWidget
-                        quickActionsSection
-                        todayStatsSection
-                        reportedDefectsSection
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-            }
-            .background(DriverTheme.background.ignoresSafeArea())
-            .refreshable {
-                driverVM.isLoading = true
-                await appViewModel.service.syncWithDatabase()
-                await driverVM.load()
-                await appViewModel.loadNotifications()
-            }
-            .navigationTitle("Dashboard")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink {
-                        DriverProfileView()
-                            .environment(appViewModel)
-                            .environment(driverVM)
-                    } label: {
-                        AvatarView(
-                            name: currentUser?.name ?? "Driver",
-                            size: 36,
-                            customColor: DriverTheme.accent
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .glassEffect(.identity)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: BroadcastInboxView()) {
-                        Image(systemName: "megaphone.fill")
-                    }
-                    .buttonStyle(.plain)
-                    .glassEffect(.identity)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: NotificationsView()) {
-                        Image(systemName: appViewModel.unreadNotificationsCount > 0 ? "bell.badge.fill" : "bell.fill")
-                    }
-                    .buttonStyle(.plain)
-                    .glassEffect(.identity)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                if driverVM.isLoading {
+                    ProgressView("Loading iOS 26 Dashboard...")
+                        .frame(maxWidth: .infinity, minHeight: 300)
+                } else {
+                    greetingRow
+                    vehicleAlertBanner
+                    vehicleAndShiftRow
+                    activeTripWidget
+                    quickActionsSection
+                    todayStatsSection
+                    reportedDefectsSection
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+        }
+        .scrollIndicators(.hidden)
+        .background(DriverTheme.background.ignoresSafeArea())
+        .refreshable {
+            driverVM.isLoading = true
+            await appViewModel.service.syncWithDatabase()
+            await driverVM.load()
+            await appViewModel.loadNotifications()
+        }
+        .navigationTitle("Dashboard")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                NavigationLink {
+                    DriverProfileView()
+                        .environment(appViewModel)
+                        .environment(driverVM)
+                } label: {
+                    AvatarView(
+                        name: currentUser?.name ?? "Driver",
+                        size: 36,
+                        customColor: DriverTheme.accent
+                    )
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.identity)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: BroadcastInboxView()) {
+                    Image(systemName: "megaphone.fill")
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.identity)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: NotificationsView()) {
+                    Image(systemName: appViewModel.unreadNotificationsCount > 0 ? "bell.badge.fill" : "bell.fill")
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.identity)
+            }
+        }
 
-            .task {
-                await appViewModel.service.syncWithDatabase()
-                await driverVM.load()
-                await appViewModel.loadNotifications()
-            }
-            .sheet(isPresented: $driverVM.showFuelReceiptSheet) {
-                FuelReceiptView()
-                    .environment(appViewModel)
-                    .environment(driverVM)
-            }
-            .sheet(isPresented: $driverVM.showBreakLogSheet) {
-                BreakLogSheet()
-                    .environment(appViewModel)
-            }
-            .sheet(item: $driverVM.showAlertDetail) { alert in
-                VehicleAlertDetailSheet(alert: alert)
-                    .environment(appViewModel)
-            }
-            .sheet(isPresented: $showTripInspectionSheet) {
-                TripStartInspectionSheet(trip: tripToStart) {
-                    driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
-                }
+        .task {
+            await appViewModel.service.syncWithDatabase()
+            await driverVM.load()
+            await appViewModel.loadNotifications()
+        }
+        .sheet(isPresented: $driverVM.showFuelReceiptSheet) {
+            FuelReceiptView()
                 .environment(appViewModel)
                 .environment(driverVM)
+        }
+        .sheet(isPresented: $driverVM.showBreakLogSheet) {
+            BreakLogSheet()
+                .environment(appViewModel)
+        }
+        .sheet(item: $driverVM.showAlertDetail) { alert in
+            VehicleAlertDetailSheet(alert: alert)
+                .environment(appViewModel)
+        }
+        .sheet(isPresented: $showTripInspectionSheet) {
+            TripStartInspectionSheet(trip: tripToStart) {
+                driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
             }
-            .overlay(alignment: .top) {
-                if driverVM.showToast, let message = driverVM.toastMessage {
-                    toastBanner(message)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: driverVM.showToast)
-                }
+            .environment(appViewModel)
+            .environment(driverVM)
+        }
+        .overlay(alignment: .top) {
+            if driverVM.showToast, let message = driverVM.toastMessage {
+                toastBanner(message)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.spring(duration: 0.4, bounce: 0.3), value: driverVM.showToast)
+            }
         }
     }
 

@@ -28,7 +28,7 @@ struct TripEndInspectionSheet: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-                ScrollView(showsIndicators: false) {
+                ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         // Header info
                         headerSection
@@ -82,6 +82,7 @@ struct TripEndInspectionSheet: View {
                     }
                     .padding(20)
                 }
+                .scrollIndicators(.hidden)
 
                 // Fixed bottom button
                 submitButton
@@ -177,7 +178,7 @@ struct TripEndInspectionSheet: View {
                     Capsule()
                         .fill(allChecked ? Color.green : Color.orange)
                         .frame(width: geo.size.width * progress, height: 8)
-                        .animation(.spring(response: 0.4), value: progress)
+                        .animation(.spring(duration: 0.4, bounce: 0.3), value: progress)
                 }
             }
             .frame(height: 8)

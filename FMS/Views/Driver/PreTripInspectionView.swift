@@ -10,7 +10,7 @@ struct PreTripInspectionView: View {
         VStack(spacing: 0) {
             progressBar
 
-            ScrollView(showsIndicators: false) {
+            ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Vehicle Inspection")
@@ -40,6 +40,7 @@ struct PreTripInspectionView: View {
                     .padding(.bottom, 100)
                 }
             }
+            .scrollIndicators(.hidden)
             .background(
                 ZStack {
                     DriverTheme.background.ignoresSafeArea()
@@ -96,7 +97,7 @@ struct PreTripInspectionView: View {
                     Capsule()
                         .fill(DriverTheme.accent)
                         .frame(width: geometry.size.width * driverVM.inspectionProgress, height: 8)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.7), value: driverVM.inspectionProgress)
+                        .animation(.spring(duration: 0.5, bounce: 0.3), value: driverVM.inspectionProgress)
                 }
             }
             .frame(height: 8)
@@ -119,7 +120,7 @@ struct PreTripInspectionView: View {
     private func inspectionItemRow(item: DriverInspectionItem, index: Int) -> some View {
         VStack(spacing: 0) {
             Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                withAnimation(.spring(duration: 0.4, bounce: 0.3)) {
                     driverVM.toggleInspectionItem(at: index)
                 }
             } label: {
