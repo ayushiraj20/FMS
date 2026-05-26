@@ -39,7 +39,7 @@ struct FuelSpendDetailView: View {
 
                 HStack(alignment: .bottom, spacing: 10) {
 
-                    Text("$11.2k")
+                    Text("₹11.2k")
                         .font(.system(size: 42, weight: .bold))
 
                     Text("this month")
@@ -67,10 +67,10 @@ struct FuelSpendDetailView: View {
                 Text("Weekly Breakdown")
                     .font(.headline)
 
-                spendRow(week: "Week 1", amount: "$2.8k")
-                spendRow(week: "Week 2", amount: "$3.1k")
-                spendRow(week: "Week 3", amount: "$2.5k")
-                spendRow(week: "Week 4", amount: "$2.8k")
+                spendRow(week: "Week 1", amount: "₹2.8k")
+                spendRow(week: "Week 2", amount: "₹3.1k")
+                spendRow(week: "Week 3", amount: "₹2.5k")
+                spendRow(week: "Week 4", amount: "₹2.8k")
             }
         }
     }
@@ -84,9 +84,9 @@ struct FuelSpendDetailView: View {
                 Text("Top Fuel Consumers")
                     .font(.headline)
 
-                vehicleSpend(name: "Truck A", amount: "$2,100")
-                vehicleSpend(name: "Truck B", amount: "$1,870")
-                vehicleSpend(name: "Van C", amount: "$1,420")
+                vehicleSpend(name: "Truck A", amount: "₹2,100")
+                vehicleSpend(name: "Truck B", amount: "₹1,870")
+                vehicleSpend(name: "Van C", amount: "₹1,420")
             }
         }
     }

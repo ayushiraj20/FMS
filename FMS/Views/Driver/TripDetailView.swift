@@ -19,6 +19,7 @@ struct TripDetailView: View {
 
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var sheetHeight: PresentationDetent = .medium
+    @State private var showPostTripInspectionSheet = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -79,6 +80,12 @@ struct TripDetailView: View {
                 .presentationBackground(.ultraThinMaterial)
                 .presentationCornerRadius(40)
                 .interactiveDismissDisabled()
+                .sheet(isPresented: $showPostTripInspectionSheet) {
+                    TripStartInspectionSheet(trip: trip, inspectionType: .postTrip) {
+                        dismiss()
+                    }
+                    .environment(appViewModel)
+                }
         }
     }
 
@@ -250,8 +257,7 @@ struct TripDetailView: View {
             .disabled(!inspDone)
         } else if trip.status == .inProgress {
             Button {
-                appViewModel.service.endTrip(trip)
-                dismiss()
+                showPostTripInspectionSheet = true
             } label: {
                 Text("End Trip")
                     .font(.system(.headline, design: .rounded).bold())

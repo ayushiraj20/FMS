@@ -2,7 +2,8 @@ import SwiftUI
 
 struct TripStartInspectionSheet: View {
     let trip: Trip?
-    var onTripStarted: () -> Void
+    var inspectionType: InspectionType = .preTrip
+    var onInspectionCompleted: () -> Void
 
     @Environment(AppViewModel.self) private var appViewModel
     @Environment(DriverViewModel.self) private var driverVM
@@ -74,7 +75,7 @@ struct TripStartInspectionSheet: View {
                 submitButton
             }
             .background(DriverScreenBackground())
-            .navigationTitle("Pre-Trip Inspection")
+            .navigationTitle("\(inspectionType.rawValue) Inspection")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -88,7 +89,7 @@ struct TripStartInspectionSheet: View {
                 Button("Proceed Anyway") { startTripAndDismiss() }
                 Button("Cancel Trip", role: .cancel) { dismiss() }
             } message: {
-                Text("You marked \(failedItems.count) item(s) as FAILED. Fleet Manager and Maintenance have been notified. Do you still want to start the trip?")
+                Text("You marked \(failedItems.count) item(s) as FAILED. Fleet Manager and Maintenance have been notified. Do you still want to proceed?")
             }
         }
     }
@@ -123,7 +124,7 @@ struct TripStartInspectionSheet: View {
                 .background(DriverTheme.accent.opacity(0.15), in: Capsule())
             }
 
-            Text("Complete this checklist before starting your trip. Tap each item to mark Pass or Fail.")
+            Text("Complete this checklist before \(inspectionType == .preTrip ? "starting" : "ending") your trip. Tap each item to mark Pass or Fail.")
                 .font(.subheadline)
                 .foregroundStyle(DriverTheme.textSecondary)
         }
@@ -319,9 +320,9 @@ struct TripStartInspectionSheet: View {
                     if isSubmitting {
                         ProgressView().tint(.white)
                     } else {
-                        Image(systemName: allChecked ? "play.fill" : "checkmark.circle")
+                        Image(systemName: allChecked ? "checkmark.circle.fill" : "circle")
                     }
-                    Text(allChecked ? "Start Trip" : "Check All Items")
+                    Text(allChecked ? (inspectionType == .preTrip ? "Start Trip" : "End Trip") : "Check All Items")
                         .font(.system(.title3, design: .rounded).bold())
                 }
                 .foregroundStyle(.white)
@@ -352,11 +353,11 @@ struct TripStartInspectionSheet: View {
         if !overallNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { notesParts.append("General: \(overallNotes)") }
         let combinedNotes = notesParts.isEmpty ? "All items passed." : notesParts.joined(separator: " | ")
 
-        appViewModel.service.addInspection(driverID: user.id, vehicleID: vehicle.id, type: .preTrip, notes: combinedNotes, items: serviceItems)
+        appViewModel.service.addInspection(driverID: user.id, vehicleID: vehicle.id, type: inspectionType, notes: combinedNotes, items: serviceItems)
 
         for fi in failedItems {
             let desc = fi.failureNote.isEmpty ? "Inspection failed: \(fi.title)" : "\(fi.title) — \(fi.failureNote)"
-            appViewModel.service.addDefect(driverID: user.id, vehicleID: vehicle.id, severity: criticalItems.contains(fi.title) ? .critical : .medium, description: desc, title: "Pre-trip: \(fi.title)", images: nil)
+            appViewModel.service.addDefect(driverID: user.id, vehicleID: vehicle.id, severity: criticalItems.contains(fi.title) ? .critical : .medium, description: desc, title: "\(inspectionType.rawValue): \(fi.title)", images: nil)
         }
 
         isSubmitting = false
@@ -370,30 +371,26 @@ struct TripStartInspectionSheet: View {
 
     private func startTripAndDismiss() {
         guard let user = appViewModel.currentUser else { return }
-        if let t = trip {
-            appViewModel.service.startScheduledTrip(id: t.id)
-        } else if let vehicle = appViewModel.assignedVehicle {
-            appViewModel.service.startTrip(driverID: user.id, vehicleID: vehicle.id, origin: "Current Location", destination: "Destination")
+        if inspectionType == .preTrip {
+            if let t = trip {
+                appViewModel.service.startScheduledTrip(id: t.id)
+            } else if let vehicle = appViewModel.assignedVehicle {
+                appViewModel.service.startTrip(driverID: user.id, vehicleID: vehicle.id, origin: "Current Location", destination: "Destination")
+            }
+        } else {
+            if let t = trip {
+                appViewModel.service.endTrip(t)
+            }
         }
         dismiss()
-        onTripStarted()
+        onInspectionCompleted()
     }
 
     private let criticalItems = ["Brakes", "Tyres / Wheels", "Steering"]
-    private func iconColor(_ status: ItemStatus) -> Color {
-        switch status { case .unchecked: return .gray; case .passed: return DriverTheme.successGreen; case .failed: return DriverTheme.criticalRed }
-    }
-    @ViewBuilder private func statusBadge(_ status: ItemStatus) -> some View {
-        switch status {
-        case .unchecked: Circle().stroke(Color.gray.opacity(0.4), lineWidth: 2).frame(width: 28, height: 28)
-        case .passed: Image(systemName: "checkmark.circle.fill").font(.title).foregroundStyle(DriverTheme.successGreen).symbolEffect(.bounce, options: .nonRepeating)
-        case .failed: Image(systemName: "xmark.circle.fill").font(.title).foregroundStyle(DriverTheme.criticalRed).symbolEffect(.bounce, options: .nonRepeating)
-        }
-    }
 }
 
 #Preview {
-    TripStartInspectionSheet(trip: nil, onTripStarted: {})
+    TripStartInspectionSheet(trip: nil, inspectionType: .preTrip, onInspectionCompleted: {})
         .environment(AppViewModel())
         .environment(DriverViewModel())
 }
