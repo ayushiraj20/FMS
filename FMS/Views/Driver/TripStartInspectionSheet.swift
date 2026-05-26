@@ -199,6 +199,7 @@ struct TripStartInspectionSheet: View {
                                 .font(.title3)
                             Text("Pass")
                                 .font(.caption.bold())
+                                .fixedSize()
                         }
                         .foregroundStyle(item.status == .passed ? DriverTheme.successGreen : Color.gray.opacity(0.4))
                         .padding(.horizontal, 10)
@@ -228,6 +229,7 @@ struct TripStartInspectionSheet: View {
                                 .font(.title3)
                             Text("Fail")
                                 .font(.caption.bold())
+                                .fixedSize()
                         }
                         .foregroundStyle(item.status == .failed ? DriverTheme.criticalRed : Color.gray.opacity(0.4))
                         .padding(.horizontal, 10)

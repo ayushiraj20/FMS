@@ -112,20 +112,6 @@ private struct DriverTabView: View {
             }
             .tag(1)
 
-            // NEW TAB
-
-            NavigationStack {
-                BroadcastInboxView()
-            }
-            .tabItem {
-                Label(
-                    "Broadcasts",
-                    systemImage:
-                    "megaphone.fill"
-                )
-            }
-            .tag(2)
-
         }
         .tint(
             DriverTheme.accent
