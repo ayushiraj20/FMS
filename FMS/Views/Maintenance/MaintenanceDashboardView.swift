@@ -15,8 +15,6 @@ struct MaintenanceDashboardView: View {
                     LoadingStateView(title: "Loading workshop queue...")
                         .frame(height: 320)
                 } else {
-                    topBar
-                    dashboardHeader
                     metricsGrid
                     priorityQueue
                     maintenanceScheduleStrip
@@ -27,7 +25,29 @@ struct MaintenanceDashboardView: View {
             .padding(.bottom, 28)
         }
         .background(AppTheme.background.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("Dashboard")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                NavigationLink(destination: ProfileSettingsView()) {
+                    ZStack {
+                        Circle()
+                            .fill(maintenanceAccent)
+                            .frame(width: 36, height: 36)
+                        Text(userInitials)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .accessibilityIdentifier("PROFILE_BUTTON")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: NotificationsView()) {
+                    Image(systemName: "bell.fill")
+                }
+                .accessibilityIdentifier("BELL_BUTTON")
+            }
+        }
         .task {
             await appViewModel.loadNotifications()
             guard isLoading else { return }

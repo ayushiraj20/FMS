@@ -15,8 +15,7 @@ struct DriverDashboardView: View {
     var body: some View {
         @Bindable var driverVM = driverVM
         
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
+        ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 24) {
                     if driverVM.isLoading {
                         ProgressView("Loading iOS 26 Dashboard...")
@@ -61,6 +60,8 @@ struct DriverDashboardView: View {
                 await driverVM.load()
                 await appViewModel.loadNotifications()
             }
+            .navigationTitle("Dashboard")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
@@ -73,41 +74,11 @@ struct DriverDashboardView: View {
                             size: 36,
                             customColor: DriverTheme.accent
                         )
-                        .overlay(
-                            Circle()
-                                .strokeBorder(DriverTheme.accent.opacity(0.3), lineWidth: 1.5)
-                        )
-                        .shadow(color: DriverTheme.accent.opacity(0.15), radius: 4, x: 0, y: 2)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(destination: NotificationsView()) {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: appViewModel.unreadNotificationsCount > 0 ? "bell.badge.fill" : "bell.fill")
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(
-                                    appViewModel.unreadNotificationsCount > 0 ? DriverTheme.criticalRed : DriverTheme.textSecondary,
-                                    DriverTheme.accent
-                                )
-                                .font(.system(size: 20, weight: .medium))
-                                .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial, in: Circle())
-
-                            if appViewModel.unreadNotificationsCount > 0 {
-                                Text("\(min(appViewModel.unreadNotificationsCount, 99))")
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.white)
-                                    .frame(minWidth: 16, minHeight: 16)
-                                    .background(DriverTheme.criticalRed, in: Circle())
-                                    .overlay(
-                                        Circle()
-                                            .strokeBorder(.white, lineWidth: 1.5)
-                                    )
-                                    .offset(x: 4, y: -4)
-                                    .transition(.scale.combined(with: .opacity))
-                                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: appViewModel.unreadNotificationsCount)
-                            }
-                        }
+                        Image(systemName: appViewModel.unreadNotificationsCount > 0 ? "bell.badge.fill" : "bell.fill")
                     }
                 }
             }
@@ -143,7 +114,6 @@ struct DriverDashboardView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: driverVM.showToast)
                 }
-            }
         }
     }
 

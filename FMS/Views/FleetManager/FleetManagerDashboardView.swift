@@ -11,9 +11,6 @@ struct FleetManagerDashboardView: View {
         ZStack(alignment: .bottomTrailing) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // MARK: - Header
-                    headerSection
-                    
                     if viewModel.isLoading {
                         LoadingStateView(title: "Loading live fleet KPIs...")
                             .frame(height: 280)
@@ -60,6 +57,7 @@ struct FleetManagerDashboardView: View {
         }
         .background(AppTheme.background)
         .navigationTitle("Fleet Manager")
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 NavigationLink(destination: ProfileSettingsView()) {
@@ -67,29 +65,15 @@ struct FleetManagerDashboardView: View {
                 }
                 .buttonStyle(.plain)
             }
-            ToolbarItemGroup(
-                placement: .topBarTrailing
-            ) {
-
-                NavigationLink(
-                    destination: NotificationsView()
-                ) {
-                    notificationBadge
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                NavigationLink(destination: NotificationsView()) {
+                    Image(systemName: "bell.fill")
                 }
 
                 Button {
-
                     showBroadcast = true
-
                 } label: {
-
-                    Image(
-                        systemName:
-                        "megaphone.fill"
-                    )
-                    .foregroundStyle(
-                        AppTheme.textPrimary
-                    )
+                    Image(systemName: "megaphone.fill")
                 }
             }
         }

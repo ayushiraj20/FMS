@@ -17,73 +17,52 @@ struct FleetManagerTripsView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                VStack(spacing: 0) {
-                    // MARK: - Custom Header
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Trips")
-                            .font(.system(size: 34, weight: .bold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                        
-                        // MARK: - Search Bar
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(AppTheme.textSecondary)
-                            TextField("Search trips by location...", text: $searchText)
-                                .foregroundStyle(AppTheme.textPrimary)
-                        }
-                        .padding(12)
-                        .background(AppTheme.surfaceSecondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
-                    .padding(.bottom, 16)
-                    
-                    // MARK: - Trips List
-                    List {
-                        if filteredTrips.isEmpty {
-                            EmptyStateView(
-                                icon: "map.slash",
-                                title: "No trips found",
-                                message: "Try adjusting your search or assign a new trip."
-                            )
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                        } else {
-                            ForEach(filteredTrips) { trip in
-                                tripCard(trip)
-                                    .listRowSeparator(.hidden)
-                                    .listRowBackground(Color.clear)
-                                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                            }
+        ZStack(alignment: .bottomTrailing) {
+            VStack(spacing: 0) {
+                // MARK: - Trips List
+                List {
+                    if filteredTrips.isEmpty {
+                        EmptyStateView(
+                            icon: "map.slash",
+                            title: "No trips found",
+                            message: "Try adjusting your search or assign a new trip."
+                        )
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    } else {
+                        ForEach(filteredTrips) { trip in
+                            tripCard(trip)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                         }
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
                 }
-                
-                // MARK: - Floating Add Button
-                Button {
-                    isPresentingAssignDriverTripModal = true
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 56, height: 56)
-                        .background(AppTheme.brand)
-                        .clipShape(Circle())
-                        .shadow(color: AppTheme.brand.opacity(0.4), radius: 10, y: 4)
-                }
-                .padding(.trailing, 24)
-                .padding(.bottom, 24)
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
-            .background(AppTheme.background)
-            .navigationBarHidden(true)
-            .sheet(isPresented: $isPresentingAssignDriverTripModal) {
-                AssignDriverTripView(service: appViewModel.service)
+            
+            // MARK: - Floating Add Button
+            Button {
+                isPresentingAssignDriverTripModal = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(AppTheme.brand)
+                    .clipShape(Circle())
+                    .shadow(color: AppTheme.brand.opacity(0.4), radius: 10, y: 4)
             }
+            .padding(.trailing, 24)
+            .padding(.bottom, 24)
+        }
+        .background(AppTheme.background)
+        .navigationTitle("Trips")
+        .navigationBarTitleDisplayMode(.large)
+        .searchable(text: $searchText, prompt: "Search trips by location...")
+        .sheet(isPresented: $isPresentingAssignDriverTripModal) {
+            AssignDriverTripView(service: appViewModel.service)
         }
     }
     

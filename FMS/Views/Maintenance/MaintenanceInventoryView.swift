@@ -40,19 +40,32 @@ struct MaintenanceInventoryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
                 cardsGrid
                 searchField
                 bubbleFilter
-                activeInventoryHeader
                 inventoryList
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
             .padding(.bottom, 28)
         }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("Inventory")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                NavigationLink {
+                    InventoryForecastView(parts: parts, upcomingTaskCount: appViewModel.service.schedules().count)
+                } label: {
+                    Image(systemName: "wand.and.stars")
+                }
+
+                Button {
+                    selectedPartForUsage = parts.first
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
         .sheet(item: $selectedPartForUsage) { part in
             AddSparePartSheet(
                 part: part,
