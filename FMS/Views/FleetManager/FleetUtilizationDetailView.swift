@@ -108,7 +108,7 @@ struct FleetUtilizationDetailView: View {
                 
                 Spacer()
                 
-                Text("\(value)%")
+                Text("\(value)")
                     .font(.headline)
                     .foregroundStyle(AppTheme.textPrimary)
             }

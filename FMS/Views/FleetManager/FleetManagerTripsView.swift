@@ -59,16 +59,20 @@ struct FleetManagerTripsView: View {
                 VStack(spacing: 0) {
                     headerSection
 
-                    // Search bar (above segment control)
-                    searchBar
-                        .padding(.horizontal, 16)
-                        .padding(.top, 10)
-                        .padding(.bottom, 8)
-
-                    // iOS-style scrollable segmented control
-                    iOSSegmentedControl
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
+                    // Native iOS segmented control
+                    Picker("Trip Status", selection: $selectedSegment) {
+                        ForEach(TripSegment.allCases, id: \.self) { segment in
+                            Label {
+                                Text("\(segment.rawValue) (\(trips(for: segment).count))")
+                            } icon: {
+                                Image(systemName: segment.icon)
+                            }
+                            .tag(segment)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
 
                     // Paged trip lists
                     TabView(selection: $selectedSegment) {
@@ -82,7 +86,8 @@ struct FleetManagerTripsView: View {
 
                 fabButton
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
+            .searchable(text: $searchText, prompt: "Search by origin or destination...")
             .sheet(isPresented: $isPresentingAssignModal) {
                 AssignDriverTripView(service: appViewModel.service)
             }
@@ -104,116 +109,10 @@ struct FleetManagerTripsView: View {
                     .foregroundStyle(AppTheme.textSecondary)
             }
             Spacer()
-            if !trips(for: .ongoing).isEmpty {
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(TripSegment.ongoing.accentColor)
-                        .frame(width: 8, height: 8)
-                        .overlay(
-                            Circle()
-                                .stroke(TripSegment.ongoing.accentColor.opacity(0.35), lineWidth: 4)
-                                .scaleEffect(1.6)
-                        )
-                    Text("\(trips(for: .ongoing).count) Live")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(TripSegment.ongoing.accentColor)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(TripSegment.ongoing.accentColor.opacity(0.12))
-                .clipShape(Capsule())
-            }
         }
         .padding(.horizontal, 20)
         .padding(.top, 16)
-        .padding(.bottom, 4)
-    }
-
-    // MARK: - iOS Native-style Segmented Control (scrollable)
-    private var iOSSegmentedControl: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
-                ForEach(TripSegment.allCases, id: \.self) { segment in
-                    iOSSegmentButton(segment)
-                }
-            }
-            .padding(3)
-            .background(
-                RoundedRectangle(cornerRadius: 9)
-                    .fill(Color(.systemGray5))
-            )
-        }
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private func iOSSegmentButton(_ segment: TripSegment) -> some View {
-        let isSelected = selectedSegment == segment
-        let count = trips(for: segment).count
-
-        return Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                selectedSegment = segment
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: segment.icon)
-                    .font(.system(size: 11, weight: .semibold))
-                Text(segment.rawValue)
-                    .font(.system(size: 13, weight: .semibold))
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(isSelected ? segment.accentColor : Color(.systemGray))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(isSelected
-                                      ? segment.accentColor.opacity(0.15)
-                                      : Color(.systemGray4))
-                        )
-                }
-            }
-            .foregroundStyle(isSelected ? segment.accentColor : Color(.systemGray))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .background(
-                Group {
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: 7)
-                            .fill(Color(.systemBackground))
-                            .shadow(color: .black.opacity(0.12), radius: 4, x: 0, y: 2)
-                    } else {
-                        RoundedRectangle(cornerRadius: 7)
-                            .fill(Color.clear)
-                    }
-                }
-            )
-            .animation(.spring(response: 0.3, dampingFraction: 0.75), value: isSelected)
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Search Bar
-    private var searchBar: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(AppTheme.textSecondary)
-                .font(.subheadline)
-            TextField("Search by origin or destination...", text: $searchText)
-                .foregroundStyle(AppTheme.textPrimary)
-                .font(.subheadline)
-            if !searchText.isEmpty {
-                Button { searchText = "" } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-        .background(AppTheme.surfaceSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: 13))
+        .padding(.bottom, 12)
     }
 
     // MARK: - Trip List
@@ -274,14 +173,13 @@ struct FleetManagerTripsView: View {
             HStack(spacing: 8) {
                 Image(systemName: "plus")
                     .font(.body.weight(.bold))
-                Text("Assign Trip")
-                    .font(.subheadline.weight(.semibold))
+                
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 20)
             .padding(.vertical, 15)
             .background(AppTheme.brand)
-            .clipShape(Capsule())
+            .clipShape(Circle())
             .shadow(color: AppTheme.brand.opacity(0.45), radius: 12, y: 5)
         }
         .padding(.trailing, 20)
@@ -289,7 +187,7 @@ struct FleetManagerTripsView: View {
     }
 }
 
-// MARK: - Trip Row Card
+// MARK: - Trip Row Card (Liquid Glass)
 struct TripRowCard: View {
     let trip: Trip
     let driver: User?
@@ -471,6 +369,7 @@ struct TripRowCard: View {
         }
         .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
         .shadow(color: Color.black.opacity(0.06), radius: 10, x: 0, y: 3)
         .shadow(color: Color.black.opacity(0.03), radius: 2, x: 0, y: 1)
         .scaleEffect(isPressed ? 0.975 : 1.0)
@@ -623,7 +522,7 @@ struct AdminTripDetailView: View {
             .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .task {
             let center = CLLocationCoordinate2D(latitude: 18.8, longitude: 73.15)
             cameraPosition = .region(MKCoordinateRegion(

@@ -64,19 +64,23 @@ struct FleetManagerDashboardView: View {
                     AvatarView(name: appViewModel.currentUser?.name ?? "FM", size: 36)
                 }
                 .buttonStyle(.plain)
+                .glassEffect(.identity)
             }
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                NavigationLink(destination: NotificationsView()) {
-                    Image(systemName: "bell.fill")
-                }
-                .buttonStyle(.plain)
-
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showBroadcast = true
                 } label: {
                     Image(systemName: "megaphone.fill")
                 }
                 .buttonStyle(.plain)
+                .glassEffect(.identity)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: NotificationsView()) {
+                    Image(systemName: "bell.fill")
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.identity)
             }
         }
         .task {
@@ -177,35 +181,27 @@ struct FleetManagerDashboardView: View {
                     .buttonStyle(.plain)
                 }
                 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        NavigationLink(destination: PriorityAlertDetailView(category: "SOS Alerts", count: 5)) {
-                            alertIconItem(icon: "exclamationmark.triangle.fill", categoryColor: Color(red: 1, green: 0.25, blue: 0.3), count: 5, label: "SOS Alerts")
-                        }
-                        .buttonStyle(.plain)
-                        
-                        NavigationLink(destination: PriorityAlertDetailView(category: "Critical", count: 3)) {
-                            alertIconItem(icon: "bell.badge.fill", categoryColor: Color(red: 1, green: 0.45, blue: 0.1), count: 3, label: "Critical")
-                        }
-                        .buttonStyle(.plain)
-                        
-                        NavigationLink(destination: PriorityAlertDetailView(category: "Maintenance", count: 2)) {
-                            alertIconItem(icon: "wrench.and.screwdriver.fill", categoryColor: Color(red: 0.35, green: 0.6, blue: 1), count: 2, label: "Maintenance")
-                        }
-                        .buttonStyle(.plain)
-                        
-                        NavigationLink(destination: PriorityAlertDetailView(category: "Off-Route", count: 4)) {
-                            alertIconItem(icon: "location.slash.fill", categoryColor: Color(red: 1, green: 0.75, blue: 0.1), count: 4, label: "Off-Route")
-                        }
-                        .buttonStyle(.plain)
-                        
-                        NavigationLink(destination: PriorityAlertDetailView(category: "Geofence", count: 1)) {
-                            alertIconItem(icon: "shield.slash.fill", categoryColor: Color(red: 0.6, green: 0.3, blue: 1), count: 1, label: "Geofence")
-                        }
-                        .buttonStyle(.plain)
+                HStack {
+                    NavigationLink(destination: PriorityAlertDetailView(category: "SOS Alerts", count: 5)) {
+                        alertIconItem(icon: "exclamationmark.triangle.fill", categoryColor: Color(red: 1, green: 0.25, blue: 0.3), count: 5, label: "SOS Alerts")
                     }
-                    .padding(.horizontal, 4)
+                    .buttonStyle(.plain)
+                    
+                    Spacer()
+                    
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Critical", count: 3)) {
+                        alertIconItem(icon: "bell.badge.fill", categoryColor: Color(red: 1, green: 0.45, blue: 0.1), count: 3, label: "Critical")
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Spacer()
+                    
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Maintenance", count: 2)) {
+                        alertIconItem(icon: "wrench.and.screwdriver.fill", categoryColor: Color(red: 0.35, green: 0.6, blue: 1), count: 2, label: "Maintenance")
+                    }
+                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal, 4)
             }
         }
     }

@@ -68,22 +68,7 @@ struct MaintenanceTabContentView: View {
                 await appViewModel.service.syncDefectsAndWorkOrders()
             }
 
-            // MARK: – FAB Add Button
-            Button {
-                showAddSheet = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(
-                        Circle()
-                            .fill(AppTheme.brand)
-                            .shadow(color: AppTheme.brand.opacity(0.4), radius: 12, x: 0, y: 6)
-                    )
-            }
-            .padding(.trailing, 24)
-            .padding(.bottom, 24)
+
         }
         .sheet(isPresented: $showAddSheet) {
             AddMaintenanceMemberSheet(service: appViewModel.service,
