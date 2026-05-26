@@ -14,194 +14,174 @@ struct DefectReportView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Vehicle auto-filled
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 24) {
                     if let vehicle = appViewModel.assignedVehicle {
-                        DriverGlassCard {
-                            HStack(spacing: 12) {
-                                Image(systemName: "truck.box.fill")
-                                    .font(.system(size: 24))
-                                    .foregroundStyle(DriverTheme.accent)
+                        HStack(spacing: 16) {
+                            Image(systemName: "car.front.waves.up.fill")
+                                .font(.title)
+                                .foregroundStyle(DriverTheme.accent)
+                                .frame(width: 60, height: 60)
+                                .background(.ultraThinMaterial, in: Circle())
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Vehicle")
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(DriverTheme.textSecondary)
-                                    Text("\(vehicle.plateNumber) — \(vehicle.displayName)")
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundStyle(DriverTheme.textPrimary)
-                                }
-                                Spacer()
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Reporting for")
+                                    .font(.subheadline)
+                                    .foregroundStyle(DriverTheme.textSecondary)
+                                Text("\(vehicle.plateNumber) — \(vehicle.displayName)")
+                                    .font(.system(.title3, design: .rounded).bold())
                             }
+                            Spacer()
                         }
+                        .padding(20)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                     }
 
-                    // Issue Title
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Issue Title")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(DriverTheme.textPrimary)
+                    formSection(title: "Issue Details") {
+                        VStack(alignment: .leading, spacing: 16) {
+                            TextField("Enter title e.g. Brake noise", text: $title)
+                                .font(.system(.body, design: .rounded))
+                                .padding(16)
+                                .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 16))
 
-                        TextField("e.g. Brake noise during driving", text: $title)
-                            .font(.system(size: 15))
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(DriverTheme.cardFill)
-                            )
-                            .foregroundStyle(DriverTheme.textPrimary)
-                    }
+                            Text("Issue Type")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(DriverTheme.textSecondary)
 
-                    // Issue Type
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Issue Type")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(DriverTheme.textPrimary)
-
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], spacing: 8) {
-                            ForEach(DefectIssueType.allCases) { type in
-                                Button {
-                                    issueType = type
-                                    if title.isEmpty {
-                                        title = "\(type.rawValue) Issue"
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(DefectIssueType.allCases) { type in
+                                        Button {
+                                            withAnimation {
+                                                issueType = type
+                                                if title.isEmpty { title = "\(type.rawValue) Issue" }
+                                            }
+                                        } label: {
+                                            Text(type.rawValue)
+                                                .font(.system(.subheadline, design: .rounded).bold())
+                                                .foregroundStyle(issueType == type ? .white : DriverTheme.textPrimary)
+                                                .padding(.horizontal, 20)
+                                                .padding(.vertical, 12)
+                                                .background(issueType == type ? DriverTheme.accent : DriverTheme.cardFill, in: Capsule())
+                                                .shadow(color: issueType == type ? DriverTheme.accent.opacity(0.3) : .clear, radius: 8, y: 4)
+                                        }
+                                        .buttonStyle(.plain)
                                     }
-                                } label: {
-                                    Text(type.rawValue)
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(issueType == type ? .white : DriverTheme.textPrimary)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 10)
-                                        .frame(maxWidth: .infinity)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                                .fill(issueType == type ? DriverTheme.accent : DriverTheme.cardFill)
-                                        )
                                 }
+                                .padding(.vertical, 4)
                             }
                         }
                     }
 
-                    // Severity
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Severity")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(DriverTheme.textPrimary)
-
-                        Picker("Severity", selection: $severity) {
+                    formSection(title: "Severity") {
+                        HStack(spacing: 0) {
                             ForEach(WorkOrderPriority.allCases) { level in
-                                Text(level.rawValue).tag(level)
+                                let isSelected = severity == level
+                                Button {
+                                    withAnimation { severity = level }
+                                } label: {
+                                    Text(level.rawValue)
+                                        .font(.system(.subheadline, design: .rounded).bold())
+                                        .foregroundStyle(isSelected ? .white : DriverTheme.textSecondary)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 12)
+                                        .background(isSelected ? priorityColor(for: level) : .clear)
+                                        .clipShape(Capsule())
+                                        .contentShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
-                        .pickerStyle(.segmented)
+                        .padding(4)
+                        .background(DriverTheme.cardFill, in: Capsule())
                     }
 
-                    // Description
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Description")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(DriverTheme.textPrimary)
-
+                    formSection(title: "Description") {
                         TextEditor(text: $description)
-                            .frame(minHeight: 100)
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(DriverTheme.cardFill)
-                            )
+                            .frame(minHeight: 120)
+                            .font(.system(.body, design: .rounded))
+                            .padding(8)
+                            .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 16))
                             .scrollContentBackground(.hidden)
                     }
 
-                    // Photo preview grid (if any uploaded)
-                    if !uploadedImages.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Attached Photos")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(DriverTheme.textSecondary)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(uploadedImages, id: \.self) { img in
-                                        ZStack(alignment: .topTrailing) {
-                                            Image(systemName: "photo.fill")
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fit)
-                                                .frame(width: 70, height: 70)
-                                                .foregroundStyle(DriverTheme.accent.opacity(0.4))
-                                                .padding(10)
-                                                .background(DriverTheme.cardFill)
-                                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                            
-                                            Button {
-                                                withAnimation {
-                                                    uploadedImages.removeAll { $0 == img }
-                                                }
-                                            } label: {
-                                                Image(systemName: "xmark.circle.fill")
-                                                    .foregroundStyle(DriverTheme.criticalRed)
-                                                    .background(Circle().fill(.white))
-                                                    .font(.system(size: 18))
-                                            }
-                                            .offset(x: 5, y: -5)
+                    formSection(title: "Photos") {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 16) {
+                                Button {
+                                    let nextImg = sampleImages[uploadedImages.count % sampleImages.count] + "_\(UUID().uuidString.prefix(4))"
+                                    withAnimation { uploadedImages.append(nextImg) }
+                                } label: {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "camera.fill").font(.title2)
+                                        Text("Add Photo").font(.caption.bold())
+                                    }
+                                    .foregroundStyle(DriverTheme.accent)
+                                    .frame(width: 100, height: 100)
+                                    .background(DriverTheme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(DriverTheme.accent.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [6, 4])))
+                                }
+
+                                ForEach(uploadedImages, id: \.self) { img in
+                                    ZStack(alignment: .topTrailing) {
+                                        Image(systemName: "photo.fill")
+                                            .font(.largeTitle)
+                                            .foregroundStyle(DriverTheme.textSecondary.opacity(0.3))
+                                            .frame(width: 100, height: 100)
+                                            .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 16))
+                                        
+                                        Button {
+                                            withAnimation { uploadedImages.removeAll { $0 == img } }
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.title3)
+                                                .foregroundStyle(DriverTheme.criticalRed, .white)
+                                                .padding(6)
                                         }
                                     }
+                                    .transition(.scale.combined(with: .opacity))
                                 }
-                                .padding(.top, 5)
                             }
+                            .padding(.vertical, 8)
                         }
                     }
 
-                    // Add Photos
                     Button {
-                        // Add a mock defect photo sequentially
-                        let nextIndex = uploadedImages.count % sampleImages.count
-                        let nextImg = sampleImages[nextIndex] + "_\(UUID().uuidString.prefix(4))"
-                        withAnimation {
-                            uploadedImages.append(nextImg)
-                        }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "camera.fill")
-                                .font(.system(size: 18))
-                            Text("Add Photo")
-                                .font(.system(size: 15, weight: .semibold))
-                        }
-                        .foregroundStyle(DriverTheme.accent)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(DriverTheme.cardFill)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .stroke(DriverTheme.accent.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [8, 4]))
-                                )
-                        )
-                    }
-
-                    // Submit
-                    Button("Submit") {
-                        guard let user = appViewModel.currentUser,
-                              let vehicle = appViewModel.assignedVehicle else { return }
-                        
+                        guard let user = appViewModel.currentUser, let vehicle = appViewModel.assignedVehicle else { return }
                         let issueTitle = title.isEmpty ? "\(issueType.rawValue) Defect" : title
                         appViewModel.service.addDefect(
-                            driverID: user.id,
-                            vehicleID: vehicle.id,
-                            severity: severity,
-                            description: "[\(issueType.rawValue)] \(description)",
-                            title: issueTitle,
+                            driverID: user.id, vehicleID: vehicle.id, severity: severity,
+                            description: "[\(issueType.rawValue)] \(description)", title: issueTitle,
                             images: uploadedImages.isEmpty ? nil : uploadedImages
                         )
                         dismiss()
+                    } label: {
+                        Text("Submit Report")
+                            .font(.system(.title3, design: .rounded).bold())
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(description.isEmpty ? Color.gray : DriverTheme.accent, in: Capsule())
                     }
-                    .buttonStyle(DriverAccentButtonStyle())
                     .disabled(description.isEmpty)
-                    .opacity(description.isEmpty ? 0.5 : 1)
+                    .padding(.top, 16)
                 }
                 .padding(20)
             }
-            .background(DriverTheme.background.ignoresSafeArea())
+            .background(
+                ZStack {
+                    DriverTheme.background.ignoresSafeArea()
+                    GeometryReader { geo in
+                        Circle()
+                            .fill(priorityColor(for: severity).opacity(0.1))
+                            .frame(width: geo.size.width)
+                            .blur(radius: 80)
+                            .offset(x: geo.size.width * 0.2, y: -geo.size.height * 0.1)
+                            .animation(.easeInOut, value: severity)
+                    }
+                    .ignoresSafeArea()
+                }
+            )
             .navigationTitle("Report Defect")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -209,6 +189,24 @@ struct DefectReportView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+        }
+    }
+
+    private func formSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.system(.title3, design: .rounded).bold())
+            content()
+        }
+        .padding(20)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private func priorityColor(for priority: WorkOrderPriority) -> Color {
+        switch priority {
+        case .low: return DriverTheme.successGreen
+        case .medium: return DriverTheme.warningAmber
+        case .high, .critical: return DriverTheme.criticalRed
         }
     }
 }
