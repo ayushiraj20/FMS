@@ -1,73 +1,105 @@
+//
+//  BroadcastInboxView.swift
+//  FMS
+//
+//  Created by Ayush Ahuja on 22/05/26.
+//
+
 import SwiftUI
 
 struct BroadcastInboxView: View {
-    @Environment(AppViewModel.self) private var appViewModel
-    @State private var broadcastService = BroadcastService.shared
+
+    @Environment(AppViewModel.self)
+    private var appViewModel
+
+    @State
+    private var broadcastService =
+    BroadcastService.shared
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 20) {
-                if broadcastService.isLoading {
-                    VStack(spacing: 20) {
-                        ProgressView().scaleEffect(1.5).tint(DriverTheme.accent)
-                        Text("Loading Broadcasts...").font(.subheadline).foregroundStyle(DriverTheme.textSecondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 100)
-                } else if broadcastService.messages.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "megaphone.fill")
-                            .font(.system(size: 60))
-                            .foregroundStyle(DriverTheme.accent.opacity(0.4))
-                            .symbolEffect(.pulse)
-                        Text("No Broadcasts")
-                            .font(.system(.title3, design: .rounded).bold())
-                        Text("Fleet manager messages will appear here")
-                            .font(.subheadline)
-                            .foregroundStyle(DriverTheme.textSecondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 80)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 32))
-                } else {
-                    LazyVStack(spacing: 16) {
-                        ForEach(broadcastService.messages) { message in
-                            BroadcastRowView(message: message)
-                        }
-                    }
+
+        Group {
+
+            // Loading state
+
+            if broadcastService.isLoading {
+
+                ProgressView(
+                    "Loading broadcasts..."
+                )
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: .infinity
+                )
+            }
+
+            // Empty state
+
+            else if broadcastService.messages.isEmpty {
+
+                ContentUnavailableView(
+                    "No Broadcasts",
+                    systemImage:
+                    "megaphone.fill",
+                    description:
+                    Text(
+                    "Fleet manager messages will appear here"
+                    )
+                )
+            }
+
+            // Message list
+
+            else {
+
+                List(
+                    broadcastService.messages
+                ) { message in
+
+                    BroadcastRowView(
+                        message: message
+                    )
+
                 }
             }
-            .padding(20)
         }
-        .background(
-            ZStack {
-                DriverTheme.background.ignoresSafeArea()
-                GeometryReader { geo in
-                    Circle()
-                        .fill(DriverTheme.accent.opacity(0.1))
-                        .frame(width: geo.size.width)
-                        .blur(radius: 80)
-                        .offset(x: -geo.size.width * 0.3, y: geo.size.height * 0.2)
-                }.ignoresSafeArea()
-            }
+
+        .navigationTitle(
+            "Broadcasts"
         )
-        .navigationTitle("Broadcasts")
-        .navigationBarTitleDisplayMode(.large)
+
         .task {
+
             await loadBroadcasts()
+
         }
     }
 
-    func loadBroadcasts() async {
-        guard let orgID = appViewModel.currentOrganization?.id else { return }
-        await BroadcastService.shared.load(orgID: orgID)
-    }
-}
+    func loadBroadcasts()
+    async {
 
-#Preview {
-    NavigationStack {
-        BroadcastInboxView()
-            .environment(AppViewModel())
+        guard let orgID =
+        appViewModel
+        .currentOrganization?
+        .id
+
+        else {
+
+            return
+
+        }
+
+        await
+        BroadcastService.shared
+        .load(
+            orgID: orgID
+        )
+
+        
+        
+        BroadcastService.shared
+            .subscribe(
+                orgID: orgID
+            )
     }
 }

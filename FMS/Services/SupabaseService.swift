@@ -161,55 +161,8 @@ final class SupabaseService {
     }
     
     func addWorkOrder(_ order: WorkOrder) async throws {
-
-        // Save Work Order
         try await client.from("work_orders").insert(order).execute()
-
-        // Create Bell Notification
-        let notification = AppNotification(
-            id: UUID(),
-            userID: order.assignedMaintenanceID,
-            roleTarget: .maintenance,
-            title: "New Work Order Assigned",
-            message: "\(order.title) has been assigned to you.",
-            date: Date(),
-            isRead: false,
-            category: .info
-        )
-
-        // Save Notification in Supabase
-        try await addNotification(notification)
-
-        // Show Local iPhone Notification
-        NotificationManager.shared.sendLocalNotification(
-            title: "New Work Order",
-            body: "\(order.title) assigned to you"
-        )
     }
-    
-    // Chat Messages
-
-//    func fetchMessages() async throws -> [ChatMessage] {
-//
-//        let messages: [ChatMessage] = try await client
-//            .from("chat_messages")
-//            .select()
-//            .order("sent_at", ascending: true)
-//            .execute()
-//            .value
-//
-//        return messages
-//    }
-//
-//    func sendMessage(_ message: ChatMessage) async throws {
-//
-//        try await client
-//            .from("chat_messages")
-//            .insert(message)
-//            .execute()
-//    }
-    
-    
     
     func updateWorkOrder(_ order: WorkOrder) async throws {
         try await client.from("work_orders")
@@ -228,14 +181,14 @@ final class SupabaseService {
         orgID: UUID
     ) async throws -> [BroadcastMessage] {
 
-        let rows:[BroadcastMessage] =
+        let rows: [BroadcastMessage] =
         try await client
             .from("broadcast_messages")
             .select("""
             id,
             organization_id,
             sender_id,
-            sender_name:profiles(name),
+            sender_name,
             title,
             message,
             sent_at
@@ -320,4 +273,3 @@ final class SupabaseService {
             .execute()
     }
 }
-
