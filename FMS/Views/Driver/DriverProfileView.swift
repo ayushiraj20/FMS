@@ -20,37 +20,47 @@ struct DriverProfileView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
+            VStack(spacing: 24) {
                 profileHeader
                 vehicleCard
                 contactInfo
                 tripHistory
                 settingsSection
                 logoutButton
+                
+                Spacer().frame(height: 40)
             }
             .padding(20)
         }
-        .background(DriverTheme.background.ignoresSafeArea())
+        .background(
+            ZStack {
+                DriverTheme.background.ignoresSafeArea()
+                GeometryReader { geo in
+                    Circle()
+                        .fill(DriverTheme.accent.opacity(0.1))
+                        .frame(width: geo.size.width)
+                        .blur(radius: 60)
+                        .offset(x: geo.size.width * 0.4, y: -geo.size.height * 0.1)
+                }.ignoresSafeArea()
+            }
+        )
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(isEditing ? "Save" : "Edit") {
-                    if isEditing {
-                        saveFields()
-                    } else {
-                        loadFields()
+                    withAnimation {
+                        if isEditing { saveFields() } else { loadFields() }
+                        isEditing.toggle()
                     }
-                    isEditing.toggle()
                 }
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(.headline, design: .rounded).bold())
                 .foregroundStyle(DriverTheme.accent)
             }
         }
         .onAppear(perform: loadFields)
         .sheet(isPresented: $showDefectSheet) {
-            DefectReportView()
-                .environment(appViewModel)
+            DefectReportView().environment(appViewModel)
         }
         .sheet(isPresented: $showChatSheet) {
             if let activeWO = appViewModel.service.workOrders.first(where: { $0.vehicleID == appViewModel.assignedVehicle?.id && $0.status != .completed }) {
@@ -64,8 +74,7 @@ struct DriverProfileView: View {
                         }
                 }
             } else {
-                MaintenanceChatView()
-                    .environment(appViewModel)
+                MaintenanceChatView().environment(appViewModel)
             }
         }
         .alert("Log Out", isPresented: $showLogoutAlert) {
@@ -91,256 +100,204 @@ struct DriverProfileView: View {
     private func saveFields() {
         if let user = currentUser {
             Task {
-                await appViewModel.updateProfile(
-                    name: editName,
-                    phone: editPhone,
-                    title: user.title,
-                    email: editEmail
-                )
+                await appViewModel.updateProfile(name: editName, phone: editPhone, title: user.title, email: editEmail)
             }
             UserDefaults.standard.set(editLicense, forKey: "driver_license_\(user.id)")
         }
     }
 
     private var profileHeader: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             ZStack {
                 if let user = currentUser, user.name.contains("Rajesh") {
                     Image("driver_profile")
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 80, height: 80)
+                        .frame(width: 100, height: 100)
                         .clipShape(Circle())
+                        .overlay(Circle().stroke(DriverTheme.accent, lineWidth: 3))
+                        .shadow(color: DriverTheme.accent.opacity(0.3), radius: 10, y: 5)
                 } else {
                     Circle()
-                        .fill(DriverTheme.accent)
-                        .frame(width: 80, height: 80)
+                        .fill(DriverTheme.accent.gradient)
+                        .frame(width: 100, height: 100)
+                        .overlay(Circle().stroke(.white.opacity(0.2), lineWidth: 2))
+                        .shadow(color: DriverTheme.accent.opacity(0.3), radius: 10, y: 5)
                     Text(driverVM.driverInitials(currentUser))
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(.largeTitle, design: .rounded).bold())
                         .foregroundStyle(.white)
                 }
             }
+            .padding(.top, 20)
 
             if let user = currentUser {
                 if isEditing {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Name")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(DriverTheme.textSecondary)
-                        TextField("Name", text: $editName)
-                            .padding(10)
-                            .background(DriverTheme.cardFill)
-                            .cornerRadius(8)
-                            .foregroundStyle(DriverTheme.textPrimary)
+                    VStack(alignment: .leading, spacing: 12) {
+                        editField(title: "Name", text: $editName)
+                        editField(title: "License Number", text: $editLicense)
                     }
                     .padding(.horizontal, 20)
                 } else {
-                    Text(user.name)
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(DriverTheme.textPrimary)
-                }
-
-                if isEditing {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("License Number")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(DriverTheme.textSecondary)
-                        TextField("License", text: $editLicense)
-                            .padding(10)
-                            .background(DriverTheme.cardFill)
-                            .cornerRadius(8)
+                    VStack(spacing: 4) {
+                        Text(user.name)
+                            .font(.system(.title, design: .rounded).bold())
                             .foregroundStyle(DriverTheme.textPrimary)
+                        
+                        let license = UserDefaults.standard.string(forKey: "driver_license_\(user.id)") ?? "DL-0420231234567"
+                        Text("Licence: \(license)")
+                            .font(.subheadline)
+                            .foregroundStyle(DriverTheme.textSecondary)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 4)
-                } else {
-                    let license = UserDefaults.standard.string(forKey: "driver_license_\(user.id)") ?? "DL-0420231234567"
-                    Text("Licence: \(license)")
-                        .font(.system(size: 13))
-                        .foregroundStyle(DriverTheme.textSecondary)
                 }
             }
         }
     }
 
     private var vehicleCard: some View {
-        DriverGlassCard {
+        VStack {
             if let vehicle = assignedVehicle {
-                HStack(spacing: 14) {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(DriverTheme.cardFill)
-                        .frame(width: 60, height: 60)
-                        .overlay(
-                            Image(systemName: "truck.box.fill")
-                                .font(.system(size: 24))
-                                .foregroundStyle(DriverTheme.accent.opacity(0.6))
-                        )
+                HStack(spacing: 16) {
+                    Image(systemName: "truck.box.fill")
+                        .font(.title)
+                        .foregroundStyle(DriverTheme.accent)
+                        .frame(width: 64, height: 64)
+                        .background(DriverTheme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(vehicle.plateNumber)
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.system(.headline, design: .rounded).bold())
                             .foregroundStyle(DriverTheme.textPrimary)
                         Text(vehicle.displayName)
-                            .font(.system(size: 13))
+                            .font(.subheadline)
                             .foregroundStyle(DriverTheme.textSecondary)
-                        HStack(spacing: 4) {
+                        HStack(spacing: 6) {
                             Circle()
-                                .fill(vehicle.status == .active ? DriverTheme.successGreen : Color.gray)
-                                .frame(width: 6, height: 6)
+                                .fill(vehicle.status == .active ? DriverTheme.successGreen : .gray)
+                                .frame(width: 8, height: 8)
                             Text(vehicle.status.rawValue)
-                                .font(.system(size: 12))
+                                .font(.caption.bold())
                                 .foregroundStyle(DriverTheme.textSecondary)
                         }
                     }
                     Spacer()
                 }
             } else {
-                HStack {
+                HStack(spacing: 16) {
                     Image(systemName: "truck.box.fill")
-                        .font(.system(size: 24))
+                        .font(.title)
                         .foregroundStyle(DriverTheme.textSecondary)
+                        .frame(width: 64, height: 64)
+                        .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 16))
                     Text("No Assigned Vehicle")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(.headline, design: .rounded))
                         .foregroundStyle(DriverTheme.textSecondary)
                     Spacer()
                 }
             }
         }
+        .padding(20)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     private var contactInfo: some View {
-        DriverGlassCard {
-            VStack(spacing: 12) {
-                if let user = currentUser {
-                    if isEditing {
-                        VStack(alignment: .leading, spacing: 8) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Email")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(DriverTheme.textSecondary)
-                                TextField("Email", text: $editEmail)
-                                    .padding(10)
-                                    .background(DriverTheme.cardFill)
-                                    .cornerRadius(8)
-                                    .foregroundStyle(DriverTheme.textPrimary)
-                                    .keyboardType(.emailAddress)
-                                    .autocapitalization(.none)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Phone")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(DriverTheme.textSecondary)
-                                TextField("Phone", text: $editPhone)
-                                    .padding(10)
-                                    .background(DriverTheme.cardFill)
-                                    .cornerRadius(8)
-                                    .foregroundStyle(DriverTheme.textPrimary)
-                                    .keyboardType(.phonePad)
-                            }
-                        }
-                    } else {
-                        profileRow(icon: "envelope.fill", label: "Email", value: user.email)
-                        Divider().foregroundStyle(DriverTheme.separator)
-                        profileRow(icon: "phone.fill", label: "Phone", value: user.phone)
-                        Divider().foregroundStyle(DriverTheme.separator)
-                        profileRow(icon: "building.2.fill", label: "Organization", value: appViewModel.organizationName)
+        VStack(spacing: 16) {
+            if let user = currentUser {
+                if isEditing {
+                    VStack(alignment: .leading, spacing: 12) {
+                        editField(title: "Email", text: $editEmail, keyboard: .emailAddress)
+                        editField(title: "Phone", text: $editPhone, keyboard: .phonePad)
                     }
+                } else {
+                    profileRow(icon: "envelope.fill", label: "Email", value: user.email)
+                    Divider().background(DriverTheme.textSecondary.opacity(0.2))
+                    profileRow(icon: "phone.fill", label: "Phone", value: user.phone)
+                    Divider().background(DriverTheme.textSecondary.opacity(0.2))
+                    profileRow(icon: "building.2.fill", label: "Organization", value: appViewModel.organizationName)
                 }
             }
         }
+        .padding(20)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     private var tripHistory: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Trip History & Safety Score")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(DriverTheme.textPrimary)
+        NavigationLink {
+            DriverSafetyView().environment(appViewModel).environment(driverVM)
+        } label: {
+            HStack(spacing: 16) {
+                Image(systemName: "shield.checkerboard")
+                    .font(.title)
+                    .foregroundStyle(.white)
+                    .frame(width: 64, height: 64)
+                    .background(DriverTheme.accent, in: RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: DriverTheme.accent.opacity(0.3), radius: 8, y: 4)
 
-            NavigationLink {
-                // Navigate to safety score & trip history view
-                DriverSafetyView()
-                    .environment(appViewModel)
-                    .environment(driverVM)
-            } label: {
-                DriverGlassCard {
-                    HStack(spacing: 16) {
-                        Circle()
-                            .fill(DriverTheme.accent.opacity(0.1))
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Image(systemName: "shield.checkerboard")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(DriverTheme.accent)
-                            )
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Safety Score & History")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(DriverTheme.textPrimary)
-                            Text("Driving stats, safety logs & full trip records")
-                                .font(.system(size: 12))
-                                .foregroundStyle(DriverTheme.textSecondary)
-                        }
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(DriverTheme.textSecondary)
-                    }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Safety Score & History")
+                        .font(.system(.headline, design: .rounded).bold())
+                        .foregroundStyle(DriverTheme.textPrimary)
+                    Text("Driving stats, safety logs & full trip records")
+                        .font(.subheadline)
+                        .foregroundStyle(DriverTheme.textSecondary)
+                        .lineLimit(2)
                 }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.body.bold())
+                    .foregroundStyle(DriverTheme.textSecondary)
             }
-            .buttonStyle(.plain)
+            .padding(20)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
+        .buttonStyle(.plain)
     }
 
     private var settingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Settings")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(.title3, design: .rounded).bold())
                 .foregroundStyle(DriverTheme.textPrimary)
+                .padding(.horizontal, 4)
 
-            DriverGlassCard {
-                VStack(spacing: 0) {
-                    settingsRow(icon: "lock.fill", title: "Change Password") { }
-                    Divider().foregroundStyle(DriverTheme.separator)
-                    settingsRow(icon: "wrench.fill", title: "Report Defect") {
-                        showDefectSheet = true
-                    }
-                    Divider().foregroundStyle(DriverTheme.separator)
-                    settingsRow(icon: "message.fill", title: "Maintenance Chat") {
-                        showChatSheet = true
-                    }
-                    Divider().foregroundStyle(DriverTheme.separator)
-                    settingsRow(icon: "info.circle.fill", title: "About") { }
-                }
+            VStack(spacing: 0) {
+                settingsRow(icon: "lock.fill", title: "Change Password") { }
+                Divider().background(DriverTheme.textSecondary.opacity(0.2)).padding(.leading, 56)
+                settingsRow(icon: "exclamationmark.triangle.fill", title: "Report Defect") { showDefectSheet = true }
+                Divider().background(DriverTheme.textSecondary.opacity(0.2)).padding(.leading, 56)
+                settingsRow(icon: "wrench.and.screwdriver.fill", title: "Maintenance Chat") { showChatSheet = true }
+                Divider().background(DriverTheme.textSecondary.opacity(0.2)).padding(.leading, 56)
+                settingsRow(icon: "info.circle.fill", title: "About") { }
             }
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
     }
 
     private var logoutButton: some View {
-        Button("Log Out") {
+        Button {
             showLogoutAlert = true
+        } label: {
+            Text("Log Out")
+                .font(.system(.title3, design: .rounded).bold())
+                .foregroundStyle(DriverTheme.criticalRed)
+                .frame(maxWidth: .infinity)
+                .frame(height: 60)
+                .background(DriverTheme.criticalRed.opacity(0.15), in: Capsule())
+                .overlay(Capsule().stroke(DriverTheme.criticalRed.opacity(0.3), lineWidth: 1))
         }
-        .font(.system(size: 17, weight: .semibold))
-        .foregroundStyle(DriverTheme.criticalRed)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
     }
 
     private func profileRow(icon: String, label: String, value: String) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .font(.title3)
                 .foregroundStyle(DriverTheme.accent)
                 .frame(width: 24)
             Text(label)
-                .font(.system(size: 15))
+                .font(.system(.body, design: .rounded))
                 .foregroundStyle(DriverTheme.textSecondary)
             Spacer()
             Text(value)
-                .font(.system(size: 15))
+                .font(.system(.body, design: .rounded).bold())
                 .foregroundStyle(DriverTheme.textPrimary)
                 .lineLimit(1)
         }
@@ -348,20 +305,34 @@ struct DriverProfileView: View {
 
     private func settingsRow(icon: String, title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: 16) {
                 Image(systemName: icon)
-                    .font(.system(size: 16))
+                    .font(.title3)
                     .foregroundStyle(DriverTheme.accent)
                     .frame(width: 24)
                 Text(title)
-                    .font(.system(size: 15))
+                    .font(.system(.body, design: .rounded))
                     .foregroundStyle(DriverTheme.textPrimary)
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.caption.bold())
                     .foregroundStyle(DriverTheme.textSecondary)
             }
-            .padding(.vertical, 12)
+            .padding(20)
+        }
+    }
+
+    private func editField(title: String, text: Binding<String>, keyboard: UIKeyboardType = .default) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.bold())
+                .foregroundStyle(DriverTheme.textSecondary)
+            TextField(title, text: text)
+                .font(.system(.body, design: .rounded))
+                .padding(14)
+                .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 12))
+                .keyboardType(keyboard)
+                .autocapitalization(keyboard == .emailAddress ? .none : .words)
         }
     }
 }
