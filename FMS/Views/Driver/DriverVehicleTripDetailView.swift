@@ -12,208 +12,147 @@ struct DriverVehicleTripDetailView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
-                // Card Container
-                VStack(spacing: 0) {
-                    // Vehicle Image
-                    Image("truck_placeholder")
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(height: 240)
-                        .frame(maxWidth: .infinity)
-                        .clipped()
-                    
-                    // Vehicle Info Block
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Title Row
-                        HStack(alignment: .firstTextBaseline) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                let plateNumber = assignedVehicle?.plateNumber ?? "TRK-2847"
-                                Text(plateNumber)
-                                    .font(.system(size: 32, weight: .bold))
-                                    .foregroundStyle(DriverTheme.textPrimary)
-                                
-                                let driverName = currentUser?.name ?? "Driver Rajesh Kumar"
-                                Text("Driver \(driverName)")
-                                    .font(.system(size: 17, weight: .medium))
-                                    .foregroundStyle(DriverTheme.textSecondary)
-                            }
-                            
-                            Spacer()
-                            
-                            // Status Badge
-                            Text(assignedVehicle?.status.rawValue ?? "Active")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(assignedVehicle?.status == .active ? DriverTheme.successGreen : DriverTheme.accent)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Capsule()
-                                        .fill((assignedVehicle?.status == .active ? DriverTheme.successGreen : DriverTheme.accent).opacity(0.12))
-                                        .overlay(
-                                            Capsule()
-                                                .stroke(assignedVehicle?.status == .active ? DriverTheme.successGreen : DriverTheme.accent, lineWidth: 1)
-                                        )
-                                )
-                        }
-                        
-                        Divider().background(DriverTheme.separator)
-                        
-                        // Status & Trip details
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack(spacing: 10) {
-                                Image(systemName: "clock.badge.exclamationmark")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(DriverTheme.accent)
-                                
-                                HStack(spacing: 4) {
-                                    Text("ETA Delay")
-                                        .font(.system(size: 15))
-                                        .foregroundStyle(DriverTheme.textSecondary)
-                                    Text("45 min")
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundStyle(DriverTheme.accent)
-                                }
-                            }
-                            
-                            HStack(spacing: 10) {
-                                Image(systemName: "arrow.triangle.turn.up.right.diamond")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(DriverTheme.accent)
-                                
-                                Text("Route Deviation Alert (Panvel Outer Bypass)")
-                                    .font(.system(size: 15))
-                                    .foregroundStyle(DriverTheme.textSecondary)
-                            }
-                        }
-                        
-                        Divider().background(DriverTheme.separator)
-                        
-                        // Fuel Level Progress Bar
-                        VStack(alignment: .leading, spacing: 8) {
-                            let fuelLevel = assignedVehicle?.fuelLevel ?? 32
-                            HStack {
-                                Text("Fuel Level")
-                                    .font(.system(size: 15, weight: .medium))
-                                    .foregroundStyle(DriverTheme.textSecondary)
-                                Spacer()
-                                Text("\(fuelLevel)%")
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundStyle(fuelLevel < 35 ? DriverTheme.criticalRed : DriverTheme.textPrimary)
-                            }
-                            
-                            GeometryReader { geometry in
-                                ZStack(alignment: .leading) {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(DriverTheme.cardBorder)
-                                        .frame(height: 8)
-                                    
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(
-                                            LinearGradient(
-                                                colors: fuelLevel < 35 ? [DriverTheme.criticalRed, DriverTheme.warningAmber] : [DriverTheme.accent, DriverTheme.warningAmber],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
-                                        .frame(width: geometry.size.width * CGFloat(Double(fuelLevel) / 100.0), height: 8)
-                                }
-                            }
-                            .frame(height: 8)
-                        }
-                    }
-                    .padding(20)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .background(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(DriverTheme.cardFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                .stroke(DriverTheme.cardBorder, lineWidth: 1)
-                        )
-                )
+                vehicleInfoCard
                 
-                // Bottom Quick Action Buttons
-                VStack(spacing: 12) {
-                    HStack(spacing: 12) {
-                        // Live View button
-                        if let trip = activeTrip {
-                            NavigationLink(destination: TripDetailView(trip: trip)) {
-                                actionButtonLabel(icon: "video.fill", title: "Live View")
-                            }
-                            .buttonStyle(.plain)
-                        } else {
-                            Button {
-                                driverVM.showToastMessage("No active trip is running")
-                            } label: {
-                                actionButtonLabel(icon: "video.fill", title: "Live View")
-                            }
-                            .buttonStyle(.plain)
+                HStack(spacing: 16) {
+                    if let trip = activeTrip {
+                        NavigationLink(destination: TripDetailView(trip: trip)) {
+                            actionButton(icon: "video.fill", title: "Live View")
                         }
+                        .buttonStyle(.plain)
                         
-                        // Trip Details button
-                        if let trip = activeTrip {
-                            NavigationLink(destination: TripDetailView(trip: trip)) {
-                                actionButtonLabel(icon: "map.fill", title: "Trip Details")
-                            }
-                            .buttonStyle(.plain)
-                        } else {
-                            Button {
-                                driverVM.showToastMessage("No active trip details available")
-                            } label: {
-                                actionButtonLabel(icon: "map.fill", title: "Trip Details")
-                            }
-                            .buttonStyle(.plain)
+                        NavigationLink(destination: TripDetailView(trip: trip)) {
+                            actionButton(icon: "map.fill", title: "Trip Map")
                         }
+                        .buttonStyle(.plain)
+                    } else {
+                        Button { driverVM.showToastMessage("No active trip is running") } label: {
+                            actionButton(icon: "video.fill", title: "Live View")
+                        }.buttonStyle(.plain)
+                        
+                        Button { driverVM.showToastMessage("No active trip details") } label: {
+                            actionButton(icon: "map.fill", title: "Trip Map")
+                        }.buttonStyle(.plain)
                     }
-                    
-                    // Dispatch Ping button (fills full width)
-                    Button {
-                        driverVM.showToastMessage("Dispatch Ping sent to Fleet Manager")
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "antenna.radiowaves.left.and.right")
-                                .font(.system(size: 16, weight: .bold))
-                            Text("Ping Dispatcher")
-                                .font(.system(size: 16, weight: .bold))
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(DriverTheme.accent)
-                        )
-                    }
-                    .buttonStyle(.plain)
                 }
+                
+                Button {
+                    driverVM.showToastMessage("Dispatch Ping sent to Fleet Manager")
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                        Text("Ping Dispatcher")
+                    }
+                    .font(.system(.headline, design: .rounded).bold())
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 60)
+                    .background(DriverTheme.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
-        .background(DriverTheme.background.ignoresSafeArea())
-        .navigationTitle("Vehicle details")
-        .navigationBarTitleDisplayMode(.inline)
+        .background(
+            ZStack {
+                DriverTheme.background.ignoresSafeArea()
+                GeometryReader { geo in
+                    Circle()
+                        .fill(DriverTheme.accent.opacity(0.1))
+                        .frame(width: geo.size.width)
+                        .blur(radius: 60)
+                        .offset(x: geo.size.width * 0.4, y: geo.size.height * 0.1)
+                }.ignoresSafeArea()
+            }
+        )
+        .navigationTitle("Vehicle & Trip")
+        .navigationBarTitleDisplayMode(.large)
     }
 
-    private func actionButtonLabel(icon: String, title: String) -> some View {
-        VStack(spacing: 8) {
+    private var vehicleInfoCard: some View {
+        VStack(spacing: 0) {
+            Image("truck_placeholder")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(height: 260)
+                .frame(maxWidth: .infinity)
+                .clipped()
+
+            VStack(alignment: .leading, spacing: 20) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(assignedVehicle?.plateNumber ?? "TRK-2847")
+                            .font(.system(.largeTitle, design: .rounded).bold())
+                            .foregroundStyle(DriverTheme.textPrimary)
+                        Text("Driver \(currentUser?.name ?? "Rajesh Kumar")")
+                            .font(.system(.headline, design: .rounded))
+                            .foregroundStyle(DriverTheme.textSecondary)
+                    }
+                    Spacer()
+                    Label(assignedVehicle?.status.rawValue ?? "Active", systemImage: "bolt.fill")
+                        .font(.caption.bold())
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(assignedVehicle?.status == .active ? DriverTheme.successGreen.opacity(0.15) : DriverTheme.accent.opacity(0.15), in: Capsule())
+                        .foregroundStyle(assignedVehicle?.status == .active ? DriverTheme.successGreen : DriverTheme.accent)
+                }
+
+                VStack(spacing: 16) {
+                    HStack {
+                        Image(systemName: "clock.badge.exclamationmark").foregroundStyle(DriverTheme.accent)
+                        Text("ETA Delay:").font(.subheadline).foregroundStyle(DriverTheme.textSecondary)
+                        Text("45 min").font(.subheadline.bold()).foregroundStyle(DriverTheme.accent)
+                        Spacer()
+                    }
+                    HStack {
+                        Image(systemName: "arrow.triangle.turn.up.right.diamond").foregroundStyle(DriverTheme.accent)
+                        Text("Route Deviation Alert").font(.subheadline).foregroundStyle(DriverTheme.textSecondary)
+                        Spacer()
+                    }
+                }
+                .padding()
+                .background(DriverTheme.background.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+
+                VStack(alignment: .leading, spacing: 10) {
+                    let fuelLevel = assignedVehicle?.fuelLevel ?? 32
+                    HStack {
+                        Text("Fuel Level").font(.subheadline.bold()).foregroundStyle(DriverTheme.textSecondary)
+                        Spacer()
+                        Text("\(fuelLevel)%").font(.subheadline.bold()).foregroundStyle(fuelLevel < 35 ? DriverTheme.criticalRed : DriverTheme.textPrimary)
+                    }
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(.quaternary).frame(height: 10)
+                            Capsule()
+                                .fill(fuelLevel < 35 ? DriverTheme.criticalRed : DriverTheme.accent)
+                                .frame(width: geometry.size.width * CGFloat(Double(fuelLevel) / 100.0), height: 10)
+                        }
+                    }
+                    .frame(height: 10)
+                }
+            }
+            .padding(24)
+        }
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
+        .scrollTransition { content, phase in
+            content.scaleEffect(phase.isIdentity ? 1 : 0.95).opacity(phase.isIdentity ? 1 : 0.8)
+        }
+    }
+
+    private func actionButton(icon: String, title: String) -> some View {
+        VStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(DriverTheme.textPrimary)
+                .font(.title)
+                .foregroundStyle(DriverTheme.accent)
             Text(title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(DriverTheme.textSecondary)
+                .font(.system(.subheadline, design: .rounded).bold())
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(DriverTheme.cardFill)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(DriverTheme.cardBorder, lineWidth: 1)
-                )
-        )
+        .padding(.vertical, 24)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
     }
 }
 
