@@ -8,60 +8,78 @@ struct PreTripInspectionView: View {
     var body: some View {
         @Bindable var driverVM = driverVM
         VStack(spacing: 0) {
-            // Progress bar
             progressBar
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Title
-                    Text("Pre-trip Inspection")
-                        .font(.system(size: 34, weight: .bold))
-                        .foregroundStyle(DriverTheme.textPrimary)
-
-                    if let vehicle = appViewModel.assignedVehicle {
-                        Text(vehicle.plateNumber)
-                            .font(.system(size: 15))
-                            .foregroundStyle(DriverTheme.textSecondary)
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Vehicle Inspection")
+                            .font(.system(.largeTitle, design: .rounded).bold())
+                        if let vehicle = appViewModel.assignedVehicle {
+                            Text(vehicle.plateNumber)
+                                .font(.system(.headline, design: .rounded))
+                                .foregroundStyle(DriverTheme.textSecondary)
+                        }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
 
-                    // Segmented control
                     Picker("Type", selection: $driverVM.inspectionType) {
                         Text("Pre-Trip").tag(InspectionType.preTrip)
                         Text("Post-Trip").tag(InspectionType.postTrip)
                     }
                     .pickerStyle(.segmented)
+                    .padding(.horizontal, 20)
 
-                    // Inspection items
-                    ForEach(Array(driverVM.inspectionItems.enumerated()), id: \.element.id) { index, item in
-                        inspectionItemRow(item: item, index: index)
+                    LazyVStack(spacing: 16) {
+                        ForEach(Array(driverVM.inspectionItems.enumerated()), id: \.element.id) { index, item in
+                            inspectionItemRow(item: item, index: index)
+                        }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 100)
                 }
-                .padding(20)
-                .padding(.bottom, 80)
             }
+            .background(
+                ZStack {
+                    DriverTheme.background.ignoresSafeArea()
+                    GeometryReader { geo in
+                        Circle()
+                            .fill(DriverTheme.accent.opacity(0.1))
+                            .frame(width: geo.size.width)
+                            .blur(radius: 80)
+                            .offset(x: -geo.size.width * 0.2, y: geo.size.height * 0.2)
+                    }.ignoresSafeArea()
+                }
+            )
 
             // Submit button
             VStack {
-                Button("Submit Inspection") {
+                Button {
                     driverVM.submitInspection(service: appViewModel.service, user: appViewModel.currentUser)
                     if !driverVM.hasCriticalFailures {
                         dismiss()
                     }
+                } label: {
+                    Text("Submit Inspection")
+                        .font(.system(.title3, design: .rounded).bold())
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 60)
+                        .background(DriverTheme.accent, in: Capsule())
+                        .shadow(color: DriverTheme.accent.opacity(0.3), radius: 10, y: 5)
                 }
-                .buttonStyle(DriverAccentButtonStyle())
                 .padding(.horizontal, 20)
-                .padding(.bottom, 8)
+                .padding(.bottom, 20)
+                .padding(.top, 10)
+                .background(.ultraThinMaterial)
             }
-            .background(DriverTheme.background)
         }
-        .background(DriverTheme.background.ignoresSafeArea())
         .navigationTitle("Inspection")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .alert("Critical Issues Reported", isPresented: $driverVM.showInspectionCriticalAlert) {
-            Button("OK") {
-                dismiss()
-            }
+            Button("OK", role: .cancel) { dismiss() }
         } message: {
             Text("Trip start will be blocked until critical items (Brakes, Tires) are resolved. Fleet Manager and Maintenance team have been notified.")
         }
@@ -71,102 +89,99 @@ struct PreTripInspectionView: View {
     }
 
     private var progressBar: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 8) {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(hex: "E5E5EA"))
-                        .frame(height: 6)
-
-                    RoundedRectangle(cornerRadius: 4)
+                    Capsule().fill(Color.gray.opacity(0.2)).frame(height: 8)
+                    Capsule()
                         .fill(DriverTheme.accent)
-                        .frame(width: geometry.size.width * driverVM.inspectionProgress, height: 6)
-                        .animation(.easeInOut(duration: 0.3), value: driverVM.inspectionProgress)
+                        .frame(width: geometry.size.width * driverVM.inspectionProgress, height: 8)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.7), value: driverVM.inspectionProgress)
                 }
             }
-            .frame(height: 6)
+            .frame(height: 8)
 
-            Text("\(driverVM.inspectionCheckedCount)/\(driverVM.inspectionItems.count) items checked")
-                .font(.system(size: 13))
-                .foregroundStyle(DriverTheme.accent)
+            HStack {
+                Text("\(driverVM.inspectionCheckedCount) of \(driverVM.inspectionItems.count) checked")
+                    .font(.caption.bold())
+                    .foregroundStyle(DriverTheme.textSecondary)
+                Spacer()
+                Text("\(Int(driverVM.inspectionProgress * 100))%")
+                    .font(.caption.bold())
+                    .foregroundStyle(DriverTheme.accent)
+            }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
     }
 
     private func inspectionItemRow(item: DriverInspectionItem, index: Int) -> some View {
         VStack(spacing: 0) {
             Button {
-                driverVM.toggleInspectionItem(at: index)
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    driverVM.toggleInspectionItem(at: index)
+                }
             } label: {
-                HStack(spacing: 14) {
-                    // Item icon
+                HStack(spacing: 16) {
                     Image(systemName: item.iconName)
-                        .font(.system(size: 22))
+                        .font(.title2)
                         .foregroundStyle(iconColor(for: item.status))
                         .frame(width: 32)
+                        .symbolEffect(.bounce, value: item.status)
 
-                    // Item name
                     Text(item.title)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(.headline, design: .rounded))
                         .foregroundStyle(DriverTheme.textPrimary)
 
                     Spacer()
 
-                    // Status icon
                     statusIcon(for: item.status)
                 }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(DriverTheme.elevatedCard)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(DriverTheme.cardBorder, lineWidth: 0.5)
-                        )
-                        .shadow(color: DriverTheme.cardShadow, radius: 4)
+                .padding(20)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .strokeBorder(item.status == .failed ? DriverTheme.criticalRed.opacity(0.5) : Color.clear, lineWidth: 2)
                 )
             }
             .buttonStyle(.plain)
 
-            // Expanded section for failed items
             if item.status == .failed {
-                VStack(spacing: 12) {
+                VStack(spacing: 16) {
                     Button {
-                        // Camera picker would go here
+                        // Camera picker
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "camera.fill")
-                                .font(.system(size: 14))
                             Text("Add Photo")
-                                .font(.system(size: 14, weight: .semibold))
                         }
-                        .foregroundStyle(DriverTheme.textSecondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(DriverTheme.cardFill)
-                        )
+                        .font(.subheadline.bold())
+                        .foregroundStyle(DriverTheme.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(DriverTheme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(DriverTheme.accent.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [6, 4])))
                     }
 
-                    TextField("Enter a description", text: Binding(
+                    TextField("Describe the issue...", text: Binding(
                         get: { driverVM.inspectionItems[index].failureDescription },
                         set: { driverVM.inspectionItems[index].failureDescription = $0 }
                     ))
-                    .font(.system(size: 15))
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(DriverTheme.cardFill)
-                    )
+                    .font(.system(.body, design: .rounded))
+                    .padding(16)
+                    .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 12))
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(DriverTheme.criticalRed.opacity(0.05))
+                .clipShape(CustomCorners(corners: [.bottomLeft, .bottomRight], radius: 20))
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: item.status)
+        .scrollTransition { content, phase in
+            content.scaleEffect(phase.isIdentity ? 1 : 0.95).opacity(phase.isIdentity ? 1 : 0.8)
+        }
     }
 
     private func iconColor(for status: InspectionItemStatus) -> Color {
@@ -181,18 +196,29 @@ struct PreTripInspectionView: View {
     private func statusIcon(for status: InspectionItemStatus) -> some View {
         switch status {
         case .unchecked:
-            Circle()
-                .stroke(Color.gray.opacity(0.4), lineWidth: 2)
-                .frame(width: 28, height: 28)
+            Circle().stroke(Color.gray.opacity(0.4), lineWidth: 2).frame(width: 28, height: 28)
         case .passed:
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 28))
+                .font(.title)
                 .foregroundStyle(DriverTheme.successGreen)
+                .symbolEffect(.bounce, options: .nonRepeating)
         case .failed:
             Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 28))
+                .font(.title)
                 .foregroundStyle(DriverTheme.criticalRed)
+                .symbolEffect(.bounce, options: .nonRepeating)
         }
+    }
+}
+
+// Helper for custom corners
+struct CustomCorners: Shape {
+    var corners: UIRectCorner
+    var radius: CGFloat
+    
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
     }
 }
 
