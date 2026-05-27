@@ -97,3 +97,17 @@ FMS.xcodeproj/project.xcworkspace/xcuserdata/mac.xcuserdatad/UserInterfaceState.
 # SPM Cache
 SPMCache/
 
+# Codex
+.codex/
+codex.log
+codex-cache/
+.codex-cache/
+
+# Antigravity
+.antigravity/
+ag-workspace/
+ag-cache/
+
+# AI / env / secrets
+.env
+.aiexclude
