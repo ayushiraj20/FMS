@@ -6,6 +6,8 @@ struct FleetManagerDashboardView: View {
     @State private var viewModel = FleetManagerDashboardViewModel()
     @State private var selectedStat: KPIStat?
     @State private var showBroadcast = false
+    @State private var geofenceBreaches: [FleetGeofenceBreach] = []
+    @State private var openedPriorityAlertCategories: Set<String> = []
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -85,6 +87,10 @@ struct FleetManagerDashboardView: View {
         }
         .task {
             await viewModel.load()
+            refreshGeofenceMonitoring()
+        }
+        .onAppear {
+            refreshGeofenceMonitoring()
         }
         .sheet(
             isPresented:
@@ -188,28 +194,54 @@ struct FleetManagerDashboardView: View {
                 }
                 
                 HStack {
-                    NavigationLink(destination: PriorityAlertDetailView(category: "SOS Alerts", count: 5)) {
-                        alertIconItem(icon: "exclamationmark.triangle.fill", categoryColor: Color(red: 1, green: 0.25, blue: 0.3), count: 5, label: "SOS Alerts")
+                    NavigationLink(destination: priorityAlertDestination(category: "SOS Alerts", count: 5)) {
+                        alertIconItem(
+                            icon: "exclamationmark.triangle.fill",
+                            categoryColor: Color(red: 1, green: 0.25, blue: 0.3),
+                            count: priorityAlertBadgeCount(for: "SOS Alerts", count: 5),
+                            label: "SOS Alerts"
+                        )
                     }
                     .buttonStyle(.plain)
                     
                     Spacer()
                     
-                    NavigationLink(destination: PriorityAlertDetailView(category: "Critical", count: 3)) {
-                        alertIconItem(icon: "bell.badge.fill", categoryColor: Color(red: 1, green: 0.45, blue: 0.1), count: 3, label: "Critical")
+                    NavigationLink(destination: priorityAlertDestination(category: "Critical", count: 3)) {
+                        alertIconItem(
+                            icon: "bell.badge.fill",
+                            categoryColor: Color(red: 1, green: 0.45, blue: 0.1),
+                            count: priorityAlertBadgeCount(for: "Critical", count: 3),
+                            label: "Critical"
+                        )
                     }
                     .buttonStyle(.plain)
                     
                     Spacer()
                     
-                    NavigationLink(destination: PriorityAlertDetailView(category: "Maintenance", count: 2)) {
-                        alertIconItem(icon: "wrench.and.screwdriver.fill", categoryColor: Color(red: 0.35, green: 0.6, blue: 1), count: 2, label: "Maintenance")
+                    NavigationLink(destination: priorityAlertDestination(category: "Maintenance", count: 2)) {
+                        alertIconItem(
+                            icon: "wrench.and.screwdriver.fill",
+                            categoryColor: Color(red: 0.35, green: 0.6, blue: 1),
+                            count: priorityAlertBadgeCount(for: "Maintenance", count: 2),
+                            label: "Maintenance"
+                        )
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 4)
             }
         }
+    }
+
+    private func priorityAlertBadgeCount(for category: String, count: Int) -> Int {
+        openedPriorityAlertCategories.contains(category) ? 0 : count
+    }
+
+    private func priorityAlertDestination(category: String, count: Int) -> some View {
+        PriorityAlertDetailView(category: category, count: count)
+            .onAppear {
+                openedPriorityAlertCategories.insert(category)
+            }
     }
     
     private func alertIconItem(icon: String, categoryColor: Color, count: Int, label: String) -> some View {
@@ -250,28 +282,71 @@ struct FleetManagerDashboardView: View {
     }
     
     // MARK: - Live Fleet Map
+    @ViewBuilder
     private var liveFleetMapSection: some View {
+        let geofence = appViewModel.service.fleetGeofence(for: appViewModel.currentUser)
+        let previewLocations = appViewModel.service.fleetMapPreviewLocations(for: appViewModel.currentUser)
+
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Live Fleet Map")
                     .font(.title3.weight(.bold))
                     .foregroundStyle(AppTheme.textPrimary)
                 Spacer()
-                NavigationLink(destination: FleetMapFullView(service: appViewModel.service)) {
+                NavigationLink(destination: FleetMapFullView(service: appViewModel.service, manager: appViewModel.currentUser)) {
                     Text("See All")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.brand)
                 }
             }
+
+            FleetGeofenceStatusBanner(geofence: geofence, breaches: geofenceBreaches)
             
-            FleetMapPreview(locations: appViewModel.service.nearbyFleetLocations())
+            FleetMapPreview(
+                locations: previewLocations,
+                initialRegion: FleetMapRegion.region(for: geofence),
+                geofence: geofence,
+                geofenceBreaches: geofenceBreaches
+            )
                 .frame(height: 240)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(AppTheme.border, lineWidth: 0.5)
                 )
+
+            if let breach = geofenceBreaches.first {
+                geofenceBreachSummary(breach)
+            }
         }
+    }
+
+    private func geofenceBreachSummary(_ breach: FleetGeofenceBreach) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(AppTheme.error)
+                .frame(width: 32, height: 32)
+                .background(AppTheme.error.opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(breach.location.vehicle.displayName) · \(breach.location.vehicle.plateNumber)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text("\(breach.location.driverText) · \(breach.location.locality) · \(breach.distanceText)")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+        }
+        .padding(12)
+        .background(AppTheme.error.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(AppTheme.error.opacity(0.25), lineWidth: 1)
+        )
     }
     
     // MARK: - Fleet Utilization
@@ -455,6 +530,13 @@ struct FleetManagerDashboardView: View {
     }
     
     // MARK: - Helpers
+    private func refreshGeofenceMonitoring() {
+        let breaches = appViewModel.service.geofenceBreaches(for: appViewModel.currentUser)
+        geofenceBreaches = breaches
+        appViewModel.service.sendGeofenceBreachAlerts(breaches, manager: appViewModel.currentUser)
+        appViewModel.notifications = appViewModel.service.notifications(for: appViewModel.currentUser)
+    }
+
     private var priorityAlerts: [AppNotification] {
         appViewModel.service.notifications(for: appViewModel.currentUser).prefix(3).map { $0 }
     }

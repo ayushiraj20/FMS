@@ -25,6 +25,7 @@ final class MockDataService {
     var vehicleAlerts: [VehicleAlert]
     var breakLogs: [BreakLogEntry]
     var driverDutyStatus: [UUID: DutyStatus]
+    var geofenceAlertedVehicleIDs: Set<UUID>
 
     init() {
         let seed = DemoSeed.make()
@@ -46,6 +47,7 @@ final class MockDataService {
         vehicleAlerts = seed.vehicleAlerts
         breakLogs = seed.breakLogs
         driverDutyStatus = seed.dutyStatuses
+        geofenceAlertedVehicleIDs = []
         
         checkOverdueCriticalWorkOrders()
         
