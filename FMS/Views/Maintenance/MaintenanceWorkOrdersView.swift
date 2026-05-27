@@ -4,11 +4,18 @@ struct MaintenanceWorkOrdersView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @State private var searchText = ""
     @State private var selectedOrder: WorkOrder?
-    @State private var selectedFilter: MaintenanceOrderProgressFilter = .all
+    private let initialFilter: MaintenanceOrderProgressFilter
+    private let initialShowOnlyCritical: Bool
+    private let isLockedFilter: Bool
+
+    @State private var selectedFilter: MaintenanceOrderProgressFilter
     @State private var isShowingCalendar = false
     @State private var showOnlyCritical: Bool
     
-    init(initialFilter: MaintenanceOrderProgressFilter = .all, showOnlyCritical: Bool = false) {
+    init(initialFilter: MaintenanceOrderProgressFilter = .all, showOnlyCritical: Bool = false, isLockedFilter: Bool = false) {
+        self.initialFilter = initialFilter
+        self.initialShowOnlyCritical = showOnlyCritical
+        self.isLockedFilter = isLockedFilter
         _selectedFilter = State(initialValue: initialFilter)
         _showOnlyCritical = State(initialValue: showOnlyCritical)
     }
@@ -20,13 +27,22 @@ struct MaintenanceWorkOrdersView: View {
         appViewModel.service
             .workOrders(for: currentUser?.id)
             .filter {
-                (!showOnlyCritical || $0.priority == .critical) &&
-                selectedFilter.matches($0.status) &&
-                (searchText.isEmpty ||
-                 $0.title.localizedCaseInsensitiveContains(searchText) ||
-                 $0.details.localizedCaseInsensitiveContains(searchText) ||
-                 (appViewModel.service.vehicle(for: $0.vehicleID)?.displayName.localizedCaseInsensitiveContains(searchText) ?? false) ||
-                 (appViewModel.service.vehicle(for: $0.vehicleID)?.plateNumber.localizedCaseInsensitiveContains(searchText) ?? false))
+                if showOnlyCritical {
+                    // Show all critical orders (except completed and in-progress ones) regardless of status filter
+                    return $0.priority == .critical && $0.status != .completed && $0.status != .inProgress &&
+                        (searchText.isEmpty ||
+                         $0.title.localizedCaseInsensitiveContains(searchText) ||
+                         $0.details.localizedCaseInsensitiveContains(searchText) ||
+                         (appViewModel.service.vehicle(for: $0.vehicleID)?.displayName.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                         (appViewModel.service.vehicle(for: $0.vehicleID)?.plateNumber.localizedCaseInsensitiveContains(searchText) ?? false))
+                } else {
+                    return selectedFilter.matches($0.status) &&
+                        (searchText.isEmpty ||
+                         $0.title.localizedCaseInsensitiveContains(searchText) ||
+                         $0.details.localizedCaseInsensitiveContains(searchText) ||
+                         (appViewModel.service.vehicle(for: $0.vehicleID)?.displayName.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                         (appViewModel.service.vehicle(for: $0.vehicleID)?.plateNumber.localizedCaseInsensitiveContains(searchText) ?? false))
+                }
             }
             .sorted {
                 // Overdue critical orders always float to the very top
@@ -47,41 +63,13 @@ struct MaintenanceWorkOrdersView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            filterBar
-            
-            if showOnlyCritical {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
-                    Text("Showing Critical Work Orders Only")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.red)
-                    Spacer()
-                    Button {
-                        showOnlyCritical = false
-                    } label: {
-                        Text("Show All Priorities")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(ordersAccent)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(ordersAccent.opacity(0.12), in: Capsule())
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-                .background(Color.red.opacity(0.06))
-                .overlay(
-                    Rectangle()
-                        .frame(height: 1)
-                        .foregroundStyle(AppTheme.border),
-                    alignment: .bottom
-                )
+            if !showOnlyCritical && !isLockedFilter {
+                filterBar
             }
             
             ordersList
         }
-        .navigationTitle("Work Orders")
+        .navigationTitle(showOnlyCritical ? "Critical" : (isLockedFilter ? selectedFilter.title : "Work Orders"))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -102,6 +90,10 @@ struct MaintenanceWorkOrdersView: View {
                 MaintenanceCalendarView(orders: appViewModel.service.workOrders(for: currentUser?.id))
                     .environment(appViewModel)
             }
+        }
+        .onAppear {
+            selectedFilter = initialFilter
+            showOnlyCritical = initialShowOnlyCritical
         }
     }
     
@@ -197,7 +189,7 @@ struct MaintenanceWorkOrdersView: View {
     
     enum MaintenanceOrderProgressFilter: String, CaseIterable, Identifiable {
         case all
-        case pending
+        case open
         case inProgress
         case waitingParts
         case done
@@ -207,19 +199,19 @@ struct MaintenanceWorkOrdersView: View {
         var title: String {
             switch self {
             case .all:          "All"
-            case .pending:      "Pending"
+            case .open:         "Open"
             case .inProgress:   "In Progress"
-            case .waitingParts: "Waiting on Parts"
+            case .waitingParts: "Waiting Parts"
             case .done:         "Done"
             }
         }
         
         var emptyMessage: String {
             switch self {
-            case .all:          "Assigned work from admin will appear here."
-            case .pending:      "No pending work orders right now."
+            case .all:          "No work orders found."
+            case .open:         "No open work orders right now."
             case .inProgress:   "No work orders are currently in progress."
-            case .waitingParts: "No work orders are currently blocked by missing parts."
+            case .waitingParts: "No work orders are waiting on parts."
             case .done:         "Completed work will appear here after you mark it done."
             }
         }
@@ -227,7 +219,7 @@ struct MaintenanceWorkOrdersView: View {
         func matches(_ status: WorkOrderStatus) -> Bool {
             switch self {
             case .all:          true
-            case .pending:      status == .open
+            case .open:         status == .open
             case .inProgress:   status == .inProgress
             case .waitingParts: status == .waitingParts
             case .done:         status == .completed

@@ -359,11 +359,13 @@ private struct InventoryPart: Identifiable, Hashable {
 
     static let demoParts = [
         InventoryPart(id: UUID(), name: "Hydraulic Filter Assembly", partNumber: "#PN-8821", category: "Fluid System", quantity: 0, minimumRequired: 5, forecastDemand: 2, upcomingTaskCount: 2, leadTimeDays: 3, icon: "shippingbox", forecastKeyword: "filter"),
-        InventoryPart(id: UUID(), name: "Heavy Duty Brake Pads", partNumber: "#PN-4402", category: "Brake System", quantity: 3, minimumRequired: 5, forecastDemand: 4, upcomingTaskCount: 3, leadTimeDays: 3, icon: "slider.horizontal.3", forecastKeyword: "brake"),
+        InventoryPart(id: UUID(), name: "Heavy Duty Brake Pads", partNumber: "#PN-4402", category: "Brakes", quantity: 3, minimumRequired: 5, forecastDemand: 4, upcomingTaskCount: 3, leadTimeDays: 3, icon: "slider.horizontal.3", forecastKeyword: "brake"),
         InventoryPart(id: UUID(), name: "Semi-Synthetic Oil (5L)", partNumber: "#PN-1029", category: "Fluids", quantity: 112, minimumRequired: 20, forecastDemand: 20, upcomingTaskCount: 5, leadTimeDays: 2, icon: "drop.fill", forecastKeyword: "oil"),
         InventoryPart(id: UUID(), name: "Engine Gasket Kit V8", partNumber: "#PN-9283", category: "Engine", quantity: 45, minimumRequired: 8, forecastDemand: 6, upcomingTaskCount: 2, leadTimeDays: 4, icon: "rectangle.compress.vertical", forecastKeyword: "engine"),
         InventoryPart(id: UUID(), name: "Halogen Headlight Bulbs", partNumber: "#PN-3115", category: "Electrical", quantity: 8, minimumRequired: 12, forecastDemand: 3, upcomingTaskCount: 1, leadTimeDays: 2, icon: "lightbulb", forecastKeyword: "lamp"),
-        InventoryPart(id: UUID(), name: "Fuel Filter Assembly", partNumber: "#PN-1205", category: "Fluid System", quantity: 12, minimumRequired: 10, forecastDemand: 5, upcomingTaskCount: 2, leadTimeDays: 3, icon: "line.3.horizontal.decrease", forecastKeyword: "fuel")
+        InventoryPart(id: UUID(), name: "Fuel Filter Assembly", partNumber: "#PN-1205", category: "Fluid System", quantity: 12, minimumRequired: 10, forecastDemand: 5, upcomingTaskCount: 2, leadTimeDays: 3, icon: "line.3.horizontal.decrease", forecastKeyword: "fuel"),
+        InventoryPart(id: UUID(), name: "Windshield Wiper Blades", partNumber: "#PN-5510", category: "Spare Parts", quantity: 24, minimumRequired: 10, forecastDemand: 8, upcomingTaskCount: 3, leadTimeDays: 2, icon: "car.window.right", forecastKeyword: "wiper"),
+        InventoryPart(id: UUID(), name: "Side Mirror Assembly", partNumber: "#PN-6678", category: "Spare Parts", quantity: 6, minimumRequired: 4, forecastDemand: 2, upcomingTaskCount: 1, leadTimeDays: 5, icon: "rectangle.portrait.lefthalf.inset.filled", forecastKeyword: "mirror")
     ]
 }
 
