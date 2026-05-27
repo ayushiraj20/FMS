@@ -367,33 +367,19 @@ struct DriverDashboardView: View {
     // MARK: - Quick Actions
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Actions")
-                .font(.system(.title2, design: .rounded).bold())
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    let inspDone = currentUser.flatMap { appViewModel.service.todayInspection(for: $0.id) } != nil
-                    
-                    NavigationLink(destination: inspDone ? AnyView(InspectionsView()) : AnyView(PreTripInspectionView())) {
-                        quickActionTile(icon: "clipboard.fill", label: "Inspection", color: .blue)
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Button { driverVM.showBreakLogSheet = true } label: {
-                        quickActionTile(icon: "cup.and.saucer.fill", label: "Break Log", color: .orange)
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Button { driverVM.startSOSCountdown(service: appViewModel.service, user: currentUser) } label: {
-                        quickActionTile(icon: "light.beacon.max.fill", label: "SOS", color: DriverTheme.criticalRed)
-                    }
-                    .buttonStyle(.plain)
+            Button { driverVM.startSOSCountdown(service: appViewModel.service, user: currentUser) } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "light.beacon.max.fill")
+                        .font(.title2)
+                    Text("SOS Emergency")
+                        .font(.system(.headline, design: .rounded).bold())
                 }
-                .scrollTargetLayout()
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(DriverTheme.criticalRed, in: Capsule())
             }
-            .scrollTargetBehavior(.viewAligned)
-            .contentMargins(.horizontal, 20, for: .scrollContent)
-            .padding(.horizontal, -20)
+            .buttonStyle(.plain)
         }
     }
     
