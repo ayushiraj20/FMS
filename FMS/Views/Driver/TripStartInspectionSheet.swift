@@ -2,7 +2,8 @@ import SwiftUI
 
 struct TripStartInspectionSheet: View {
     let trip: Trip?
-    var onTripStarted: () -> Void
+    var inspectionType: InspectionType = .preTrip
+    var onInspectionCompleted: () -> Void
 
     @Environment(AppViewModel.self) private var appViewModel
     @Environment(DriverViewModel.self) private var driverVM
@@ -22,59 +23,72 @@ struct TripStartInspectionSheet: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottom) {
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 24) {
-                        headerSection
-                        progressSection
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    headerSection
+                    progressSection
 
-                        VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
                             Text("Checklist")
-                                .font(.system(.title3, design: .rounded).bold())
+                                .font(.system(.headline, design: .rounded).bold())
                                 .foregroundStyle(DriverTheme.textPrimary)
+                            Spacer()
+                            HStack(spacing: 8) {
+                                Text("Pass")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(DriverTheme.successGreen)
+                                    .frame(width: 36)
+                                Text("Fail")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(DriverTheme.criticalRed)
+                                    .frame(width: 36)
+                            }
+                            .padding(.trailing, 12)
+                        }
 
-                            LazyVStack(spacing: 12) {
-                                ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
-                                    itemRow(idx: idx, item: item)
-                                }
+                        LazyVStack(spacing: 10) {
+                            ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                                itemRow(idx: idx, item: item)
                             }
                         }
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Additional Notes")
-                                .font(.system(.title3, design: .rounded).bold())
-                            TextEditor(text: $overallNotes)
-                                .frame(minHeight: 100)
-                                .padding(8)
-                                .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 16))
-                                .scrollContentBackground(.hidden)
-                                .overlay(
-                                    Group {
-                                        if overallNotes.isEmpty {
-                                            Text("e.g. Minor scratch on left door...")
-                                                .font(.subheadline)
-                                                .foregroundStyle(DriverTheme.textSecondary)
-                                                .padding(14)
-                                                .allowsHitTesting(false)
-                                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                                        }
-                                    }
-                                )
-                        }
-
-                        if !failedItems.isEmpty {
-                            failureWarningSection
-                        }
-
-                        Spacer().frame(height: 100)
                     }
-                    .padding(20)
-                }
 
-                submitButton
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Additional Notes")
+                            .font(.system(.headline, design: .rounded).bold())
+                        TextEditor(text: $overallNotes)
+                            .font(.subheadline)
+                            .frame(minHeight: 80)
+                            .padding(8)
+                            .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 12))
+                            .scrollContentBackground(.hidden)
+                            .background(Color.clear)
+                            .overlay(
+                                Group {
+                                    if overallNotes.isEmpty {
+                                        Text("e.g. Minor scratch on left door...")
+                                            .font(.subheadline)
+                                            .foregroundStyle(DriverTheme.textSecondary)
+                                            .padding(12)
+                                            .allowsHitTesting(false)
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                    }
+                                }
+                            )
+                    }
+
+                    if !failedItems.isEmpty {
+                        failureWarningSection
+                    }
+                }
+                .padding(16)
             }
             .background(DriverScreenBackground())
-            .navigationTitle("Pre-Trip Inspection")
+            .safeAreaInset(edge: .bottom) {
+                submitButton
+            }
+            .navigationTitle("\(inspectionType.rawValue) Inspection")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -88,24 +102,24 @@ struct TripStartInspectionSheet: View {
                 Button("Proceed Anyway") { startTripAndDismiss() }
                 Button("Cancel Trip", role: .cancel) { dismiss() }
             } message: {
-                Text("You marked \(failedItems.count) item(s) as FAILED. Fleet Manager and Maintenance have been notified. Do you still want to start the trip?")
+                Text("You marked \(failedItems.count) item(s) as FAILED. Fleet Manager and Maintenance have been notified. Do you still want to proceed?")
             }
         }
     }
 
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             if let vehicle = appViewModel.assignedVehicle {
-                HStack(spacing: 16) {
-                    Image(systemName: "truck.box.fill")
-                        .font(.title)
+                HStack(spacing: 12) {
+                    Image(systemName: "box.truck.fill")
+                        .font(.title2)
                         .foregroundStyle(DriverTheme.accent)
-                        .frame(width: 60, height: 60)
+                        .frame(width: 48, height: 48)
                         .background(.ultraThinMaterial, in: Circle())
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(vehicle.displayName)
-                            .font(.system(.title3, design: .rounded).bold())
+                            .font(.system(.headline, design: .rounded).bold())
                         Text("Plate: \(vehicle.plateNumber)")
                             .font(.subheadline)
                             .foregroundStyle(DriverTheme.textSecondary)
@@ -114,35 +128,35 @@ struct TripStartInspectionSheet: View {
             }
 
             if let t = trip {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Image(systemName: "map.fill").foregroundStyle(DriverTheme.accent)
-                    Text("\(t.origin) → \(t.destination)").font(.subheadline.bold())
+                    Text("\(t.origin) → \(t.destination)").font(.caption.bold())
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 12)
                 .background(DriverTheme.accent.opacity(0.15), in: Capsule())
             }
 
-            Text("Complete this checklist before starting your trip. Tap each item to mark Pass or Fail.")
-                .font(.subheadline)
+            Text("Complete this checklist before \(inspectionType == .preTrip ? "starting" : "ending") your trip. Tap each item to mark Pass or Fail.")
+                .font(.footnote)
                 .foregroundStyle(DriverTheme.textSecondary)
         }
-        .padding(20)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     private var progressSection: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.gray.opacity(0.2)).frame(height: 8)
+                    Capsule().fill(Color.gray.opacity(0.2)).frame(height: 6)
                     Capsule()
                         .fill(allChecked ? DriverTheme.successGreen : DriverTheme.accent)
-                        .frame(width: geo.size.width * progress, height: 8)
+                        .frame(width: geo.size.width * progress, height: 6)
                         .animation(.spring(response: 0.5, dampingFraction: 0.7), value: progress)
                 }
             }
-            .frame(height: 8)
+            .frame(height: 6)
             HStack {
                 Text("\(checkedCount) of \(items.count) checked")
                     .font(.caption.bold())
@@ -153,65 +167,53 @@ struct TripStartInspectionSheet: View {
                     .foregroundStyle(allChecked ? DriverTheme.successGreen : DriverTheme.accent)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
     }
 
     private func itemRow(idx: Int, item: InspectionItem2) -> some View {
         VStack(spacing: 0) {
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 // Category Icon
                 Image(systemName: item.icon)
-                    .font(.system(size: 20, weight: .medium))
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(
                         item.status == .passed ? DriverTheme.successGreen :
                         item.status == .failed ? DriverTheme.criticalRed :
                         DriverTheme.textSecondary
                     )
-                    .frame(width: 32)
+                    .frame(width: 28)
                     .symbolEffect(.bounce, value: item.status)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title)
-                        .font(.system(.headline, design: .rounded))
+                        .font(.system(.subheadline, design: .rounded).bold())
                         .foregroundStyle(DriverTheme.textPrimary)
                     Text(item.hint)
                         .font(.caption)
                         .foregroundStyle(DriverTheme.textSecondary)
+                        .lineLimit(1)
                 }
                 
                 Spacer()
                 
-                // Explicit Pass / Fail selector buttons
-                HStack(spacing: 16) {
-                    // Pass Option
+                // Explicit Pass / Fail selector buttons (Compact)
+                HStack(spacing: 8) {
+                    // Pass Button
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            if items[idx].status == .passed {
-                                items[idx].status = .unchecked
-                            } else {
-                                items[idx].status = .passed
-                            }
+                            items[idx].status = (items[idx].status == .passed) ? .unchecked : .passed
                             expandedItemID = nil
                         }
                     } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: item.status == .passed ? "checkmark.circle.fill" : "circle")
-                                .font(.title3)
-                            Text("Pass")
-                                .font(.caption.bold())
-                                .fixedSize()
-                        }
-                        .foregroundStyle(item.status == .passed ? DriverTheme.successGreen : Color.gray.opacity(0.4))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(item.status == .passed ? DriverTheme.successGreen.opacity(0.12) : Color.clear)
-                        )
+                        Image(systemName: item.status == .passed ? "checkmark.circle.fill" : "checkmark.circle")
+                            .font(.title3)
+                            .foregroundStyle(item.status == .passed ? DriverTheme.successGreen : DriverTheme.successGreen.opacity(0.4))
+                            .frame(width: 36, height: 36)
+                            .background(item.status == .passed ? DriverTheme.successGreen.opacity(0.12) : Color.clear, in: Circle())
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.plain)
                     
-                    // Fail Option
+                    // Fail Button
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             if items[idx].status == .failed {
@@ -224,89 +226,80 @@ struct TripStartInspectionSheet: View {
                             }
                         }
                     } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: item.status == .failed ? "xmark.circle.fill" : "circle")
-                                .font(.title3)
-                            Text("Fail")
-                                .font(.caption.bold())
-                                .fixedSize()
-                        }
-                        .foregroundStyle(item.status == .failed ? DriverTheme.criticalRed : Color.gray.opacity(0.4))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(item.status == .failed ? DriverTheme.criticalRed.opacity(0.12) : Color.clear)
-                        )
+                        Image(systemName: item.status == .failed ? "xmark.circle.fill" : "xmark.circle")
+                            .font(.title3)
+                            .foregroundStyle(item.status == .failed ? DriverTheme.criticalRed : DriverTheme.criticalRed.opacity(0.4))
+                            .frame(width: 36, height: 36)
+                            .background(item.status == .failed ? DriverTheme.criticalRed.opacity(0.12) : Color.clear, in: Circle())
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.plain)
                 }
             }
-            .padding(16)
+            .padding(12)
             .background(DriverTheme.elevatedCard)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 14)
                     .strokeBorder(
                         item.status == .failed ? DriverTheme.criticalRed.opacity(0.4) :
                         item.status == .passed ? DriverTheme.successGreen.opacity(0.4) :
                         DriverTheme.accent.opacity(0.1),
-                        lineWidth: 1.5
+                        lineWidth: 1
                     )
             )
             .shadow(
                 color: item.status == .failed ? DriverTheme.criticalRed.opacity(0.04) :
                        item.status == .passed ? DriverTheme.successGreen.opacity(0.04) :
                        Color.clear,
-                radius: 6,
-                y: 3
+                radius: 4,
+                y: 2
             )
 
             if item.status == .failed {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Describe the issue:")
                         .font(.caption.bold())
                         .foregroundStyle(DriverTheme.textSecondary)
                     TextField("e.g. Brake feels spongy...", text: $items[idx].failureNote, axis: .vertical)
                         .font(.subheadline)
-                        .padding(12)
-                        .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(10)
+                        .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 10))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
+                            RoundedRectangle(cornerRadius: 10)
                                 .strokeBorder(DriverTheme.criticalRed.opacity(0.25), lineWidth: 1)
                         )
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
                 .background(DriverTheme.criticalRed.opacity(0.04))
-                .clipShape(CustomCorners(corners: [.bottomLeft, .bottomRight], radius: 16))
+                .clipShape(CustomCorners(corners: [.bottomLeft, .bottomRight], radius: 14))
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .scrollTransition { content, phase in
-            content.scaleEffect(phase.isIdentity ? 1 : 0.96).opacity(phase.isIdentity ? 1 : 0.8)
+            content.scaleEffect(phase.isIdentity ? 1 : 0.98).opacity(phase.isIdentity ? 1 : 0.8)
         }
     }
 
     private var failureWarningSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill").font(.title3).foregroundStyle(DriverTheme.criticalRed)
-                Text("\(failedItems.count) Issue(s) Reported").font(.headline.bold()).foregroundStyle(DriverTheme.criticalRed)
+                Image(systemName: "exclamationmark.triangle.fill").font(.subheadline).foregroundStyle(DriverTheme.criticalRed)
+                Text("\(failedItems.count) Issue(s) Reported").font(.subheadline.bold()).foregroundStyle(DriverTheme.criticalRed)
             }
             ForEach(failedItems) { fi in
                 HStack(spacing: 8) {
                     Image(systemName: "xmark.circle.fill").font(.caption).foregroundStyle(DriverTheme.criticalRed)
-                    Text(fi.title + (fi.failureNote.isEmpty ? "" : ": \(fi.failureNote)")).font(.subheadline).foregroundStyle(DriverTheme.textPrimary)
+                    Text(fi.title + (fi.failureNote.isEmpty ? "" : ": \(fi.failureNote)")).font(.caption).foregroundStyle(DriverTheme.textPrimary)
                 }
             }
             Text("These defects will be sent to Fleet Manager & Maintenance.")
-                .font(.caption)
+                .font(.caption2)
                 .foregroundStyle(DriverTheme.textSecondary)
         }
-        .padding(16)
-        .background(DriverTheme.criticalRed.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(DriverTheme.criticalRed.opacity(0.3), lineWidth: 1))
+        .padding(12)
+        .background(DriverTheme.criticalRed.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(DriverTheme.criticalRed.opacity(0.3), lineWidth: 1))
     }
 
     private var submitButton: some View {
@@ -321,20 +314,22 @@ struct TripStartInspectionSheet: View {
                     if isSubmitting {
                         ProgressView().tint(.white)
                     } else {
-                        Image(systemName: allChecked ? "play.fill" : "checkmark.circle")
+                        Image(systemName: allChecked ? "checkmark.circle.fill" : "checklist")
                     }
-                    Text(allChecked ? "Start Trip" : "Check All Items")
-                        .font(.system(.title3, design: .rounded).bold())
+                    Text(inspectionType == .preTrip ? "Start Trip" : "End Trip")
+                        .font(.system(.headline, design: .rounded).bold())
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 60)
-                .background(allChecked ? DriverTheme.accent : Color.gray, in: Capsule())
-                .shadow(color: allChecked ? DriverTheme.accent.opacity(0.3) : .clear, radius: 8, y: 4)
+                .frame(height: 48)
+                .background(allChecked ? DriverTheme.accent : Color.gray.opacity(0.5), in: Capsule())
+                .shadow(color: allChecked ? DriverTheme.accent.opacity(0.3) : .clear, radius: 6, y: 3)
             }
             .disabled(!allChecked || isSubmitting)
         }
-        .padding(20)
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 24)
         .background(.ultraThinMaterial)
     }
 
@@ -354,11 +349,11 @@ struct TripStartInspectionSheet: View {
         if !overallNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { notesParts.append("General: \(overallNotes)") }
         let combinedNotes = notesParts.isEmpty ? "All items passed." : notesParts.joined(separator: " | ")
 
-        appViewModel.service.addInspection(driverID: user.id, vehicleID: vehicle.id, type: .preTrip, notes: combinedNotes, items: serviceItems)
+        appViewModel.service.addInspection(driverID: user.id, vehicleID: vehicle.id, type: inspectionType, notes: combinedNotes, items: serviceItems)
 
         for fi in failedItems {
             let desc = fi.failureNote.isEmpty ? "Inspection failed: \(fi.title)" : "\(fi.title) — \(fi.failureNote)"
-            appViewModel.service.addDefect(driverID: user.id, vehicleID: vehicle.id, severity: criticalItems.contains(fi.title) ? .critical : .medium, description: desc, title: "Pre-trip: \(fi.title)", images: nil)
+            appViewModel.service.addDefect(driverID: user.id, vehicleID: vehicle.id, severity: criticalItems.contains(fi.title) ? .critical : .medium, description: desc, title: "\(inspectionType.rawValue): \(fi.title)", images: nil)
         }
 
         isSubmitting = false
@@ -372,30 +367,26 @@ struct TripStartInspectionSheet: View {
 
     private func startTripAndDismiss() {
         guard let user = appViewModel.currentUser else { return }
-        if let t = trip {
-            appViewModel.service.startScheduledTrip(id: t.id)
-        } else if let vehicle = appViewModel.assignedVehicle {
-            appViewModel.service.startTrip(driverID: user.id, vehicleID: vehicle.id, origin: "Current Location", destination: "Destination")
+        if inspectionType == .preTrip {
+            if let t = trip {
+                appViewModel.service.startScheduledTrip(id: t.id)
+            } else if let vehicle = appViewModel.assignedVehicle {
+                appViewModel.service.startTrip(driverID: user.id, vehicleID: vehicle.id, origin: "Current Location", destination: "Destination")
+            }
+        } else {
+            if let t = trip {
+                appViewModel.service.endTrip(t)
+            }
         }
         dismiss()
-        onTripStarted()
+        onInspectionCompleted()
     }
 
     private let criticalItems = ["Brakes", "Tyres / Wheels", "Steering"]
-    private func iconColor(_ status: ItemStatus) -> Color {
-        switch status { case .unchecked: return .gray; case .passed: return DriverTheme.successGreen; case .failed: return DriverTheme.criticalRed }
-    }
-    @ViewBuilder private func statusBadge(_ status: ItemStatus) -> some View {
-        switch status {
-        case .unchecked: Circle().stroke(Color.gray.opacity(0.4), lineWidth: 2).frame(width: 28, height: 28)
-        case .passed: Image(systemName: "checkmark.circle.fill").font(.title).foregroundStyle(DriverTheme.successGreen).symbolEffect(.bounce, options: .nonRepeating)
-        case .failed: Image(systemName: "xmark.circle.fill").font(.title).foregroundStyle(DriverTheme.criticalRed).symbolEffect(.bounce, options: .nonRepeating)
-        }
-    }
 }
 
 #Preview {
-    TripStartInspectionSheet(trip: nil, onTripStarted: {})
+    TripStartInspectionSheet(trip: nil, inspectionType: .preTrip, onInspectionCompleted: {})
         .environment(AppViewModel())
         .environment(DriverViewModel())
 }

@@ -33,12 +33,13 @@ struct MaintenanceDashboardView: View {
                     ZStack {
                         Circle()
                             .fill(maintenanceAccent)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 30, height: 30)
                         Text(userInitials)
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(.white)
                     }
                 }
+                .buttonBorderShape(.circle)
                 .accessibilityIdentifier("PROFILE_BUTTON")
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -170,7 +171,6 @@ struct MaintenanceDashboardView: View {
                 MaintenanceMetricCard(
                     icon: "shippingbox.fill",
                     title: "Waiting on Parts",
-                    subtitle: "Jobs paused until stock arrives",
                     value: "\(waitingOnPartsCount)",
                     tint: maintenanceAccent
                 )
@@ -181,14 +181,9 @@ struct MaintenanceDashboardView: View {
 
     private var priorityQueue: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(maintenanceAccent)
-                    .frame(width: 8, height: 8)
-                Text("Today's Priority Queue")
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(warmPrimaryText)
-            }
+            Text("Today's Priority Queue")
+                .font(.headline)
+                .foregroundStyle(warmPrimaryText)
 
             if priorityOrders.isEmpty {
                 EmptyStateView(icon: "checkmark.circle.fill", title: "No active assignments", message: "New admin-assigned work orders will appear here.")
@@ -208,7 +203,7 @@ struct MaintenanceDashboardView: View {
     private var maintenanceScheduleStrip: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Scheduled Maintenance")
-                .font(.title3.weight(.bold))
+                .font(.headline)
                 .foregroundStyle(warmPrimaryText)
 
             if upcomingSchedules.isEmpty {
@@ -364,7 +359,8 @@ private struct MaintenanceMetricCard: View {
                     .foregroundStyle(Color.dynamic(light: "#1F2024", dark: "#F2E8E4"))
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 108, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: 120)
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)

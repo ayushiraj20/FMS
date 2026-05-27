@@ -55,7 +55,7 @@ struct DriverAssignmentManagementView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $viewModel.isPresentingAssignSheet) {
             if let driver = viewModel.selectedDriver {
                 AssignVehicleSheet(viewModel: viewModel, driver: driver)

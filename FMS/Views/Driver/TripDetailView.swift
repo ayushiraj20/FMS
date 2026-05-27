@@ -19,7 +19,7 @@ struct TripDetailView: View {
 
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var sheetHeight: PresentationDetent = .medium
-    @State private var showBreakLogSheet = false
+    @State private var showPostTripInspectionSheet = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -80,6 +80,12 @@ struct TripDetailView: View {
                 .presentationBackground(.ultraThinMaterial)
                 .presentationCornerRadius(40)
                 .interactiveDismissDisabled()
+                .sheet(isPresented: $showPostTripInspectionSheet) {
+                    TripStartInspectionSheet(trip: trip, inspectionType: .postTrip) {
+                        dismiss()
+                    }
+                    .environment(appViewModel)
+                }
         }
     }
 
@@ -127,10 +133,6 @@ struct TripDetailView: View {
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 40)
-        }
-        .sheet(isPresented: $showBreakLogSheet) {
-            TripBreakLogSheet(trip: trip)
-                .environment(appViewModel)
         }
     }
 
@@ -254,29 +256,15 @@ struct TripDetailView: View {
             }
             .disabled(!inspDone)
         } else if trip.status == .inProgress {
-            VStack(spacing: 12) {
-                Button {
-                    showBreakLogSheet = true
-                } label: {
-                    Text("Log Break")
-                        .font(.system(.headline, design: .rounded).bold())
-                        .foregroundStyle(DriverTheme.accent)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(DriverTheme.accent.opacity(0.1), in: Capsule())
-                }
-
-                Button {
-                    appViewModel.service.endTrip(trip)
-                    dismiss()
-                } label: {
-                    Text("End Trip")
-                        .font(.system(.headline, design: .rounded).bold())
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(DriverTheme.criticalRed, in: Capsule())
-                }
+            Button {
+                showPostTripInspectionSheet = true
+            } label: {
+                Text("End Trip")
+                    .font(.system(.headline, design: .rounded).bold())
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(DriverTheme.criticalRed, in: Capsule())
             }
         }
     }

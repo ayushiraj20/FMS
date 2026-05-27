@@ -1,3 +1,4 @@
+
 import SwiftUI
 
 struct FleetManagerDashboardView: View {
@@ -63,17 +64,23 @@ struct FleetManagerDashboardView: View {
                     AvatarView(name: appViewModel.currentUser?.name ?? "FM", size: 36)
                 }
                 .buttonStyle(.plain)
+                .glassEffect(.identity)
             }
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                NavigationLink(destination: NotificationsView()) {
-                    Image(systemName: "bell.fill")
-                }
-
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showBroadcast = true
                 } label: {
                     Image(systemName: "megaphone.fill")
                 }
+                .buttonStyle(.plain)
+                .glassEffect(.identity)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: NotificationsView()) {
+                    Image(systemName: "bell.fill")
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.identity)
             }
         }
         .task {
@@ -174,54 +181,66 @@ struct FleetManagerDashboardView: View {
                     .buttonStyle(.plain)
                 }
                 
-                HStack(alignment: .top, spacing: 0) {
+                HStack {
                     NavigationLink(destination: PriorityAlertDetailView(category: "SOS Alerts", count: 5)) {
-                        alertIconItem(icon: "exclamationmark.triangle.fill", color: Color("AccentColor"), count: 5, label: "SOS Alerts")
+                        alertIconItem(icon: "exclamationmark.triangle.fill", categoryColor: Color(red: 1, green: 0.25, blue: 0.3), count: 5, label: "SOS Alerts")
                     }
                     .buttonStyle(.plain)
+                    
+                    Spacer()
                     
                     NavigationLink(destination: PriorityAlertDetailView(category: "Critical", count: 3)) {
-                        alertIconItem(icon: "bell.fill", color: Color("AccentColor"), count: 3, label: "Critical")
+                        alertIconItem(icon: "bell.badge.fill", categoryColor: Color(red: 1, green: 0.45, blue: 0.1), count: 3, label: "Critical")
                     }
                     .buttonStyle(.plain)
                     
-                    NavigationLink(destination: PriorityAlertDetailView(category: "Overdue", count: 2)) {
-                        alertIconItem(icon: "clock.badge.exclamationmark.fill", color: Color("AccentColor"), count: 2, label: "Overdue")
+                    Spacer()
+                    
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Maintenance", count: 2)) {
+                        alertIconItem(icon: "wrench.and.screwdriver.fill", categoryColor: Color(red: 0.35, green: 0.6, blue: 1), count: 2, label: "Maintenance")
                     }
                     .buttonStyle(.plain)
                 }
+                .padding(.horizontal, 4)
             }
         }
     }
     
-    private func alertIconItem(icon: String, color: Color, count: Int, label: String) -> some View {
+    private func alertIconItem(icon: String, categoryColor: Color, count: Int, label: String) -> some View {
         VStack(spacing: 8) {
             ZStack(alignment: .topTrailing) {
-                Image(systemName: icon)
-                    .font(.system(size: 26, weight: .regular))
-                    .foregroundStyle(color)
-                    .frame(width: 40, height: 40)
+                Circle()
+                    .fill(categoryColor.opacity(0.12))
+                    .frame(width: 50, height: 50)
+                    .overlay(
+                        Image(systemName: icon)
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(categoryColor)
+                    )
                 
                 if count > 0 {
                     Text("\(count)")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.white)
-                        .frame(minWidth: 18, minHeight: 18)
-                        .background(Circle().fill(color))
+                        .frame(width: 18, height: 18)
+                        .background(Circle().fill(categoryColor))
                         .overlay(
                             Circle()
-                                .stroke(AppTheme.cardBackground, lineWidth: 2)
+                                .stroke(AppTheme.cardBackground, lineWidth: 1.5)
                         )
-                        .offset(x: 6, y: -6)
+                        .offset(x: 4, y: -4)
                 }
             }
             
             Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(AppTheme.textSecondary)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity)
+        .frame(width: 84)
+        .padding(.vertical, 8)
     }
     
     // MARK: - Live Fleet Map
@@ -492,10 +511,10 @@ struct FleetManagerDashboardView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, appViewModel.unreadNotificationsCount > 10 ? 4 : 0)
                     .frame(minWidth: 18, minHeight: 18)
-                    .background(AppTheme.brand)
+                    .background(AppTheme.error)
                     .clipShape(Capsule())
                     .overlay(
-                        Capsule().stroke(AppTheme.background, lineWidth: 2)
+                        Capsule().stroke(Color.white, lineWidth: 1.5)
                     )
                     .offset(x: 10, y: -10)
                     .zIndex(1)
