@@ -62,8 +62,6 @@ struct MaintenanceInventoryView: View {
         .navigationTitle("Inventory")
         .navigationBarTitleDisplayMode(.large)
         .background(Color(uiColor: .systemGroupedBackground))
-        .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
         .searchable(text: $searchText, prompt: "Search name, part no. or category...")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -233,26 +231,29 @@ struct MaintenanceInventoryView: View {
             HStack(spacing: 8) {
                 ForEach(availableCategories, id: \.self) { category in
                     let isSelected = selectedCategory == category
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    if isSelected {
+                        Button {
                             selectedCategory = category
+                        } label: {
+                            Text(category)
+                                .font(.system(.subheadline, design: .rounded).weight(.medium))
                         }
-                    } label: {
-                        Text(category)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(isSelected ? .white : Color.dynamic(light: "#715B54", dark: "#E3C8BE"))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(isSelected ? accent : Color.dynamic(light: "#FFFFFF", dark: "#202127"))
-                            )
-                            .overlay(
-                                Capsule()
-                                    .stroke(isSelected ? Color.clear : Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 0.5)
-                            )
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .tint(accent)
+                        .foregroundStyle(.white)
+                    } else {
+                        Button {
+                            selectedCategory = category
+                        } label: {
+                            Text(category)
+                                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
+                        .tint(.secondary)
+                        .foregroundStyle(.primary)
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 2)

@@ -27,8 +27,6 @@ struct MaintenanceDashboardView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("Dashboard")
         .navigationBarTitleDisplayMode(.large)
-        .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 NavigationLink(destination: ProfileSettingsView()) {

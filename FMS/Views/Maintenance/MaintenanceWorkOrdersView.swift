@@ -72,8 +72,6 @@ struct MaintenanceWorkOrdersView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle(showOnlyCritical ? "Critical" : (isLockedFilter ? selectedFilter.title : "Work Orders"))
         .navigationBarTitleDisplayMode(.large)
-        .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -106,27 +104,29 @@ struct MaintenanceWorkOrdersView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(MaintenanceOrderProgressFilter.allCases) { filter in
-                    Button {
-                        selectedFilter = filter
-                    } label: {
-                        Text(filter.title)
-                            .font(.system(.caption, design: .rounded).weight(.semibold))
-                            .foregroundStyle(selectedFilter == filter ? Color.white : warmSecondaryText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.82)
-                            .padding(.horizontal, 14)
-                            .frame(height: 32)
-                            .background(
-                                Capsule()
-                                    .fill(selectedFilter == filter ? AnyShapeStyle(ordersAccent) : AnyShapeStyle(.ultraThinMaterial))
-                            )
-                            .glassEffect(selectedFilter == filter ? .identity : .regular, in: .capsule)
-                            .overlay(
-                                Capsule()
-                                    .stroke(selectedFilter == filter ? ordersAccent.opacity(0.15) : Color.dynamic(light: "#E6D8D2", dark: "#3B3841").opacity(0.5), lineWidth: 0.5)
-                            )
+                    if selectedFilter == filter {
+                        Button {
+                            selectedFilter = filter
+                        } label: {
+                            Text(filter.title)
+                                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .tint(ordersAccent)
+                        .foregroundStyle(.white)
+                    } else {
+                        Button {
+                            selectedFilter = filter
+                        } label: {
+                            Text(filter.title)
+                                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
+                        .tint(.secondary)
+                        .foregroundStyle(.primary)
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
