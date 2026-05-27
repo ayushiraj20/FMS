@@ -745,7 +745,12 @@ final class MockDataService {
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addDefect(defect)
+                do {
+                    try await SupabaseService.shared.addDefect(defect)
+                    print("Defect report successfully saved to Supabase ✅")
+                } catch {
+                    print("🚨 Supabase addDefect Error: \(error.localizedDescription)\nFull Details: \(error)")
+                }
             }
         }
     }

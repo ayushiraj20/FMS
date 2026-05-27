@@ -294,7 +294,7 @@ final class AppViewModel {
             )
 
             try await SupabaseService.shared.client
-                .from("users")
+                .from("profiles")
                 .update(update)
                 .eq("id", value: user.id)
                 .execute()
