@@ -1,8 +1,9 @@
-//Created by Mayurakshi Das
+
 import SwiftUI
 
 struct MaintenanceInventoryView: View {
     @Environment(AppViewModel.self) private var appViewModel
+    private let allCategoriesLabel = "All"
     @State private var parts = InventoryPart.demoParts
     @State private var searchText = ""
     @State private var selectedPartForUsage: InventoryPart?
@@ -13,15 +14,25 @@ struct MaintenanceInventoryView: View {
     private var accent: Color { Color(hex: "#FF5A1F") }
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
     private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
+    private var availableCategories: [String] {
+        let categories = parts.map { $0.category }
+        let uniqueCategories = Array(Set(categories)).sorted { lhs, rhs in
+            lhs.localizedCaseInsensitiveCompare(rhs) == .orderedAscending
+        }
+        return [allCategoriesLabel] + uniqueCategories
+    }
+
     private var visibleParts: [InventoryPart] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let filtered = parts.filter { part in
-            let matchesSearch = searchText.isEmpty ||
-                part.name.localizedCaseInsensitiveContains(searchText) ||
-                part.partNumber.localizedCaseInsensitiveContains(searchText) ||
-                part.category.localizedCaseInsensitiveContains(searchText)
-            
-            let matchesCategory = selectedCategory == "All" || part.category == selectedCategory
-            
+            let matchesSearch = query.isEmpty ||
+                part.name.localizedCaseInsensitiveContains(query) ||
+                part.partNumber.localizedCaseInsensitiveContains(query) ||
+                part.category.localizedCaseInsensitiveContains(query)
+
+            let matchesCategory = selectedCategory == allCategoriesLabel ||
+                part.category.localizedCaseInsensitiveCompare(selectedCategory) == .orderedSame
+
             return matchesSearch && matchesCategory
         }
 
@@ -40,19 +51,32 @@ struct MaintenanceInventoryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
                 cardsGrid
-                searchField
                 bubbleFilter
-                activeInventoryHeader
                 inventoryList
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
             .padding(.bottom, 28)
         }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("Inventory")
+        .navigationBarTitleDisplayMode(.large)
+        .searchable(text: $searchText, prompt: "Search name, part no. or category...")
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                NavigationLink {
+                    InventoryForecastView(parts: parts, upcomingTaskCount: appViewModel.service.schedules().count)
+                } label: {
+                    Image(systemName: "wand.and.stars")
+                }
+
+                Button {
+                    selectedPartForUsage = parts.first
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
         .sheet(item: $selectedPartForUsage) { part in
             AddSparePartSheet(
                 part: part,
@@ -82,14 +106,6 @@ struct MaintenanceInventoryView: View {
 
             Spacer()
 
-            NavigationLink {
-                InventoryForecastView(parts: parts, upcomingTaskCount: appViewModel.service.schedules().count)
-            } label: {
-                Image(systemName: "wand.and.stars")
-                    .foregroundStyle(accent)
-                    .frame(width: 34, height: 34)
-            }
-
             Button {
                 selectedPartForUsage = parts.first
             } label: {
@@ -105,7 +121,6 @@ struct MaintenanceInventoryView: View {
     private var cardsGrid: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                // Card 1: Total Parts
                 NavigationLink {
                     InventoryFilteredPartsView(
                         title: "Total Parts",
@@ -128,7 +143,6 @@ struct MaintenanceInventoryView: View {
                 }
                 .buttonStyle(.plain)
 
-                // Card 2: Low Stock
                 NavigationLink {
                     InventoryFilteredPartsView(
                         title: "Low Stock Parts",
@@ -147,45 +161,6 @@ struct MaintenanceInventoryView: View {
                         badgeCount: nil,
                         iconBg: Color.red.opacity(0.15),
                         iconColor: .red
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-
-            HStack(spacing: 12) {
-                // Card 3: AI Forecast
-                NavigationLink {
-                    InventoryForecastView(parts: parts, upcomingTaskCount: appViewModel.service.schedules().count)
-                } label: {
-                    gridCard(
-                        icon: "brain.head.profile",
-                        title: "AI Forecast",
-                        subtitle: "Shortage risk",
-                        value: nil,
-                        badgeCount: forecastRiskCount > 0 ? forecastRiskCount : nil,
-                        iconBg: Color.orange.opacity(0.15),
-                        iconColor: .orange
-                    )
-                }
-                .buttonStyle(.plain)
-
-                // Card 4: Cancelled WO
-                NavigationLink {
-                    InventoryReconciliationView(onConfirm: { returnedParts in
-                        for item in returnedParts {
-                            restock(partID: item.partID, quantity: item.quantity)
-                        }
-                        reorderMessage = "Cancelled work order parts reconciled."
-                    })
-                } label: {
-                    gridCard(
-                        icon: "xmark.octagon.fill",
-                        title: "Cancelled WO",
-                        subtitle: "Reconcile parts",
-                        value: nil,
-                        badgeCount: nil,
-                        iconBg: Color.purple.opacity(0.15),
-                        iconColor: .purple
                     )
                 }
                 .buttonStyle(.plain)
@@ -209,9 +184,9 @@ struct MaintenanceInventoryView: View {
                     .foregroundStyle(iconColor)
                     .frame(width: 38, height: 38)
                     .background(iconBg, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                
+
                 Spacer()
-                
+
                 if let badgeCount = badgeCount {
                     Text("\(badgeCount)")
                         .font(.caption.weight(.bold))
@@ -229,7 +204,7 @@ struct MaintenanceInventoryView: View {
                         .foregroundStyle(detailText)
                 }
             }
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline.weight(.bold))
@@ -248,28 +223,12 @@ struct MaintenanceInventoryView: View {
         )
     }
 
-    private var searchField: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(detailText)
-            TextField("Search PN, description or category...", text: $searchText)
-                .textInputAutocapitalization(.never)
-                .foregroundStyle(headingText)
-        }
-        .padding(.horizontal, 14)
-        .frame(height: 46)
-        .background(Color.dynamic(light: "#FFFFFF", dark: "#202127"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#58372B"), lineWidth: 1)
-        )
-    }
+
 
     private var bubbleFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                let categories = ["All"] + Array(Set(parts.map { $0.category })).sorted()
-                ForEach(categories, id: \.self) { category in
+                ForEach(availableCategories, id: \.self) { category in
                     let isSelected = selectedCategory == category
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -298,30 +257,46 @@ struct MaintenanceInventoryView: View {
     }
 
     private var activeInventoryHeader: some View {
-        Text("Active Inventory")
-            .font(.headline.weight(.bold))
-            .foregroundStyle(headingText)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        HStack(alignment: .firstTextBaseline) {
+            Text(selectedCategory == allCategoriesLabel ? "Active Inventory" : selectedCategory)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(headingText)
+
+            Spacer()
+
+            Text("\(visibleParts.count) items")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(detailText)
+        }
     }
 
     private var inventoryList: some View {
         VStack(spacing: 10) {
-            ForEach(visibleParts) { part in
-                NavigationLink {
-                    StockAlertView(
-                        part: part,
-                        affectedOrders: affectedOrders(for: part),
-                        onReorder: { reorder(partID: part.id) },
-                        onNotify: {
-                            reorderMessage = "Manager notified about \(part.name)."
+            if visibleParts.isEmpty {
+                EmptyStateView(
+                    icon: "shippingbox",
+                    title: "No matching parts",
+                    message: "Try a different search or category filter."
+                )
+                .padding(.top, 8)
+            } else {
+                ForEach(visibleParts) { part in
+                    NavigationLink {
+                        StockAlertView(
+                            part: part,
+                            affectedOrders: affectedOrders(for: part),
+                            onReorder: { reorder(partID: part.id) },
+                            onNotify: {
+                                reorderMessage = "Manager notified about \(part.name)."
+                            }
+                        )
+                    } label: {
+                        InventoryPartRow(part: part) {
+                            selectedPartForUsage = part
                         }
-                    )
-                } label: {
-                    InventoryPartRow(part: part) {
-                        selectedPartForUsage = part
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -383,12 +358,12 @@ private struct InventoryPart: Identifiable, Hashable {
     }
 
     static let demoParts = [
-        InventoryPart(id: UUID(), name: "Hydraulic Filter Assembly", partNumber: "#PN-8821", category: "Filters", quantity: 0, minimumRequired: 5, forecastDemand: 2, upcomingTaskCount: 2, leadTimeDays: 3, icon: "shippingbox", forecastKeyword: "filter"),
+        InventoryPart(id: UUID(), name: "Hydraulic Filter Assembly", partNumber: "#PN-8821", category: "Fluid System", quantity: 0, minimumRequired: 5, forecastDemand: 2, upcomingTaskCount: 2, leadTimeDays: 3, icon: "shippingbox", forecastKeyword: "filter"),
         InventoryPart(id: UUID(), name: "Heavy Duty Brake Pads", partNumber: "#PN-4402", category: "Brake System", quantity: 3, minimumRequired: 5, forecastDemand: 4, upcomingTaskCount: 3, leadTimeDays: 3, icon: "slider.horizontal.3", forecastKeyword: "brake"),
         InventoryPart(id: UUID(), name: "Semi-Synthetic Oil (5L)", partNumber: "#PN-1029", category: "Fluids", quantity: 112, minimumRequired: 20, forecastDemand: 20, upcomingTaskCount: 5, leadTimeDays: 2, icon: "drop.fill", forecastKeyword: "oil"),
         InventoryPart(id: UUID(), name: "Engine Gasket Kit V8", partNumber: "#PN-9283", category: "Engine", quantity: 45, minimumRequired: 8, forecastDemand: 6, upcomingTaskCount: 2, leadTimeDays: 4, icon: "rectangle.compress.vertical", forecastKeyword: "engine"),
         InventoryPart(id: UUID(), name: "Halogen Headlight Bulbs", partNumber: "#PN-3115", category: "Electrical", quantity: 8, minimumRequired: 12, forecastDemand: 3, upcomingTaskCount: 1, leadTimeDays: 2, icon: "lightbulb", forecastKeyword: "lamp"),
-        InventoryPart(id: UUID(), name: "Fuel Filter Assembly", partNumber: "#PN-1205", category: "Filters", quantity: 12, minimumRequired: 10, forecastDemand: 5, upcomingTaskCount: 2, leadTimeDays: 3, icon: "line.3.horizontal.decrease", forecastKeyword: "fuel")
+        InventoryPart(id: UUID(), name: "Fuel Filter Assembly", partNumber: "#PN-1205", category: "Fluid System", quantity: 12, minimumRequired: 10, forecastDemand: 5, upcomingTaskCount: 2, leadTimeDays: 3, icon: "line.3.horizontal.decrease", forecastKeyword: "fuel")
     ]
 }
 

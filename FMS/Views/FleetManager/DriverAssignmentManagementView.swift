@@ -13,29 +13,17 @@ struct DriverAssignmentManagementView: View {
             ZStack(alignment: .bottom) {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 24) {
-                        // Header
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Drivers")
-                                .font(.system(size: 34, weight: .bold, design: .rounded))
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text("Manage pairings & track availability")
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 18)
+
                         
                         // Summary Metrics Cards List
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 16) {
-                                summaryStatCard(title: "Total Drivers", value: "\(viewModel.totalDriversCount)", icon: "person.2.fill", tint: AppTheme.brand)
-                                summaryStatCard(title: "Available Drivers", value: "\(viewModel.availableDriversCount)", icon: "checkmark.circle.fill", tint: AppTheme.success)
-                                summaryStatCard(title: "Assigned Drivers", value: "\(viewModel.assignedDriversCount)", icon: "key.fill", tint: Color(hex: "#00a2ff"))
-                                summaryStatCard(title: "Active Vehicles", value: "\(viewModel.activeVehiclesCount)", icon: "truck.box.fill", tint: AppTheme.warning)
-                                summaryStatCard(title: "Unassigned Vehicles", value: "\(viewModel.unassignedVehiclesCount)", icon: "exclamationmark.triangle.fill", tint: AppTheme.error)
-                            }
-                            .padding(.horizontal)
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                            summaryStatCard(title: "Total Drivers", value: "\(viewModel.totalDriversCount)", icon: "person.2.fill", tint: AppTheme.brand)
+                            summaryStatCard(title: "Available Drivers", value: "\(viewModel.availableDriversCount)", icon: "checkmark.circle.fill", tint: AppTheme.success)
+                            summaryStatCard(title: "Assigned Drivers", value: "\(viewModel.assignedDriversCount)", icon: "key.fill", tint: Color(hex: "#00a2ff"))
+                            summaryStatCard(title: "Active Vehicles", value: "\(viewModel.activeVehiclesCount)", icon: "truck.box.fill", tint: AppTheme.warning)
+                            summaryStatCard(title: "Unassigned Vehicles", value: "\(viewModel.unassignedVehiclesCount)", icon: "exclamationmark.triangle.fill", tint: AppTheme.error)
                         }
+                        .padding(.horizontal)
                         
                         // Section Title
                         VStack(alignment: .leading, spacing: 12) {
@@ -57,25 +45,7 @@ struct DriverAssignmentManagementView: View {
                     await viewModel.service.syncWithDatabase()
                 }
                 
-                // Floating "+" Button
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Button {
-                            isPresentingAssignDriverTripModal = true
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 56, height: 56)
-                                .background(Circle().fill(AppTheme.brand))
-                                .shadow(color: AppTheme.brand.opacity(0.4), radius: 8, x: 0, y: 4)
-                        }
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 90)
-                    }
-                }
+
                 
                 // Toast Success Overlay
                 if viewModel.isShowingToast, let message = viewModel.successMessage {
@@ -85,7 +55,7 @@ struct DriverAssignmentManagementView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $viewModel.isPresentingAssignSheet) {
             if let driver = viewModel.selectedDriver {
                 AssignVehicleSheet(viewModel: viewModel, driver: driver)
@@ -116,7 +86,7 @@ struct DriverAssignmentManagementView: View {
                 .font(.system(size: 26, weight: .bold, design: .rounded))
                 .foregroundStyle(AppTheme.textPrimary)
         }
-        .frame(width: 140, height: 90)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))

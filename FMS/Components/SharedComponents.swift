@@ -191,7 +191,7 @@ struct AvatarView: View {
     }
     
     private func colorForName(_ name: String) -> Color {
-        let hash = abs(name.hashValue)
+        let hash = abs(name.reduce(0) { $0 + Int($1.asciiValue ?? 0) })
         let colors: [Color] = [
             Color(hex: "#00a2ff"), // Blue
             Color(hex: "#34c759"), // Green

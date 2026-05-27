@@ -3,112 +3,172 @@ import SwiftUI
 struct SOSSheetView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @Environment(DriverViewModel.self) private var driverVM
+    
+    @State private var isPulsing = false
 
     var body: some View {
         ZStack {
-            DriverTheme.criticalRed.ignoresSafeArea()
+            // Pure black background for high contrast, night-vision preservation, and battery saving in emergencies.
+            Color.black.ignoresSafeArea()
+            
+            // Pulsing background emergency aura
+            if !driverVM.sosConfirmed {
+                Circle()
+                    .fill(Color.red.opacity(0.15))
+                    .frame(width: 260, height: 260)
+                    .scaleEffect(isPulsing ? 1.2 : 0.8)
+                    .blur(radius: 30)
+                    .onAppear {
+                        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                            isPulsing = true
+                        }
+                    }
+            }
 
             if driverVM.sosConfirmed {
                 confirmedView
+                    .transition(.scale.combined(with: .opacity))
             } else {
                 countdownView
+                    .transition(.scale.combined(with: .opacity))
             }
         }
+        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: driverVM.sosConfirmed)
     }
 
     private var countdownView: some View {
         VStack(spacing: 40) {
+            // Top Cancel bar
             HStack {
                 Spacer()
                 Button {
                     driverVM.cancelSOS()
                 } label: {
                     Text("Cancel")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(.headline, design: .rounded))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(Capsule().fill(.white.opacity(0.2)))
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.15), in: Capsule())
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                        )
                 }
             }
             .padding(.horizontal, 20)
+            .padding(.top, 20)
 
             Spacer()
 
-            Text("SOS")
-                .font(.system(size: 40, weight: .bold))
+            VStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .font(.title2)
+                    Text("EMERGENCY")
+                        .font(.system(.largeTitle, design: .rounded).weight(.heavy))
+                }
                 .foregroundStyle(.white)
+                .shadow(color: Color.red.opacity(0.6), radius: 10, x: 0, y: 0)
 
-            Text("Emergency alert will be sent in")
-                .font(.system(size: 17))
-                .foregroundStyle(.white.opacity(0.8))
+                Text("Alert will be sent in")
+                    .font(.system(.title3, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.85))
+            }
 
             // Countdown ring
             ZStack {
                 Circle()
-                    .stroke(.white.opacity(0.3), lineWidth: 8)
-                    .frame(width: 120, height: 120)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 12)
+                    .frame(width: 200, height: 200)
 
                 Circle()
                     .trim(from: 0, to: CGFloat(driverVM.sosCountdown) / 10.0)
-                    .stroke(.white, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                    .frame(width: 120, height: 120)
+                    .stroke(DriverTheme.criticalRed, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .frame(width: 200, height: 200)
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 1), value: driverVM.sosCountdown)
 
-                Text("\(driverVM.sosCountdown)")
-                    .font(.system(size: 48, weight: .bold))
-                    .foregroundStyle(.white)
+                VStack(spacing: 4) {
+                    Text("\(driverVM.sosCountdown)")
+                        .font(.system(size: 80, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .contentTransition(.numericText())
+                }
             }
+            .shadow(color: Color.red.opacity(0.3), radius: 25, y: 0)
 
             Text("Tap Cancel to abort")
-                .font(.system(size: 15))
+                .font(.system(.headline, design: .rounded))
                 .foregroundStyle(.white.opacity(0.6))
 
             Spacer()
 
-            Button("Send Now") {
+            Button {
                 driverVM.triggerSOS(service: appViewModel.service, user: appViewModel.currentUser)
+            } label: {
+                Text("Send Now")
+                    .font(.system(.title2, design: .rounded).bold())
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 64)
+                    .background(DriverTheme.criticalRed, in: Capsule())
+                    .shadow(color: DriverTheme.criticalRed.opacity(0.4), radius: 15, y: 5)
             }
-            .font(.system(size: 17, weight: .bold))
-            .foregroundStyle(DriverTheme.criticalRed)
-            .padding(.horizontal, 40)
-            .padding(.vertical, 16)
-            .background(Capsule().fill(.white))
+            .padding(.horizontal, 32)
             .padding(.bottom, 40)
         }
     }
 
     private var confirmedView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 32) {
             Spacer()
 
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 80))
-                .foregroundStyle(.white)
-
-            Text("SOS Confirmed")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(.white)
-
-            Text("Help is on the way")
-                .font(.system(size: 17))
-                .foregroundStyle(.white.opacity(0.8))
-
-            Text("Fleet Manager has been notified")
-                .font(.system(size: 15))
-                .foregroundStyle(.white.opacity(0.6))
-
-            Spacer()
-
-            Button("Close") {
-                driverVM.cancelSOS()
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(0.15))
+                    .frame(width: 200, height: 200)
+                    .blur(radius: 10)
+                
+                Image(systemName: "checkmark.shield.fill")
+                    .font(.system(size: 100))
+                    .foregroundStyle(Color.green)
+                    .symbolEffect(.bounce, options: .nonRepeating)
             }
-            .font(.system(size: 17, weight: .semibold))
-            .foregroundStyle(DriverTheme.criticalRed)
+
+            VStack(spacing: 12) {
+                Text("SOS Sent")
+                    .font(.system(.largeTitle, design: .rounded).bold())
+                    .foregroundStyle(.white)
+
+                Text("Help is on the way")
+                    .font(.system(.title3, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.95))
+
+                Text("Fleet Manager has been notified with your exact location.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+
+            Spacer()
+
+            Button {
+                driverVM.cancelSOS()
+            } label: {
+                Text("Close")
+                    .font(.system(.title3, design: .rounded).bold())
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 60)
+                    .background(Color.white.opacity(0.15), in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(Color.white.opacity(0.25), lineWidth: 1)
+                    )
+            }
             .padding(.horizontal, 40)
-            .padding(.vertical, 16)
-            .background(Capsule().fill(.white))
             .padding(.bottom, 40)
         }
     }

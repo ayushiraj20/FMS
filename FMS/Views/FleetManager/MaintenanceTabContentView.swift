@@ -1,280 +1,491 @@
 import SwiftUI
 
+// MARK: - Maintenance Personnel Tab (inside Crew → Maintenance Personnel)
 struct MaintenanceTabContentView: View {
     @Environment(AppViewModel.self) private var appViewModel
 
+    enum DutyFilter: String, CaseIterable {
+        case all       = "All"
+        case available = "Available"
+        case busy      = "Busy"
+        case offDuty   = "Off Duty"
+    }
+
+    @State private var dutyFilter: DutyFilter = .all
+    @State private var showAddSheet = false
+
+    private var maintenancePersonnel: [User] {
+        appViewModel.service.users.filter { $0.role == .maintenance }
+    }
+
+    private var filtered: [User] {
+        switch dutyFilter {
+        case .all:       return maintenancePersonnel
+        case .available: return maintenancePersonnel.filter { status(for: $0).0 == "Available" }
+        case .busy:      return maintenancePersonnel.filter { status(for: $0).0 == "Busy" }
+        case .offDuty:   return maintenancePersonnel.filter { status(for: $0).0 == "Off Duty" }
+        }
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // MARK: - Header
-                headerSection
+        ZStack(alignment: .bottomTrailing) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
 
-                // MARK: - Stats Grid
-                statsGrid
+                    // MARK: – Status filter chips
+                    filterChipBar
+                        .padding(.top, 4)
 
-                // MARK: - Quick Access
-                quickAccessSection
-
-                // MARK: - Upcoming Services
-                upcomingServicesSection
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-        }
-        .background(AppTheme.background)
-        .navigationTitle("Maintenance")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
-                    Image(systemName: "plus")
-                        .foregroundStyle(AppTheme.brand)
-                }
-            }
-        }
-        .task {
-            // Sync defect reports whenever the maintenance tab is opened
-            await appViewModel.service.syncDefectsAndWorkOrders()
-        }
-    }
-
-    // MARK: - Header
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Fleet health and service oversight.")
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.textSecondary)
-        }
-    }
-
-    // MARK: - Stats Grid
-    private var statsGrid: some View {
-        let scheduledCount = appViewModel.service.maintenanceSchedules.filter { $0.status == .upcoming }.count
-        let openDefects = appViewModel.service.defects.filter { $0.status == .pending || $0.status == .approved || $0.status == .inRepair }.count
-        let activeWorkOrders = appViewModel.service.workOrders.filter { $0.status != .completed }.count
-        let overdueCount = appViewModel.service.maintenanceSchedules.filter { $0.status == .overdue }.count
-
-        return LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-            maintenanceStatCard(
-                title: "Scheduled",
-                value: "\(scheduledCount)",
-                icon: "calendar.badge.clock",
-                color: AppTheme.brand
-            )
-            NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
-                maintenanceStatCard(
-                    title: "Open Defects",
-                    value: "\(openDefects)",
-                    icon: "exclamationmark.triangle.fill",
-                    color: AppTheme.warning,
-                    badgeText: openDefects > 0 ? "+New" : nil
-                )
-            }
-            .buttonStyle(.plain)
-            
-            NavigationLink(destination: WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
-                maintenanceStatCard(
-                    title: "Work Orders",
-                    value: "\(activeWorkOrders)",
-                    icon: "wrench.and.screwdriver.fill",
-                    color: AppTheme.textPrimary
-                )
-            }
-            .buttonStyle(.plain)
-            
-            maintenanceStatCard(
-                title: "Overdue",
-                value: "\(overdueCount)",
-                icon: "clock.badge.exclamationmark",
-                color: AppTheme.error,
-                badgeText: overdueCount > 0 ? "ALERT" : nil
-            )
-        }
-    }
-
-    // MARK: - Stat Card
-    private func maintenanceStatCard(title: String, value: String, icon: String, color: Color, badgeText: String? = nil) -> some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(title)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(AppTheme.textSecondary)
-                    Spacer()
-                    Image(systemName: icon)
-                        .font(.body)
-                        .foregroundStyle(color)
-                }
-
-                HStack(alignment: .bottom, spacing: 6) {
-                    Text(value)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(AppTheme.textPrimary)
-
-                    if let badge = badgeText {
-                        Text(badge)
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(color))
-                            .padding(.bottom, 4)
+                    // MARK: – Personnel cards
+                    if filtered.isEmpty {
+                        EmptyStateView(
+                            icon: "person.2.slash",
+                            title: "No maintenance personnel found",
+                            message: "Add new crew members or try different filters"
+                        )
+                        .padding(.top, 40)
+                    } else {
+                        LazyVStack(spacing: 14) {
+                            ForEach(filtered) { member in
+                                NavigationLink(
+                                    destination: MaintenanceMemberDetailView(
+                                        member: member,
+                                        service: appViewModel.service
+                                    )
+                                ) {
+                                    maintenanceMemberCard(member)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 100) // room for FAB
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(AppTheme.background)
+            .task {
+                await appViewModel.service.syncDefectsAndWorkOrders()
+            }
+
+
+        }
+        .sheet(isPresented: $showAddSheet) {
+            AddMaintenanceMemberSheet(service: appViewModel.service,
+                                     orgID: appViewModel.currentOrganization?.id)
         }
     }
 
-    // MARK: - Quick Access
-    private var quickAccessSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Quick Access")
-                .font(.headline)
-                .foregroundStyle(AppTheme.textPrimary)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    NavigationLink(destination: WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
-                        quickAccessChip(icon: "calendar", title: "Schedule")
+    // MARK: – Filter Chips
+    private var filterChipBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(DutyFilter.allCases, id: \.self) { filter in
+                    let isSelected = dutyFilter == filter
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+                            dutyFilter = filter
+                        }
+                    } label: {
+                        Text(filter.rawValue)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(isSelected ? .white : AppTheme.textPrimary)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 9)
+                            .background {
+                                Capsule()
+                                    .fill(isSelected ? AppTheme.brand : AppTheme.surfaceSecondary)
+                            }
                     }
-
-                    NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
-                        quickAccessChip(icon: "exclamationmark.triangle", title: "Defects")
-                    }
-
-                    quickAccessChip(icon: "doc.text.magnifyingglass", title: "Reports")
+                    .buttonStyle(.plain)
                 }
             }
         }
     }
 
-    private func quickAccessChip(icon: String, title: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.subheadline)
-            Text(title)
-                .font(.subheadline.weight(.medium))
+    // MARK: – Member Card
+    private func maintenanceMemberCard(_ member: User) -> some View {
+        let (statusText, statusColor) = status(for: member)
+        let activeOrders = appViewModel.service.workOrders.filter {
+            $0.assignedMaintenanceID == member.id && $0.status != .completed
         }
-        .foregroundStyle(AppTheme.textPrimary)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(AppTheme.surfaceSecondary)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(AppTheme.border, lineWidth: 0.5)
-        )
-    }
-
-    // MARK: - Upcoming Services
-    private var upcomingServicesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Upcoming Services")
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.textPrimary)
-                Spacer()
-                NavigationLink(destination: WorkOrderManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)) {
-                    Text("View All")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(AppTheme.brand)
-                }
-            }
-
-            let schedules = appViewModel.service.maintenanceSchedules
-                .sorted { $0.dueDate < $1.dueDate }
-                .prefix(5)
-
-            ForEach(Array(schedules)) { schedule in
-                serviceCard(schedule)
-            }
-
-            if schedules.isEmpty {
-                EmptyStateView(
-                    icon: "checkmark.circle",
-                    title: "All caught up",
-                    message: "No upcoming maintenance services scheduled."
-                )
-            }
-        }
-    }
-
-    // MARK: - Service Card
-    private func serviceCard(_ schedule: MaintenanceSchedule) -> some View {
-        let vehicle = appViewModel.service.vehicle(for: schedule.vehicleID)
+        let empCode = "MT-\(abs(member.id.hashValue % 900) + 100)"
 
         return GlassCard {
-            HStack(spacing: 14) {
-                Image(systemName: serviceIcon(schedule.serviceType))
-                    .font(.title3)
-                    .foregroundStyle(statusColor(schedule.status))
-                    .frame(width: 42, height: 42)
-                    .background(statusColor(schedule.status).opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 14) {
+                // Top row
+                HStack(alignment: .top, spacing: 14) {
+                    // Avatar
+                    AvatarView(name: member.name, size: 48)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(vehicle?.displayName ?? "Vehicle")
-                            .font(.subheadline.weight(.semibold))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(member.name)
+                            .font(.headline)
                             .foregroundStyle(AppTheme.textPrimary)
-                        Text("–")
-                            .foregroundStyle(AppTheme.textSecondary)
-                        Text(schedule.serviceType)
+                        Text(member.title)
                             .font(.caption)
                             .foregroundStyle(AppTheme.textSecondary)
-                            .lineLimit(1)
+                        Text(empCode)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
                     }
 
-                    HStack(spacing: 12) {
-                        Label(formattedDate(schedule.dueDate), systemImage: "calendar")
-                            .font(.caption)
+                    Spacer()
+
+                    // Status pill
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(statusColor)
+                            .frame(width: 7, height: 7)
+                        Text(statusText)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(statusColor)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(statusColor.opacity(0.12))
+                    .clipShape(Capsule())
+                }
+
+                Divider().background(AppTheme.border)
+
+                // Work order info row
+                HStack(spacing: 16) {
+                    infoChip(
+                        icon: "wrench.and.screwdriver.fill",
+                        value: "\(activeOrders.count)",
+                        label: "Active Orders",
+                        color: activeOrders.isEmpty ? AppTheme.success : AppTheme.warning
+                    )
+
+                    infoChip(
+                        icon: "phone.fill",
+                        value: member.phone,
+                        label: "Contact",
+                        color: AppTheme.brand
+                    )
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            }
+        }
+    }
+
+    private func infoChip(icon: String, value: String, label: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundStyle(color)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .lineLimit(1)
+                Text(label)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+        }
+    }
+
+    // MARK: – Status logic
+    private func status(for member: User) -> (String, Color) {
+        let hasActive = appViewModel.service.workOrders.contains {
+            $0.assignedMaintenanceID == member.id && $0.status != .completed
+        }
+        if hasActive {
+            return ("Busy", AppTheme.warning)
+        }
+        // Simplified: all maintenance staff who aren't on active orders are "Available"
+        return ("Available", AppTheme.success)
+    }
+}
+
+// MARK: - Maintenance Member Detail View
+struct MaintenanceMemberDetailView: View {
+    let member: User
+    let service: MockDataService
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Profile Hero Card
+                GlassCard {
+                    VStack(spacing: 14) {
+                        AvatarView(name: member.name, size: 80)
+
+                        VStack(spacing: 4) {
+                            Text(member.name)
+                                .font(.title2.weight(.bold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text(member.title)
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+
+                        HStack(spacing: 12) {
+                            // Call button
+                            Button {
+                                if let url = URL(string: "tel://\(member.phone.replacingOccurrences(of: " ", with: ""))") {
+                                    UIApplication.shared.open(url)
+                                }
+                            } label: {
+                                Label("Call", systemImage: "phone.fill")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
+                                    .background(AppTheme.success, in: Capsule())
+                            }
+
+                            // Email button
+                            Button {
+                                if let url = URL(string: "mailto:\(member.email)") {
+                                    UIApplication.shared.open(url)
+                                }
+                            } label: {
+                                Label("Email", systemImage: "envelope.fill")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(AppTheme.brand)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
+                                    .background(AppTheme.brand.opacity(0.12), in: Capsule())
+                                    .overlay(Capsule().strokeBorder(AppTheme.brand.opacity(0.3), lineWidth: 1))
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+
+                // Contact Info
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("CONTACT INFO")
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(AppTheme.textSecondary)
 
-                        if let vehicle {
-                            Label("\(vehicle.odometer.formatted()) km", systemImage: "speedometer")
+                        contactRow(icon: "phone.fill", label: "Phone", value: member.phone)
+                        Divider().background(AppTheme.border)
+                        contactRow(icon: "envelope.fill", label: "Email", value: member.email)
+                    }
+                }
+
+                // Active Work Orders
+                activeWorkOrdersSection
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 30)
+        }
+        .background(AppTheme.background.ignoresSafeArea())
+        .navigationTitle("Technician Profile")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func contactRow(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundStyle(AppTheme.brand)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+                Text(value)
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.textPrimary)
+            }
+            Spacer()
+        }
+    }
+
+    private var activeWorkOrdersSection: some View {
+        let activeOrders = service.workOrders.filter {
+            $0.assignedMaintenanceID == member.id && $0.status != .completed
+        }
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("ACTIVE WORK ORDERS")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(AppTheme.textSecondary)
+                .padding(.horizontal, 4)
+
+            if activeOrders.isEmpty {
+                EmptyStateView(
+                    icon: "checkmark.seal.fill",
+                    title: "All clear",
+                    message: "No active work orders assigned."
+                )
+            } else {
+                ForEach(activeOrders) { order in
+                    let vehicle = service.vehicles.first { $0.id == order.vehicleID }
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(order.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                Spacer()
+                                priorityBadge(order.priority)
+                            }
+                            if let v = vehicle {
+                                Label(v.displayName + " · " + v.plateNumber, systemImage: "truck.box.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            Text(order.details)
                                 .font(.caption)
                                 .foregroundStyle(AppTheme.textSecondary)
+                                .lineLimit(2)
+                            StatusBadgeView(
+                                text: order.status.rawValue,
+                                color: order.status == .inProgress ? AppTheme.brand : AppTheme.warning
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func priorityBadge(_ priority: WorkOrderPriority) -> some View {
+        Text(priority.rawValue)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(priorityColor(priority)))
+    }
+
+    private func priorityColor(_ priority: WorkOrderPriority) -> Color {
+        switch priority {
+        case .low:      AppTheme.success
+        case .medium:   AppTheme.brand
+        case .high:     AppTheme.warning
+        case .critical: AppTheme.error
+        }
+    }
+}
+
+// MARK: - Add Maintenance Member Sheet
+
+private struct AddMaintenanceMemberSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let service: MockDataService
+    let orgID: UUID?
+
+    @State private var name = ""
+    @State private var email = ""
+    @State private var phone = ""
+    @State private var jobTitle = ""
+    @State private var isCreating = false
+    @State private var errorMessage: String?
+
+    private var canSubmit: Bool {
+        !name.isEmpty && !email.isEmpty && !phone.isEmpty && !jobTitle.isEmpty && !isCreating
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Account") {
+                    TextField("Full Name", text: $name)
+                        .disabled(isCreating)
+
+                    // Role is fixed — shown as a read-only label, not a picker
+                    LabeledContent("Role") {
+                        Text(UserRole.maintenance.rawValue)
+                            .foregroundStyle(AppTheme.brand)
+                    }
+
+                    TextField("Email", text: $email)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.emailAddress)
+                        .disabled(isCreating)
+
+                    TextField("Phone", text: $phone)
+                        .keyboardType(.phonePad)
+                        .disabled(isCreating)
+
+                    TextField("Job Title", text: $jobTitle)
+                        .disabled(isCreating)
+                }
+
+                if let error = errorMessage {
+                    Section {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(AppTheme.error)
+                            Text(error)
+                                .font(.footnote)
+                                .foregroundStyle(AppTheme.error)
                         }
                     }
                 }
 
-                Spacer()
-
-                StatusBadgeView(
-                    text: schedule.status.rawValue,
-                    color: statusColor(schedule.status)
-                )
+                Section {
+                    Text("New accounts use the default password `demo123` for this academic demo.")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            }
+            .navigationTitle("Add Team Member")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isCreating)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        Task { await submit() }
+                    } label: {
+                        if isCreating {
+                            ProgressView().tint(AppTheme.brand)
+                        } else {
+                            Text("Add")
+                        }
+                    }
+                    .disabled(!canSubmit)
+                }
             }
         }
     }
 
-    // MARK: - Helpers
-    private func serviceIcon(_ serviceType: String) -> String {
-        if serviceType.localizedCaseInsensitiveContains("oil") || serviceType.localizedCaseInsensitiveContains("filter") {
-            return "drop.fill"
-        } else if serviceType.localizedCaseInsensitiveContains("tyre") || serviceType.localizedCaseInsensitiveContains("tire") {
-            return "circle.circle"
-        } else if serviceType.localizedCaseInsensitiveContains("brake") {
-            return "exclamationmark.octagon.fill"
-        }
-        return "wrench.fill"
-    }
+    private func submit() async {
+        errorMessage = nil
+        isCreating = true
 
-    private func statusColor(_ status: MaintenanceScheduleStatus) -> Color {
-        switch status {
-        case .upcoming: return AppTheme.brand
-        case .overdue: return AppTheme.error
-        case .completed: return AppTheme.success
+        // Duplicate email check
+        if service.users.contains(where: { $0.email.lowercased() == email.lowercased() }) {
+            errorMessage = "An account with this email already exists."
+            isCreating = false
+            return
         }
-    }
 
-    private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
+        guard let orgID else {
+            errorMessage = "Organization not found."
+            isCreating = false
+            return
+        }
+
+        do {
+            try await service.addUser(
+                name: name,
+                role: .maintenance,      // always fixed to maintenance
+                email: email,
+                phone: phone,
+                title: jobTitle,
+                organizationID: orgID
+            )
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            isCreating = false
+        }
     }
 }
 

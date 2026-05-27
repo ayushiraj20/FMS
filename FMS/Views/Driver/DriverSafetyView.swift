@@ -1,7 +1,6 @@
 import SwiftUI
 import MapKit
 
-// Force indexing refresh
 struct DriverSafetyView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppViewModel.self) private var appViewModel
@@ -9,13 +8,12 @@ struct DriverSafetyView: View {
 
     private var currentUser: User? { appViewModel.currentUser }
 
-    // Recent events sample data
     private struct SafetyEvent: Identifiable {
         let id = UUID()
         let title: String
         let time: String
         let location: String
-        let severity: String // "Low", "Medium", "High"
+        let severity: String
         let coordinate: CLLocationCoordinate2D
     }
 
@@ -26,410 +24,433 @@ struct DriverSafetyView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                // Driving Score Ring
+            VStack(spacing: 24) {
                 drivingScoreSection
-
-                // Fatigue & Hours grid
                 fatigueAndHoursGrid
-
-                // Crash Detection Status card
                 crashDetectionStatusCard
-
-                // Recent Events section
                 recentEventsSection
-
-                // Sparkline speed chart
                 sparklineSpeedChart
-
-                // Driving Tips card
                 drivingTipsCard
-
-                // Trip History Done by Driver
                 tripHistoryDoneByDriver
-
-                // Quick SOS Button
                 quickSOSButton
+                
+                Spacer().frame(height: 40)
             }
             .padding(20)
         }
-        .background(DriverTheme.background.ignoresSafeArea())
+        .background(DriverScreenBackground())
         .navigationTitle("Safety")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    // Placeholder for safety alerts notification trigger
-                }) {
-                    Image(systemName: "bell")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(DriverTheme.textPrimary)
+                Button(action: {}) {
+                    Image(systemName: "bell.badge.fill")
+                        .font(.headline)
+                        .foregroundStyle(DriverTheme.accent)
                 }
             }
         }
     }
 
-    // MARK: - Driving Score Gauge Section
-
     private var drivingScoreSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             ZStack {
-                // Background Track
                 Circle()
                     .trim(from: 0.15, to: 0.85)
-                    .stroke(Color.white.opacity(0.08), style: StrokeStyle(lineWidth: 18, lineCap: .round))
-                    .frame(width: 180, height: 180)
+                    .stroke(DriverTheme.textSecondary.opacity(0.1), style: StrokeStyle(lineWidth: 24, lineCap: .round))
+                    .frame(width: 200, height: 200)
                     .rotationEffect(.degrees(90))
 
-                // Active Track
                 Circle()
                     .trim(from: 0.15, to: 0.15 + 0.7 * (92.0 / 100.0))
                     .stroke(
-                        LinearGradient(
-                            colors: [DriverTheme.accent, Color(hex: "FF3B30")],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ),
-                        style: StrokeStyle(lineWidth: 18, lineCap: .round)
+                        DriverTheme.accent,
+                        style: StrokeStyle(lineWidth: 24, lineCap: .round)
                     )
-                    .frame(width: 180, height: 180)
+                    .frame(width: 200, height: 200)
                     .rotationEffect(.degrees(90))
+                    .shadow(color: DriverTheme.accent.opacity(0.4), radius: 10, y: 5)
 
-                VStack(spacing: 0) {
+                VStack(spacing: -4) {
                     Text("92")
-                        .font(.system(size: 54, weight: .bold))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 64, weight: .heavy, design: .rounded))
+                        .foregroundStyle(DriverTheme.textPrimary)
                     Text("of 100")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(.subheadline, design: .rounded).bold())
                         .foregroundStyle(DriverTheme.textSecondary)
                 }
             }
-            .frame(height: 140)
+            .frame(height: 160)
+            .padding(.top, 20)
 
-            Text("Driving Score")
-                .font(.system(size: 16, weight: .semibold))
+            Text("Excellent driving this week")
+                .font(.system(.headline, design: .rounded))
                 .foregroundStyle(DriverTheme.textSecondary)
         }
-        .padding(.vertical, 10)
     }
-
-    // MARK: - Fatigue & Hours Grid
 
     private var fatigueAndHoursGrid: some View {
-        HStack(spacing: 12) {
-            // Fatigue Level
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Fatigue Level: Low")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(DriverTheme.textSecondary)
-                
-                // Block progress bar
-                HStack(spacing: 4) {
-                    ForEach(0..<8, id: \.self) { idx in
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(idx < 2 ? DriverTheme.successGreen : Color.white.opacity(0.1))
-                            .frame(width: 6, height: 12)
-                    }
-                }
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill))
-
-            // Hours Driven
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Hours driven:")
-                        .font(.system(size: 12))
-                        .foregroundStyle(DriverTheme.textSecondary)
-                    Text("4.5h")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(DriverTheme.textPrimary)
-                }
-                Spacer()
-                Image(systemName: "clock.fill")
-                    .font(.system(size: 24))
-                    .foregroundStyle(DriverTheme.accent.opacity(0.6))
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill))
-        }
-    }
-
-    // MARK: - Crash Detection Status Card
-
-    private var crashDetectionStatusCard: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 20))
-                .foregroundStyle(DriverTheme.successGreen)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Crash Detection Status")
-                    .font(.system(size: 13))
-                    .foregroundStyle(DriverTheme.textSecondary)
-                Text("• Active")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(DriverTheme.successGreen)
-            }
-            Spacer()
-        }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill))
-    }
-
-    // MARK: - Recent Events Section
-
-    private var recentEventsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Recent Events")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(DriverTheme.textPrimary)
-
-            ForEach(recentEvents) { event in
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 8) {
-                            Text(event.title)
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(DriverTheme.textPrimary)
-                            
-                            Text(event.severity)
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(severityColor(event.severity))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(severityColor(event.severity).opacity(0.15)))
-                        }
-                        
-                        Text(event.time)
-                            .font(.system(size: 12))
-                            .foregroundStyle(DriverTheme.textSecondary)
-                        
-                        Text("Location: \(event.location)")
-                            .font(.system(size: 13))
-                            .foregroundStyle(DriverTheme.textSecondary)
-                    }
+        HStack(spacing: 16) {
+            // Fatigue Level Card
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Image(systemName: "eye.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DriverTheme.successGreen)
+                        .frame(width: 28, height: 28)
+                        .background(DriverTheme.successGreen.opacity(0.12), in: Circle())
                     
                     Spacer()
-
-                    // Mini Map Thumbnail
-                    let center = event.coordinate
-                    let region = MKCoordinateRegion(center: center, span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
                     
-                    Map(initialPosition: .region(region)) {
-                        Annotation("", coordinate: center) {
-                            Circle()
-                                .fill(DriverTheme.accent)
-                                .frame(width: 8, height: 8)
-                                .overlay(Circle().stroke(.white, lineWidth: 1.5))
-                        }
-                    }
-                    .mapStyle(.standard(elevation: .realistic))
-                    .frame(width: 60, height: 60)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .disabled(true)
+                    Text("Low")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(DriverTheme.successGreen)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(DriverTheme.successGreen.opacity(0.12), in: Capsule())
                 }
-                .padding(16)
-                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill))
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Fatigue Level")
+                        .font(.system(.caption2, design: .rounded).bold())
+                        .foregroundStyle(DriverTheme.textSecondary)
+                    
+                    Text("Fully Alert")
+                        .font(.system(.headline, design: .rounded).bold())
+                        .foregroundStyle(DriverTheme.textPrimary)
+                }
+                
+                HStack(spacing: 5) {
+                    ForEach(0..<5, id: \.self) { idx in
+                        Capsule()
+                            .fill(idx < 1 ? DriverTheme.successGreen : DriverTheme.textSecondary.opacity(0.15))
+                            .frame(height: 6)
+                    }
+                }
+                .padding(.top, 4)
+            }
+            .padding(16)
+            .background(DriverTheme.elevatedCard)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .strokeBorder(DriverTheme.accent.opacity(0.1), lineWidth: 1)
+            )
+
+            // Hours Driven Card
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Image(systemName: "clock.badge.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DriverTheme.accent)
+                        .frame(width: 28, height: 28)
+                        .background(DriverTheme.accent.opacity(0.12), in: Circle())
+                    
+                    Spacer()
+                    
+                    Text("Limit: 8h")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(DriverTheme.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(DriverTheme.textSecondary.opacity(0.1), in: Capsule())
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Hours Driven")
+                        .font(.system(.caption2, design: .rounded).bold())
+                        .foregroundStyle(DriverTheme.textSecondary)
+                    
+                    HStack(alignment: .lastTextBaseline, spacing: 2) {
+                        Text("4.5")
+                            .font(.system(.title2, design: .rounded).bold())
+                            .foregroundStyle(DriverTheme.textPrimary)
+                        Text("hrs")
+                            .font(.caption.bold())
+                            .foregroundStyle(DriverTheme.textSecondary)
+                    }
+                }
+                
+                // Linear Progress bar representing hours driven vs limit
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(DriverTheme.textSecondary.opacity(0.15))
+                            .frame(height: 6)
+                        Capsule()
+                            .fill(DriverTheme.accent)
+                            .frame(width: geo.size.width * (4.5 / 8.0), height: 6)
+                    }
+                }
+                .frame(height: 6)
+                .padding(.top, 4)
+            }
+            .padding(16)
+            .background(DriverTheme.elevatedCard)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .strokeBorder(DriverTheme.accent.opacity(0.1), lineWidth: 1)
+            )
+        }
+    }
+
+    private var crashDetectionStatusCard: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                // Glowing background radar ring
+                Circle()
+                    .stroke(DriverTheme.successGreen.opacity(0.2), lineWidth: 2)
+                    .frame(width: 48, height: 48)
+                
+                Image(systemName: "checkmark.shield.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
+                    .background(DriverTheme.successGreen, in: Circle())
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Crash Detection Status")
+                    .font(.system(.headline, design: .rounded))
+                    .foregroundStyle(DriverTheme.textPrimary)
+                Text("Active & Monitoring in real-time")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(DriverTheme.successGreen)
+            }
+            
+            Spacer()
+            
+            Text("SECURE")
+                .font(.system(size: 9, weight: .black))
+                .foregroundStyle(DriverTheme.successGreen)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(DriverTheme.successGreen.opacity(0.12))
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .strokeBorder(DriverTheme.successGreen.opacity(0.3), lineWidth: 1)
+                )
+        }
+        .padding(16)
+        .background(DriverTheme.elevatedCard)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(DriverTheme.successGreen.opacity(0.15), lineWidth: 1.5)
+        )
+    }
+
+    private var recentEventsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Recent Events")
+                .font(.system(.title3, design: .rounded).bold())
+                .foregroundStyle(DriverTheme.textPrimary)
+
+            LazyVStack(spacing: 12) {
+                ForEach(recentEvents) { event in
+                    HStack(spacing: 16) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(event.title)
+                                    .font(.system(.headline, design: .rounded))
+                                    .foregroundStyle(DriverTheme.textPrimary)
+                                Spacer()
+                                Text(event.severity)
+                                    .font(.caption2.bold())
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(severityColor(event.severity).opacity(0.15), in: Capsule())
+                                    .foregroundStyle(severityColor(event.severity))
+                            }
+                            
+                            HStack {
+                                Image(systemName: "clock")
+                                Text(event.time)
+                                Spacer()
+                                Image(systemName: "mappin.and.ellipse")
+                                Text(event.location)
+                            }
+                            .font(.caption)
+                            .foregroundStyle(DriverTheme.textSecondary)
+                        }
+                        
+                        let region = MKCoordinateRegion(center: event.coordinate, span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
+                        Map(initialPosition: .region(region)) {
+                            Annotation("", coordinate: event.coordinate) {
+                                Circle()
+                                    .fill(DriverTheme.accent)
+                                    .frame(width: 12, height: 12)
+                                    .overlay(Circle().stroke(.white, lineWidth: 2))
+                                    .shadow(radius: 2)
+                            }
+                        }
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .disabled(true)
+                    }
+                    .padding(16)
+                    .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                }
             }
         }
     }
 
-    // MARK: - Sparkline Speed Chart
-
     private var sparklineSpeedChart: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("100")
-                    .font(.system(size: 10))
-                    .foregroundStyle(DriverTheme.textSecondary)
-                Spacer()
-            }
-            .frame(height: 10)
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Weekly Score Trend")
+                .font(.system(.title3, design: .rounded).bold())
+                .foregroundStyle(DriverTheme.textPrimary)
 
             GeometryReader { geo in
                 let width = geo.size.width
                 let height = geo.size.height
-                let dataPoints: [CGFloat] = [88, 92, 85, 96, 92, 94, 92] // score sequence
-                let stepX = width / CGFloat(dataPoints.count - 1)
+                let dataPoints: [CGFloat] = [88, 92, 85, 96, 92, 94, 92]
+                let stepX = width / CGFloat(max(1, dataPoints.count - 1))
 
                 ZStack {
-                    // Horizontal Grid Lines
-                    Path { path in
-                        path.move(to: CGPoint(x: 0, y: height * 0.2))
-                        path.addLine(to: CGPoint(x: width, y: height * 0.2))
-                        path.move(to: CGPoint(x: 0, y: height * 0.5))
-                        path.addLine(to: CGPoint(x: width, y: height * 0.5))
-                        path.move(to: CGPoint(x: 0, y: height * 0.8))
-                        path.addLine(to: CGPoint(x: width, y: height * 0.8))
-                    }
-                    .stroke(Color.white.opacity(0.04), lineWidth: 1)
-
-                    // Gradient Under Fill
                     Path { path in
                         path.move(to: CGPoint(x: 0, y: height))
                         for i in 0..<dataPoints.count {
-                            let x = CGFloat(i) * stepX
-                            let y = height * (1.0 - (dataPoints[i] / 100.0))
-                            path.addLine(to: CGPoint(x: x, y: y))
+                            path.addLine(to: CGPoint(x: CGFloat(i) * stepX, y: height * (1.0 - (dataPoints[i] / 100.0))))
                         }
                         path.addLine(to: CGPoint(x: width, y: height))
                         path.closeSubpath()
                     }
-                    .fill(
-                        LinearGradient(
-                            colors: [DriverTheme.accent.opacity(0.3), DriverTheme.accent.opacity(0.0)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                    .fill(DriverTheme.accent.opacity(0.15))
 
-                    // Line Path
                     Path { path in
-                        let firstY = height * (1.0 - (dataPoints[0] / 100.0))
-                        path.move(to: CGPoint(x: 0, y: firstY))
+                        path.move(to: CGPoint(x: 0, y: height * (1.0 - (dataPoints[0] / 100.0))))
                         for i in 1..<dataPoints.count {
-                            let x = CGFloat(i) * stepX
-                            let y = height * (1.0 - (dataPoints[i] / 100.0))
-                            path.addLine(to: CGPoint(x: x, y: y))
+                            path.addLine(to: CGPoint(x: CGFloat(i) * stepX, y: height * (1.0 - (dataPoints[i] / 100.0))))
                         }
                     }
-                    .stroke(DriverTheme.accentGradient, lineWidth: 3)
+                    .stroke(DriverTheme.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
 
-                    // Interactive points
                     ForEach(0..<dataPoints.count, id: \.self) { idx in
-                        let x = CGFloat(idx) * stepX
-                        let y = height * (1.0 - (dataPoints[idx] / 100.0))
-                        
                         Circle()
-                            .fill(Color.white)
-                            .frame(width: 6, height: 6)
-                            .position(x: x, y: y)
-                            .shadow(color: .black.opacity(0.3), radius: 2)
+                            .fill(.white)
+                            .frame(width: 8, height: 8)
+                            .position(x: CGFloat(idx) * stepX, y: height * (1.0 - (dataPoints[idx] / 100.0)))
+                            .shadow(radius: 2)
                     }
                 }
             }
             .frame(height: 100)
+            .padding(.top, 10)
 
             HStack {
-                Text("0")
-                    .font(.system(size: 10))
-                    .foregroundStyle(DriverTheme.textSecondary)
-                Spacer()
-                ForEach(1...7, id: \.self) { day in
-                    Text("\(day)")
-                        .font(.system(size: 10))
+                ForEach(["M", "T", "W", "T", "F", "S", "S"], id: \.self) { day in
+                    Text(day)
+                        .font(.caption.bold())
                         .foregroundStyle(DriverTheme.textSecondary)
-                    if day < 7 {
-                        Spacer()
-                    }
+                        .frame(maxWidth: .infinity)
                 }
             }
         }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill))
+        .padding(20)
+        .background(DriverTheme.elevatedCard, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(DriverTheme.accent.opacity(0.1), lineWidth: 1))
     }
-
-    // MARK: - Driving Tips Card
 
     private var drivingTipsCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Driving Tips")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(DriverTheme.textPrimary)
+        HStack(spacing: 16) {
+            Image(systemName: "lightbulb.fill")
+                .font(.title)
+                .foregroundStyle(DriverTheme.warningAmber)
+                .frame(width: 48, height: 48)
+                .background(DriverTheme.warningAmber.opacity(0.15), in: Circle())
 
-            Text("Maintain a steady speed for smoother driving and better fuel efficiency.")
-                .font(.system(size: 14))
-                .foregroundStyle(DriverTheme.textSecondary)
-                .lineSpacing(4)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Pro Tip")
+                    .font(.system(.headline, design: .rounded))
+                    .foregroundStyle(DriverTheme.textPrimary)
+                Text("Maintain a steady speed for smoother driving and better fuel efficiency.")
+                    .font(.subheadline)
+                    .foregroundStyle(DriverTheme.textSecondary)
+                    .lineLimit(2)
+            }
         }
         .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill))
+        .background(DriverTheme.elevatedCard, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(DriverTheme.warningAmber.opacity(0.15), lineWidth: 1))
     }
 
-    // MARK: - Complete Trip History Done by Driver Section
-
     private var tripHistoryDoneByDriver: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Trip History & Vehicles")
-                .font(.system(size: 18, weight: .bold))
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Trip History")
+                .font(.system(.title3, design: .rounded).bold())
                 .foregroundStyle(DriverTheme.textPrimary)
-                .padding(.top, 8)
 
             if let user = currentUser {
                 let trips = appViewModel.service.trips(for: user.id)
                 if trips.isEmpty {
-                    Text("No trip history available")
-                        .font(.system(size: 14))
-                        .foregroundStyle(DriverTheme.textSecondary)
-                        .padding(.vertical, 8)
+                    VStack(spacing: 12) {
+                        Image(systemName: "map")
+                            .font(.system(size: 40))
+                            .foregroundStyle(DriverTheme.textSecondary.opacity(0.5))
+                        Text("No trips recorded yet")
+                            .font(.headline)
+                            .foregroundStyle(DriverTheme.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                    .background(DriverTheme.elevatedCard, in: RoundedRectangle(cornerRadius: 24))
+                    .overlay(RoundedRectangle(cornerRadius: 24).stroke(DriverTheme.accent.opacity(0.1), lineWidth: 1))
                 } else {
-                    ForEach(trips) { trip in
-                        let vehicle = appViewModel.service.vehicle(for: trip.vehicleID)
-                        
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("\(trip.origin) → \(trip.destination)")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundStyle(DriverTheme.textPrimary)
-                                    Text(trip.startDate.formatted(date: .abbreviated, time: .shortened))
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(DriverTheme.textSecondary)
-                                }
-                                
-                                Spacer()
-                                
-                                if let score = trip.safetyScore {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "shield.checkerboard")
-                                            .font(.system(size: 11))
-                                            .foregroundStyle(DriverTheme.successGreen)
-                                        Text("Score: \(score)")
-                                            .font(.system(size: 12, weight: .bold))
-                                            .foregroundStyle(DriverTheme.successGreen)
+                    LazyVStack(spacing: 12) {
+                        ForEach(trips) { trip in
+                            let vehicle = appViewModel.service.vehicle(for: trip.vehicleID)
+                            VStack(spacing: 12) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("\(trip.origin) → \(trip.destination)")
+                                            .font(.system(.headline, design: .rounded))
+                                        Text(trip.startDate.formatted(date: .abbreviated, time: .shortened))
+                                            .font(.caption)
+                                            .foregroundStyle(DriverTheme.textSecondary)
                                     }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Capsule().fill(DriverTheme.successGreen.opacity(0.15)))
-                                } else {
-                                    Text(trip.status.rawValue)
-                                        .font(.system(size: 12, weight: .bold))
-                                        .foregroundStyle(trip.status == .completed ? DriverTheme.successGreen : trip.status == .inProgress ? DriverTheme.accent : DriverTheme.textSecondary)
+                                    Spacer()
+                                    if let score = trip.safetyScore {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "shield.checkerboard")
+                                            Text("\(score)")
+                                        }
+                                        .font(.caption.bold())
                                         .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(Capsule().fill(Color.white.opacity(0.06)))
+                                        .padding(.vertical, 6)
+                                        .background(DriverTheme.successGreen.opacity(0.15), in: Capsule())
+                                        .foregroundStyle(DriverTheme.successGreen)
+                                    } else {
+                                        Text(trip.status.rawValue)
+                                            .font(.caption.bold())
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(DriverTheme.textSecondary.opacity(0.1), in: Capsule())
+                                            .foregroundStyle(DriverTheme.textSecondary)
+                                    }
                                 }
-                            }
 
-                            Divider().background(DriverTheme.separator)
+                                Divider().background(DriverTheme.textSecondary.opacity(0.2))
 
-                            HStack {
-                                if let vehicle = vehicle {
-                                    Label(
-                                        title: { Text("\(vehicle.displayName) (\(vehicle.plateNumber))") },
-                                        icon: { Image(systemName: "truck.box.fill") }
-                                    )
-                                    .font(.system(size: 13))
+                                HStack {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "truck.box.fill")
+                                        Text(vehicle?.displayName ?? "Unknown Vehicle")
+                                    }
+                                    .font(.caption.bold())
                                     .foregroundStyle(DriverTheme.textSecondary)
-                                } else {
-                                    Label("Unknown Vehicle", systemImage: "questionmark.circle.fill")
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(DriverTheme.textSecondary)
+                                    
+                                    Spacer()
+                                    Text("\(Int(trip.distanceKM)) km")
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(DriverTheme.textPrimary)
                                 }
-
-                                Spacer()
-
-                                Text("\(Int(trip.distanceKM)) km")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(DriverTheme.textPrimary)
                             }
+                            .padding(16)
+                            .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 24))
                         }
-                        .padding(16)
-                        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.cardFill))
                     }
                 }
             }
@@ -437,30 +458,29 @@ struct DriverSafetyView: View {
     }
 
     private var quickSOSButton: some View {
-        Button(action: {
+        Button {
             driverVM.startSOSCountdown(service: appViewModel.service, user: currentUser)
-        }) {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.octagon.fill")
-                    .font(.system(size: 16, weight: .bold))
-                Text("QUICK SOS")
-                    .font(.system(size: 16, weight: .bold))
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title2)
+                Text("Emergency SOS")
+                    .font(.system(.title3, design: .rounded).bold())
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DriverTheme.criticalRed))
+            .frame(height: 64)
+            .background(DriverTheme.criticalRed, in: Capsule())
+            .shadow(color: DriverTheme.criticalRed.opacity(0.4), radius: 15, y: 5)
         }
-        .padding(.top, 10)
+        .padding(.vertical, 10)
     }
-
-    // MARK: - Helpers
 
     private func severityColor(_ severity: String) -> Color {
         switch severity {
         case "Low": return DriverTheme.successGreen
         case "Medium": return DriverTheme.warningAmber
-        default: return Color(hex: "FF3B30")
+        default: return DriverTheme.criticalRed
         }
     }
 }

@@ -181,14 +181,14 @@ final class SupabaseService {
         orgID: UUID
     ) async throws -> [BroadcastMessage] {
 
-        let rows:[BroadcastMessage] =
+        let rows: [BroadcastMessage] =
         try await client
             .from("broadcast_messages")
             .select("""
             id,
             organization_id,
             sender_id,
-            sender_name:profiles(name),
+            sender_name,
             title,
             message,
             sent_at
@@ -273,4 +273,3 @@ final class SupabaseService {
             .execute()
     }
 }
-

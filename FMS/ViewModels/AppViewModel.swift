@@ -370,4 +370,16 @@ final class AppViewModel {
             notifications = service.notifications(for: user)
         }
     }
+
+    func markNotificationAsRead(id: UUID) async {
+        guard let index = notifications.firstIndex(where: { $0.id == id }) else { return }
+        notifications[index].isRead = true
+        
+        let notification = notifications[index]
+        service.markNotificationRead(notification)
+        
+        if SupabaseConfig.isConfigured {
+            try? await supabase.updateNotification(notification)
+        }
+    }
 }

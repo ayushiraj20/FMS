@@ -9,113 +9,101 @@ struct TeamView: View {
         _viewModel = State(wrappedValue: TeamViewModel(service: service, currentOrgID: currentOrgID))
     }
 
+    enum CrewSegment: String, CaseIterable {
+        case drivers = "Drivers"
+        case maintenance = "Maintenance Personnel"
+    }
+    
+    @State private var selectedSegment: CrewSegment = .drivers
+
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            List {
-                Group {
-                    // MARK: - Custom Header
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Text("Team")
+        NavigationStack {
+            VStack(spacing: 0) {
+                // MARK: - Custom Header
+                VStack(spacing: 16) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Crew Management")
                             .font(.system(size: 34, weight: .bold))
                             .foregroundStyle(AppTheme.textPrimary)
-                        
-                        Text("\(viewModel.service.users.count) members")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(AppTheme.textSecondary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(AppTheme.surfaceSecondary)
-                            .clipShape(Capsule())
-                        
                         Spacer()
                     }
-                    .padding(.top, 10)
                     
                     // MARK: - Search Bar
                     HStack {
                         Image(systemName: "magnifyingglass")
                             .foregroundStyle(AppTheme.textSecondary)
-                        TextField("Search", text: $viewModel.searchText)
+                        TextField("Search crew members...", text: $viewModel.searchText)
                             .foregroundStyle(AppTheme.textPrimary)
                     }
                     .padding(12)
                     .background(AppTheme.surfaceSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     
-                    // MARK: - Filter Chips
-                    filterChips
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-
-                // MARK: - Team Members List
-                if viewModel.filteredMembers.isEmpty {
-                    EmptyStateView(
-                        icon: "person.2.slash",
-                        title: "No team members found",
-                        message: "Try adjusting your search or filters."
-                    )
-                    .padding(.top, 40)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                } else {
-                    ForEach(viewModel.filteredMembers) { member in
-                        ZStack {
-                            teamMemberCard(member)
-                            NavigationLink(destination: TeamMemberDetailView(member: member, service: viewModel.service)) {
-                                EmptyView()
-                            }
-                            .opacity(0)
-                        }
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                viewModel.deleteMember(member)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                            Button {
-                                viewModel.prepareForEdit(member)
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            .tint(AppTheme.brand)
+                    // MARK: - Segmented Control
+                    Picker("Crew Segment", selection: $selectedSegment) {
+                        ForEach(CrewSegment.allCases, id: \.self) { segment in
+                            Text(segment.rawValue).tag(segment)
                         }
                     }
+                    .pickerStyle(.segmented)
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .padding(.bottom, 16)
                 
-                Color.clear
-                    .frame(height: 100)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                // MARK: - Content Switcher
+                TabView(selection: $selectedSegment) {
+                    DriverAssignmentManagementView(service: viewModel.service)
+                        .tag(CrewSegment.drivers)
+                    
+                    MaintenanceTabContentView()
+                        .tag(CrewSegment.maintenance)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
             .background(AppTheme.background)
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             
             // MARK: - Floating Add Button
-            Button {
-                viewModel.showAddMember = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(AppTheme.brand)
-                    .clipShape(Circle())
-                    .shadow(color: AppTheme.brand.opacity(0.4), radius: 10, y: 4)
+            .overlay(alignment: .bottomTrailing) {
+                Button {
+                    if selectedSegment == .drivers {
+                        viewModel.newRole = .driver
+                    } else {
+                        viewModel.newRole = .maintenance
+                    }
+                    viewModel.showAddMember = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                        .background(AppTheme.brand)
+                        .clipShape(Circle())
+                        .shadow(color: AppTheme.brand.opacity(0.4), radius: 10, y: 4)
+                }
+                .padding(.trailing, 24)
+                .padding(.bottom, 24)
             }
-            .padding(.trailing, 24)
-            .padding(.bottom, 24)
-        }
-        .sheet(isPresented: $viewModel.showAddMember) {
-            AddTeamMemberSheet(viewModel: viewModel)
+            .sheet(isPresented: $viewModel.showAddMember) {
+                AddTeamMemberSheet(viewModel: viewModel)
+            }
+            .confirmationDialog(
+                "Delete Team Member",
+                isPresented: $viewModel.isPresentingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    viewModel.deleteConfirmed()
+                }
+                Button("Cancel", role: .cancel) {
+                    viewModel.memberToDelete = nil
+                }
+            } message: {
+                if let member = viewModel.memberToDelete {
+                    Text("Are you sure you want to delete \(member.name)? This action cannot be undone.")
+                }
+            }
         }
     }
 
@@ -186,6 +174,16 @@ struct TeamView: View {
                 
                 // Actions
                 HStack(spacing: 12) {
+                    Button(action: {
+                        viewModel.confirmDelete(member)
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(AppTheme.error)
+                            .frame(width: 36, height: 36)
+                            .background(AppTheme.surfaceSecondary)
+                            .clipShape(Circle())
+                    }
                     Button(action: {}) {
                         Image(systemName: "phone")
                             .font(.system(size: 14, weight: .medium))
@@ -553,8 +551,21 @@ final class TeamViewModel {
         return members
     }
 
-    func deleteMember(_ member: User) {
-        service.deleteUser(member)
+    // Delete State
+    var memberToDelete: User? = nil
+    var isPresentingDeleteConfirmation = false
+
+    func confirmDelete(_ member: User) {
+        memberToDelete = member
+        isPresentingDeleteConfirmation = true
+    }
+
+    func deleteConfirmed() {
+        if let member = memberToDelete {
+            service.deleteUser(member)
+        }
+        memberToDelete = nil
+        isPresentingDeleteConfirmation = false
     }
 
     func prepareForEdit(_ member: User) {

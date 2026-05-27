@@ -7,8 +7,8 @@ struct LoginView: View {
     }
 
     @Environment(AppViewModel.self) private var appViewModel
-    @State private var email = "maintenance@northstar.com"
-    @State private var password = "demo123"
+    @State private var email = ""
+    @State private var password = ""
     @State private var showPassword = false
     @FocusState private var focusedField: FocusField?
 
@@ -63,9 +63,7 @@ struct LoginView: View {
                                         .foregroundStyle(AppTheme.textSecondary)
                                         .kerning(1.2)
                                     Spacer()
-                                    Button("FORGOT?") { }
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(AppTheme.brand)
+                                   
                                 }
                                 
                                 AuthTextField(
@@ -77,6 +75,9 @@ struct LoginView: View {
                                     showPassword: $showPassword
                                 )
                                 .focused($focusedField, equals: .password)
+                                Button("FORGOT?") { }
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(AppTheme.brand)
                             }
                             
                             // Error Message Banner
@@ -134,7 +135,7 @@ struct LoginView: View {
                     .padding(.bottom, 40)
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 
