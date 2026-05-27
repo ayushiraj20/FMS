@@ -38,7 +38,7 @@ struct GlassCard<Content: View>: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(AppTheme.border, lineWidth: 0.5)
+                    .stroke(AppTheme.border, lineWidth: 0.3)
             )
     }
 }
@@ -212,10 +212,10 @@ struct FilterChipView: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.subheadline.weight(.medium))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(isSelected ? .white : AppTheme.textSecondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
                 .background(
                     Capsule()
                         .fill(isSelected ? AppTheme.brand : AppTheme.surfaceSecondary)
@@ -262,18 +262,19 @@ struct EmptyStateView: View {
 
     var body: some View {
         GlassCard {
-            VStack(spacing: 14) {
+            VStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 32))
+                    .font(.system(size: 22))
                     .foregroundStyle(AppTheme.brand)
                 Text(title)
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.textPrimary)
                 Text(message)
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundStyle(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
+            .padding(.vertical, 4)
             .frame(maxWidth: .infinity)
         }
     }

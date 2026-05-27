@@ -85,7 +85,7 @@ struct DriverDashboardView: View {
                     .environment(driverVM)
             }
             .sheet(isPresented: $driverVM.showBreakLogSheet) {
-                BreakLogSheet()
+                TripBreakLogSheet(trip: currentUser.flatMap { appViewModel.service.activeTrip(for: $0.id) })
                     .environment(appViewModel)
             }
             .sheet(item: $driverVM.showAlertDetail) { alert in
@@ -367,7 +367,6 @@ struct DriverDashboardView: View {
     // MARK: - Quick Actions
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            /*
             Text("Actions")
                 .font(.system(.title2, design: .rounded).bold())
             
@@ -380,12 +379,10 @@ struct DriverDashboardView: View {
                     }
                     .buttonStyle(.plain)
                     
-                    /*
                     Button { driverVM.showBreakLogSheet = true } label: {
                         quickActionTile(icon: "cup.and.saucer.fill", label: "Break Log", color: .orange)
                     }
                     .buttonStyle(.plain)
-                    */
                     
                     Button { driverVM.startSOSCountdown(service: appViewModel.service, user: currentUser) } label: {
                         quickActionTile(icon: "light.beacon.max.fill", label: "SOS", color: DriverTheme.criticalRed)
@@ -397,21 +394,6 @@ struct DriverDashboardView: View {
             .scrollTargetBehavior(.viewAligned)
             .contentMargins(.horizontal, 20, for: .scrollContent)
             .padding(.horizontal, -20)
-            */
-            
-            Button { driverVM.startSOSCountdown(service: appViewModel.service, user: currentUser) } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "light.beacon.max.fill")
-                        .font(.title2)
-                    Text("SOS Emergency")
-                        .font(.system(.headline, design: .rounded).bold())
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(DriverTheme.criticalRed, in: Capsule())
-            }
-            .buttonStyle(.plain)
         }
     }
     

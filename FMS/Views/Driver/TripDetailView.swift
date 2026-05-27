@@ -20,6 +20,7 @@ struct TripDetailView: View {
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var sheetHeight: PresentationDetent = .medium
     @State private var showPostTripInspectionSheet = false
+    @State private var showBreakLogSheet = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -85,6 +86,10 @@ struct TripDetailView: View {
                         dismiss()
                     }
                     .environment(appViewModel)
+                }
+                .sheet(isPresented: $showBreakLogSheet) {
+                    TripBreakLogSheet(trip: trip)
+                        .environment(appViewModel)
                 }
         }
     }
@@ -256,6 +261,17 @@ struct TripDetailView: View {
             }
             .disabled(!inspDone)
         } else if trip.status == .inProgress {
+            Button {
+                showBreakLogSheet = true
+            } label: {
+                Text("Log Break")
+                    .font(.system(.headline, design: .rounded).bold())
+                    .foregroundStyle(DriverTheme.accent)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(DriverTheme.accent.opacity(0.15), in: Capsule())
+            }
+            
             Button {
                 showPostTripInspectionSheet = true
             } label: {
