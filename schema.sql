@@ -157,6 +157,7 @@ create table if not exists trips (
   end_date timestamptz null,
   distance_km numeric(10,2) not null default 0 check (distance_km >= 0),
   status trip_status not null,
+  safety_score integer null,
   route_details text null,
   notes text null,
   created_at timestamptz not null default now(),
@@ -270,6 +271,41 @@ create table if not exists chat_messages (
 );
 
 create index if not exists idx_chat_messages_work_order_id on chat_messages(work_order_id);
+
+-- =========================
+-- BROADCAST MESSAGES
+-- =========================
+create table if not exists broadcast_messages (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  sender_id uuid not null references profiles(id) on delete cascade,
+  title text not null,
+  message text not null,
+  sent_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_broadcast_messages_organization_id on broadcast_messages(organization_id);
+
+-- =========================
+-- FUEL TRANSACTIONS
+-- =========================
+create table if not exists "fuelTransactions" (
+  "transactionID" uuid primary key default gen_random_uuid(),
+  "vehicleID" uuid references vehicles(id) on delete set null,
+  "driverID" uuid references profiles(id) on delete set null,
+  "tripID" uuid references trips(id) on delete set null,
+  "manualAmount" numeric(12,2) null,
+  "odometerReading" integer null,
+  "receiptImageUrl" text null,
+  "timestamp" timestamptz not null default now(),
+  "verificationStatus" text not null default 'Pending',
+  "rejectionReason" text null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_fuel_transactions_vehicle_id on "fuelTransactions"("vehicleID");
+create index if not exists idx_fuel_transactions_driver_id on "fuelTransactions"("driverID");
 
 -- =========================
 -- INDEXES
@@ -467,6 +503,45 @@ end $$;
 alter table defect_reports
   add column if not exists status defect_status not null default 'Pending';
 
+-- Migration 4: Add safety_score column to trips table (if not already present)
+alter table trips
+  add column if not exists safety_score integer null;
+
+-- Migration 5: Create broadcast_messages and fuelTransactions tables (if not already present)
+create table if not exists broadcast_messages (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  sender_id uuid not null references profiles(id) on delete cascade,
+  title text not null,
+  message text not null,
+  sent_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_broadcast_messages_organization_id on broadcast_messages(organization_id);
+
+create table if not exists "fuelTransactions" (
+  "transactionID" uuid primary key default gen_random_uuid(),
+  "vehicleID" uuid references vehicles(id) on delete set null,
+  "driverID" uuid references profiles(id) on delete set null,
+  "tripID" uuid references trips(id) on delete set null,
+  "manualAmount" numeric(12,2) null,
+  "odometerReading" integer null,
+  "receiptImageUrl" text null,
+  "timestamp" timestamptz not null default now(),
+  "verificationStatus" text not null default 'Pending',
+  "rejectionReason" text null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_fuel_transactions_vehicle_id on "fuelTransactions"("vehicleID");
+create index if not exists idx_fuel_transactions_driver_id on "fuelTransactions"("driverID");
+
+-- Migration 6: Add title and images columns to defect_reports table (if not already present)
+alter table defect_reports
+  add column if not exists title text null,
+  add column if not exists images text[] null;
+
 -- =========================
 -- ROW LEVEL SECURITY (RLS)
 -- CRITICAL: Without these policies the app cannot read/write any table.
@@ -487,6 +562,8 @@ alter table work_orders        enable row level security;
 alter table maintenance_schedules enable row level security;
 alter table notifications      enable row level security;
 alter table chat_messages      enable row level security;
+alter table broadcast_messages enable row level security;
+alter table "fuelTransactions" enable row level security;
 
 -- ── ORGANIZATIONS ──────────────────────────────────────────────────────────
 drop policy if exists "Allow authenticated read organizations" on organizations;
@@ -609,15 +686,21 @@ drop policy if exists "Allow authenticated write chat_messages" on chat_messages
 create policy "Allow authenticated write chat_messages"
   on chat_messages for all to authenticated using (true) with check (true);
 
--- ── BROADCAST MESSAGES (if table exists) ────────────────────────────────────
-do $$ begin
-  alter table broadcast_messages enable row level security;
-  drop policy if exists "Allow authenticated read broadcast_messages" on broadcast_messages;
-  create policy "Allow authenticated read broadcast_messages"
-    on broadcast_messages for select to authenticated using (true);
-  drop policy if exists "Allow authenticated write broadcast_messages" on broadcast_messages;
-  create policy "Allow authenticated write broadcast_messages"
-    on broadcast_messages for all to authenticated using (true) with check (true);
-exception when undefined_table then null;
-end $$;
+-- ── BROADCAST MESSAGES ───────────────────────────────────────────────────────
+drop policy if exists "Allow authenticated read broadcast_messages" on broadcast_messages;
+create policy "Allow authenticated read broadcast_messages"
+  on broadcast_messages for select to authenticated using (true);
+
+drop policy if exists "Allow authenticated write broadcast_messages" on broadcast_messages;
+create policy "Allow authenticated write broadcast_messages"
+  on broadcast_messages for all to authenticated using (true) with check (true);
+
+-- ── FUEL TRANSACTIONS ────────────────────────────────────────────────────────
+drop policy if exists "Allow authenticated read fuelTransactions" on "fuelTransactions";
+create policy "Allow authenticated read fuelTransactions"
+  on "fuelTransactions" for select to authenticated using (true);
+
+drop policy if exists "Allow authenticated write fuelTransactions" on "fuelTransactions";
+create policy "Allow authenticated write fuelTransactions"
+  on "fuelTransactions" for all to authenticated using (true) with check (true);
 

@@ -32,24 +32,48 @@ final class BroadcastService {
             isLoading = false
         }
 
-        do {
-
-            messages = try await
-                SupabaseService.shared
-                .fetchBroadcastMessages(
-                    orgID: orgID
-                )
-
-        } catch {
-
-            print("Load error:", error)
-
+        if SupabaseConfig.isConfigured {
+            do {
+                messages = try await
+                    SupabaseService.shared
+                    .fetchBroadcastMessages(
+                        orgID: orgID
+                    )
+            } catch {
+                print("Load error:", error)
+            }
+        } else {
+            // Seed local/mock broadcasts if empty
+            if messages.isEmpty {
+                messages = [
+                    BroadcastMessage(
+                        id: UUID(),
+                        organizationID: orgID,
+                        senderID: UUID(),
+                        senderName: "Ayush Ahuja (Admin)",
+                        title: "Weather Alert & High Traffic",
+                        message: "Attention all drivers: Heavy rainfall and waterlogging reported near the harbor highway. Please use the alternate bypass route and maintain safe distance.",
+                        sentAt: Date().addingTimeInterval(-3600 * 2)
+                    ),
+                    BroadcastMessage(
+                        id: UUID(),
+                        organizationID: orgID,
+                        senderID: UUID(),
+                        senderName: "Ayush Ahuja (Admin)",
+                        title: "System Maintenance Tonight",
+                        message: "The vehicle logs and dispatch modules will undergo scheduled maintenance tonight between 12:00 AM and 2:00 AM. Offline syncing will remain active.",
+                        sentAt: Date().addingTimeInterval(-3600 * 5)
+                    )
+                ]
+            }
         }
     }
 
     // MARK: Subscribe realtime updates
 
     func subscribe(orgID: UUID) {
+
+        guard SupabaseConfig.isConfigured else { return }
 
         unsubscribe()
 
@@ -75,17 +99,20 @@ final class BroadcastService {
                         decoder: JSONDecoder()
                     )
 
-                    self.messages.insert(
-                        msg,
-                        at: 0
-                    )
-
-                    NotificationScheduler
-                        .scheduleBroadcastAlert(
-                            title: msg.title,
-                            body:
-                            "\(msg.senderName): \(msg.message)"
+                    // Avoid duplicate insertion if sent from this device
+                    if !self.messages.contains(where: { $0.id == msg.id }) {
+                        self.messages.insert(
+                            msg,
+                            at: 0
                         )
+
+                        NotificationScheduler
+                            .scheduleBroadcastAlert(
+                                title: msg.title,
+                                body:
+                                "\(msg.senderName): \(msg.message)"
+                            )
+                    }
 
                 }
                 catch {
@@ -145,20 +172,30 @@ final class BroadcastService {
             sentAt: .now
         )
 
-        do {
+        // Insert locally immediately (checking for duplicates just in case)
+        if !self.messages.contains(where: { $0.id == msg.id }) {
+            self.messages.insert(msg, at: 0)
+        }
 
-            try await
-            SupabaseService.shared
-                .addBroadcastMessage(
-                    msg
+        // Trigger local push notification
+        NotificationScheduler.scheduleBroadcastAlert(
+            title: msg.title,
+            body: "\(msg.senderName): \(msg.message)"
+        )
+
+        if SupabaseConfig.isConfigured {
+            do {
+                try await
+                SupabaseService.shared
+                    .addBroadcastMessage(
+                        msg
+                    )
+            } catch {
+                print(
+                    "Broadcast send error:",
+                    error
                 )
-
-        } catch {
-
-            print(
-                "Broadcast send error:",
-                error
-            )
+            }
         }
     }
 }

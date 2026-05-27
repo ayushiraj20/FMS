@@ -188,7 +188,7 @@ final class SupabaseService {
             id,
             organization_id,
             sender_id,
-            sender_name,
+            profiles(name),
             title,
             message,
             sent_at
