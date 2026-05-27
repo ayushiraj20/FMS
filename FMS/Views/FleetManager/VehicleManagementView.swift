@@ -628,9 +628,9 @@ private struct VehicleDetailView: View {
                 if let vehicle = viewModel.vehicle(for: vehicleID) {
                     VStack(spacing: 20) {
                         heroCard(for: vehicle)
-                        metricStrip(for: vehicle)
+                        // metricStrip(for: vehicle)
                         actionStrip
-                        insightsSection(for: vehicle)
+                        // insightsSection(for: vehicle)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
@@ -673,18 +673,28 @@ private struct VehicleDetailView: View {
                     Color(UIColor.systemGroupedBackground)
                         .ignoresSafeArea()
 
-                    VStack(spacing: 24) {
-                        Image(systemName: sheetIcon(for: sheet))
-                            .font(.system(size: 56, weight: .semibold))
-                            .foregroundStyle(Color.blue)
-                        Text(sheetTitle(for: sheet))
-                            .font(.title2.weight(.bold))
-                            .foregroundStyle(Color(.label))
-                        Text("A dedicated surface for this control is ready to plug into the live data flow.")
-                            .font(.subheadline)
-                            .foregroundStyle(Color(.secondaryLabel))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
+                    if sheet == .insights, let vehicle = viewModel.vehicle(for: vehicleID) {
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                insightsSection(for: vehicle)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+                        }
+                    } else {
+                        VStack(spacing: 24) {
+                            Image(systemName: sheetIcon(for: sheet))
+                                .font(.system(size: 56, weight: .semibold))
+                                .foregroundStyle(Color.blue)
+                            Text(sheetTitle(for: sheet))
+                                .font(.title2.weight(.bold))
+                                .foregroundStyle(Color(.label))
+                            Text("A dedicated surface for this control is ready to plug into the live data flow.")
+                                .font(.subheadline)
+                                .foregroundStyle(Color(.secondaryLabel))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                        }
                     }
                 }
                 .navigationTitle(sheetTitle(for: sheet))
@@ -1214,6 +1224,7 @@ private enum VehicleStudioTheme {
 
 private struct VehicleSectionBackground: View {
     var body: some View {
+        /*
         ZStack {
             AppTheme.background
                 .ignoresSafeArea()
@@ -1240,6 +1251,9 @@ private struct VehicleSectionBackground: View {
                 .blur(radius: 100)
                 .offset(x: 120, y: 220)
         }
+        */
+        AppTheme.background
+            .ignoresSafeArea()
     }
 }
 
