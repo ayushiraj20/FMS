@@ -1,67 +1,118 @@
 import SwiftUI
 
 struct PriorityAlertsListView: View {
-    let alerts = [
-        ("SOS Alerts", 5, "exclamationmark.triangle.fill"),
-        ("Critical", 3, "bell.fill"),
-        ("Maintenance", 2, "wrench.and.screwdriver.fill"),
-        ("Off-Route", 4, "location.slash.fill"),
-        ("Geofence", 1, "mappin.and.ellipse")
+    @Environment(AppViewModel.self) private var appViewModel
+    @State private var selectedCategory = "SOS Alerts"
+    @Namespace private var categoryNamespace
+
+    private let categories: [(name: String, icon: String, color: Color, count: Int)] = [
+        ("SOS Alerts",  "exclamationmark.triangle.fill", Color(red: 1, green: 0.25, blue: 0.3),  5),
+        ("Critical",    "bell.badge.fill",               Color(red: 1, green: 0.45, blue: 0.1),  3),
+        ("Maintenance", "wrench.and.screwdriver.fill",   Color(red: 0.35, green: 0.6, blue: 1),  2),
+        ("Off-Route",   "location.slash.fill",           Color(red: 1, green: 0.75, blue: 0.1),  4),
+        ("Geofence",    "shield.slash.fill",             Color(red: 0.6, green: 0.3, blue: 1),   1),
     ]
-    
-    let columns = [GridItem(.flexible()), GridItem(.flexible())]
-    
+
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(alerts, id: \.0) { alert in
-                    NavigationLink(destination: PriorityAlertDetailView(category: alert.0, count: alert.1)) {
-                        VStack(spacing: 12) {
-                            ZStack(alignment: .topTrailing) {
-                                Image(systemName: alert.2)
-                                    .font(.system(size: 32, weight: .regular))
-                                    .foregroundStyle(Color("AccentColor"))
-                                    .frame(width: 50, height: 50)
-                                
-                                if alert.1 > 0 {
-                                    Text("\(alert.1)")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .frame(minWidth: 22, minHeight: 22)
-                                        .background(Circle().fill(Color("AccentColor")))
-                                        .overlay(
-                                            Circle()
-                                                .stroke(AppTheme.cardBackground, lineWidth: 2)
-                                        )
-                                        .offset(x: 8, y: -8)
-                                }
-                            }
-                            
-                            Text(alert.0)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
-                        .background(AppTheme.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(AppTheme.border, lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
+        VStack(spacing: 0) {
+            // ── Category Tab Bar ──────────────────────────────────────
+            categoryTabBar
+                .padding(.bottom, 8)
+
+            Divider()
+                .background(AppTheme.border)
+
+            // ── Alert List ────────────────────────────────────────────
+            PriorityAlertDetailView(category: selectedCategory,
+                                    count: categoryCount(selectedCategory))
+                .id(selectedCategory)          // force re-render on tab switch
+        }
+        .background(AppTheme.background)
+        .navigationTitle("Priority Alerts")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // MARK: - Category Tab Bar
+    private var categoryTabBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(categories, id: \.name) { cat in
+                    categoryTab(cat)
                 }
             }
-            .padding()
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 4)
         }
-        .background(AppTheme.background.ignoresSafeArea())
-        .navigationTitle("All Priority Alerts")
+    }
+
+    private func categoryTab(_ cat: (name: String, icon: String, color: Color, count: Int)) -> some View {
+        let isSelected = selectedCategory == cat.name
+
+        return Button {
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
+                selectedCategory = cat.name
+            }
+        } label: {
+            HStack(spacing: 7) {
+                // Icon
+                Image(systemName: cat.icon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(isSelected ? .white : cat.color)
+
+                // Label
+                Text(cat.name)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(isSelected ? .white : AppTheme.textPrimary)
+
+                // Count Badge
+                if cat.count > 0 {
+                    Text("\(cat.count)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(isSelected ? cat.color : .white)
+                        .frame(minWidth: 20, minHeight: 20)
+                        .background(
+                            Capsule()
+                                .fill(isSelected ? .white : cat.color)
+                        )
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [cat.color, cat.color.opacity(0.75)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .shadow(color: cat.color.opacity(0.45), radius: 8, y: 4)
+                        .matchedGeometryEffect(id: "selectedTab", in: categoryNamespace)
+                } else {
+                    Capsule()
+                        .fill(AppTheme.surfaceSecondary)
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(cat.color.opacity(0.25), lineWidth: 1)
+                        )
+                }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func categoryCount(_ name: String) -> Int {
+        categories.first { $0.name == name }?.count ?? 0
     }
 }
 
 #Preview {
     NavigationStack {
         PriorityAlertsListView()
+            .environment(AppViewModel())
     }
 }

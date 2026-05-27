@@ -8,14 +8,16 @@ struct DriverTripTabView: View {
     private var currentUser: User? { appViewModel.currentUser }
 
     var body: some View {
+        let activeTrip = currentUser.flatMap { appViewModel.service.activeTrip(for: $0.id) }
+
         Group {
-            if let user = currentUser, let activeTrip = appViewModel.service.activeTrip(for: user.id) {
+            if let activeTrip {
                 ActiveTripMapView(trip: activeTrip)
-                    .toolbar(.hidden, for: .navigationBar)
             } else {
                 AssignedRoutesView()
             }
         }
+        .toolbar(activeTrip != nil ? .hidden : .visible, for: .navigationBar)
     }
 }
 
@@ -139,7 +141,7 @@ struct ActiveTripMapView: View {
             .shadow(radius: 5)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 60)
+        .padding(.top, 10)
     }
 
     // MARK: - Left Info Card

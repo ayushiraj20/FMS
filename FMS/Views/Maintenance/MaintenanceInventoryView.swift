@@ -52,7 +52,6 @@ struct MaintenanceInventoryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 cardsGrid
-                searchField
                 bubbleFilter
                 inventoryList
             }
@@ -62,6 +61,7 @@ struct MaintenanceInventoryView: View {
         }
         .navigationTitle("Inventory")
         .navigationBarTitleDisplayMode(.large)
+        .searchable(text: $searchText, prompt: "Search name, part no. or category...")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 NavigationLink {
@@ -165,43 +165,6 @@ struct MaintenanceInventoryView: View {
                 }
                 .buttonStyle(.plain)
             }
-
-            HStack(spacing: 12) {
-                NavigationLink {
-                    InventoryForecastView(parts: parts, upcomingTaskCount: appViewModel.service.schedules().count)
-                } label: {
-                    gridCard(
-                        icon: "brain.head.profile",
-                        title: "AI Forecast",
-                        subtitle: "Shortage risk",
-                        value: nil,
-                        badgeCount: forecastRiskCount > 0 ? forecastRiskCount : nil,
-                        iconBg: Color.orange.opacity(0.15),
-                        iconColor: .orange
-                    )
-                }
-                .buttonStyle(.plain)
-
-                NavigationLink {
-                    InventoryReconciliationView(onConfirm: { returnedParts in
-                        for item in returnedParts {
-                            restock(partID: item.partID, quantity: item.quantity)
-                        }
-                        reorderMessage = "Cancelled work order parts reconciled."
-                    })
-                } label: {
-                    gridCard(
-                        icon: "xmark.octagon.fill",
-                        title: "Cancelled WO",
-                        subtitle: "Reconcile parts",
-                        value: nil,
-                        badgeCount: nil,
-                        iconBg: Color.purple.opacity(0.15),
-                        iconColor: .purple
-                    )
-                }
-                .buttonStyle(.plain)
-            }
         }
     }
 
@@ -260,22 +223,7 @@ struct MaintenanceInventoryView: View {
         )
     }
 
-    private var searchField: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(detailText)
-            TextField("Search name, part no. or category...", text: $searchText)
-                .textInputAutocapitalization(.never)
-                .foregroundStyle(headingText)
-        }
-        .padding(.horizontal, 14)
-        .frame(height: 46)
-        .background(Color.dynamic(light: "#FFFFFF", dark: "#202127"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#58372B"), lineWidth: 1)
-        )
-    }
+
 
     private var bubbleFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {

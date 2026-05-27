@@ -224,14 +224,12 @@ struct VehicleManagementView: View {
             HStack(spacing: 10) {
                 Image(systemName: "plus")
                     .font(.headline.weight(.bold))
-                Text("Add Vehicle")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
             .background(
-                Capsule()
+                Circle()
                     .fill(VehicleStudioTheme.accentGradient)
                     .shadow(color: VehicleStudioTheme.accent.opacity(0.28), radius: 20, x: 0, y: 12)
             )

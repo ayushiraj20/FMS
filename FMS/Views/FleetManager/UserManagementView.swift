@@ -101,7 +101,7 @@ struct UserManagementView: View {
             .padding(.trailing, 20)
             .padding(.bottom, 30)
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $viewModel.isPresentingCreateUser) {
             CreateUserSheet(viewModel: viewModel)
         }

@@ -211,8 +211,8 @@ struct ProfileSettingsView: View {
     private func initializeInputs() {
         if let user = appViewModel.currentUser {
             nameInput = user.name
-            phoneInput = user.phone ?? ""
-            titleInput = user.title ?? ""
+            phoneInput = user.phone
+            titleInput = user.title
         }
     }
 
@@ -355,8 +355,8 @@ struct EditProfileView: View {
             .onAppear {
                 if let user = appViewModel.currentUser {
                     nameInput = user.name
-                    phoneInput = user.phone ?? ""
-                    titleInput = user.title ?? ""
+                    phoneInput = user.phone
+                    titleInput = user.title
                 }
             }
         }
