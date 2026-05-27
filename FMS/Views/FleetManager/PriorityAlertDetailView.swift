@@ -225,264 +225,121 @@ struct PriorityAlertDetailView: View {
     }
     
     private func getAlerts(appViewModel: AppViewModel) -> [DetailedPriorityAlert] {
-        let rajesh = appViewModel.service.users.first { $0.name.contains("Rajesh") }
-        let maya = appViewModel.service.users.first { $0.name.contains("Maya") }
-        let tataAce = appViewModel.service.vehicles.first { $0.plateNumber == "TRK-2847" }
-        let tataPrima = appViewModel.service.vehicles.first { $0.plateNumber == "TX-14-LGT" }
-        let ashokLeyland = appViewModel.service.vehicles.first { $0.plateNumber == "NV-11-CRG" }
-        let eicher = appViewModel.service.vehicles.first { $0.plateNumber == "AZ-09-RTE" }
-        
         switch category {
         case "SOS Alerts":
-            return [
-                DetailedPriorityAlert(
-                    index: 1,
+            return appViewModel.service.sosAlerts.enumerated().map { (idx, alert) in
+                let driver  = appViewModel.service.users.first   { $0.id == alert.driverID }
+                let vehicle = appViewModel.service.vehicles.first { $0.id == alert.vehicleID }
+
+                let formatter = RelativeDateTimeFormatter()
+                formatter.unitsStyle = .full
+
+                return DetailedPriorityAlert(
+                    index: idx + 1,
                     category: category,
-                    title: "SOS: Driver Distress Triggered",
-                    timestampText: "2 mins ago",
-                    description: "Emergency SOS trigger received from driver cab. Immediate assistance required.",
-                    recommendedAction: "Dispatch emergency breakdown services immediately. Attempt to contact driver via phone.",
-                    severity: "Emergency",
-                    severityColor: AppTheme.error,
-                    latitude: 19.0856,
-                    longitude: 72.9082,
-                    locationName: "LBS Road, Ghatkopar West, Mumbai",
-                    driverName: rajesh?.name ?? "Rajesh Kumar",
-                    driverPhone: rajesh?.phone ?? "+91 98765 43210",
-                    driverTitle: rajesh?.title ?? "Senior Driver",
-                    vehicleName: tataAce?.displayName ?? "Tata Ace",
-                    vehiclePlate: tataAce?.plateNumber ?? "TRK-2847",
-                    vehicleStatus: tataAce?.status.rawValue ?? "Active",
-                    vehicleOdometer: "\(tataAce?.odometer ?? 128420) km",
-                    vehicleFuel: "\(tataAce?.fuelLevel ?? 74)%",
+                    title: "SOS: \(alert.emergencyType) (\(alert.driverName))",
+                    timestampText: formatter.localizedString(for: alert.createdAt, relativeTo: Date()),
+                    description: "SOS Status: \(alert.status). \(alert.emergencyType) distress reported. Coordinates: (\(alert.latitude), \(alert.longitude)).",
+                    recommendedAction: "Dispatch emergency services immediately. Attempt to contact driver at \(driver?.phone ?? "N/A").",
+                    severity: alert.status == "CLOSED" ? "Closed" : "Active",
+                    severityColor: alert.status == "CLOSED" ? .green : AppTheme.error,
+                    latitude: alert.latitude,
+                    longitude: alert.longitude,
+                    locationName: "Coordinates: \(alert.latitude), \(alert.longitude)",
+                    driverName: alert.driverName,
+                    driverPhone: driver?.phone ?? "N/A",
+                    driverTitle: driver?.title ?? "Driver",
+                    vehicleName: vehicle?.displayName ?? "Vehicle",
+                    vehiclePlate: alert.vehicleNumber,
+                    vehicleStatus: vehicle?.status.rawValue ?? "Active",
+                    vehicleOdometer: "\(vehicle?.odometer ?? 0) km",
+                    vehicleFuel: "\(vehicle?.fuelLevel ?? 0)%",
                     extraDetails: [
-                        "Trigger Type": "In-cab Hard SOS Button",
-                        "Last Speed": "0 km/h",
-                        "Collision Detected": "No"
-                    ]
-                ),
-                DetailedPriorityAlert(
-                    index: 2,
-                    category: category,
-                    title: "SOS: Panic Alert Confirmed",
-                    timestampText: "7 mins ago",
-                    description: "Panic alert button activated. GPS tracking indicates vehicle has halted unexpectedly.",
-                    recommendedAction: "Alert local security patrol and notify region traffic coordinator.",
-                    severity: "Emergency",
-                    severityColor: AppTheme.error,
-                    latitude: 19.0330,
-                    longitude: 73.0297,
-                    locationName: "Sion-Panvel Highway, Panvel",
-                    driverName: maya?.name ?? "Maya Singh",
-                    driverPhone: maya?.phone ?? "+91 98765 43211",
-                    driverTitle: maya?.title ?? "Linehaul Driver",
-                    vehicleName: tataPrima?.displayName ?? "Tata Prima 5530",
-                    vehiclePlate: tataPrima?.plateNumber ?? "TX-14-LGT",
-                    vehicleStatus: tataPrima?.status.rawValue ?? "Active",
-                    vehicleOdometer: "\(tataPrima?.odometer ?? 96870) km",
-                    vehicleFuel: "\(tataPrima?.fuelLevel ?? 56)%",
-                    extraDetails: [
-                        "Trigger Type": "Mobile App SOS",
-                        "Last Speed": "12 km/h",
-                        "Collision Detected": "No"
-                    ]
-                ),
-                DetailedPriorityAlert(
-                    index: 3,
-                    category: category,
-                    title: "SOS: Hard Impact Detected",
-                    timestampText: "12 mins ago",
-                    description: "High G-force impact alert triggered automatically from vehicle sensors.",
-                    recommendedAction: "Call emergency highway rescue and check active traffic camera feed.",
-                    severity: "Emergency",
-                    severityColor: AppTheme.error,
-                    latitude: 18.7557,
-                    longitude: 73.4091,
-                    locationName: "Expressway near Adoshi Tunnel, Lonavala",
-                    driverName: "Unknown Driver",
-                    driverPhone: "N/A",
-                    driverTitle: "Driver",
-                    vehicleName: ashokLeyland?.displayName ?? "Ashok Leyland 4220",
-                    vehiclePlate: ashokLeyland?.plateNumber ?? "NV-11-CRG",
-                    vehicleStatus: ashokLeyland?.status.rawValue ?? "In Service",
-                    vehicleOdometer: "\(ashokLeyland?.odometer ?? 167540) km",
-                    vehicleFuel: "\(ashokLeyland?.fuelLevel ?? 23)%",
-                    extraDetails: [
-                        "Trigger Type": "G-Sensor Crash Detect",
-                        "Last Speed": "48 km/h",
-                        "Collision Detected": "Yes"
+                        "Trigger Type": "Panic Button / App Trigger",
+                        "Latitude":     "\(alert.latitude)",
+                        "Longitude":    "\(alert.longitude)",
+                        "Status":       alert.status
                     ]
                 )
-            ]
+            }
+
         case "Critical":
-            return [
-                DetailedPriorityAlert(
-                    index: 1,
-                    category: category,
-                    title: "Brakes: High Heat Alert",
-                    timestampText: "5 mins ago",
-                    description: "Brake pad sensors report critical temperature levels exceeding safety threshold (380°C).",
-                    recommendedAction: "Instruct driver to pull over immediately. Do not attempt to apply heavy brakes.",
-                    severity: "Critical",
-                    severityColor: AppTheme.error,
-                    latitude: 18.5204,
-                    longitude: 73.8567,
-                    locationName: "Katraj Bypass, Pune",
-                    driverName: maya?.name ?? "Maya Singh",
-                    driverPhone: maya?.phone ?? "+91 98765 43211",
-                    driverTitle: maya?.title ?? "Linehaul Driver",
-                    vehicleName: tataPrima?.displayName ?? "Tata Prima 5530",
-                    vehiclePlate: tataPrima?.plateNumber ?? "TX-14-LGT",
-                    vehicleStatus: tataPrima?.status.rawValue ?? "Active",
-                    vehicleOdometer: "\(tataPrima?.odometer ?? 96870) km",
-                    vehicleFuel: "\(tataPrima?.fuelLevel ?? 56)%",
-                    extraDetails: [
-                        "Pad Wear Status": "25% life remaining",
-                        "Temp Sensor": "Rear Axle Left (382°C)"
-                    ]
-                ),
-                DetailedPriorityAlert(
-                    index: 2,
-                    category: category,
-                    title: "Engine: Coolant Temperature",
-                    timestampText: "10 mins ago",
-                    description: "Engine coolant temperature has breached safe limits (112°C). High risk of engine failure.",
-                    recommendedAction: "Halt vehicle immediately and check coolant reservoir level. Avoid opening hot cap.",
-                    severity: "Critical",
-                    severityColor: AppTheme.error,
-                    latitude: 19.0760,
-                    longitude: 72.8777,
-                    locationName: "Western Express Highway, Bandra",
-                    driverName: rajesh?.name ?? "Rajesh Kumar",
-                    driverPhone: rajesh?.phone ?? "+91 98765 43210",
-                    driverTitle: rajesh?.title ?? "Senior Driver",
-                    vehicleName: tataAce?.displayName ?? "Tata Ace",
-                    vehiclePlate: tataAce?.plateNumber ?? "TRK-2847",
-                    vehicleStatus: tataAce?.status.rawValue ?? "Active",
-                    vehicleOdometer: "\(tataAce?.odometer ?? 128420) km",
-                    vehicleFuel: "\(tataAce?.fuelLevel ?? 74)%",
-                    extraDetails: [
-                        "Coolant Temp": "112.5°C",
-                        "Fan Status": "Active (High Speed)"
-                    ]
-                )
-            ]
+            return appViewModel.service.workOrders
+                .filter { $0.priority == .critical && $0.status != .completed }
+                .enumerated().map { (idx, order) in
+                    let vehicle = appViewModel.service.vehicles.first { $0.id == order.vehicleID }
+                    let driver  = appViewModel.service.users.first    { $0.id == vehicle?.assignedDriverID }
+                    let maint   = appViewModel.service.users.first    { $0.id == order.assignedMaintenanceID }
+
+                    let formatter = RelativeDateTimeFormatter()
+                    formatter.unitsStyle = .full
+
+                    return DetailedPriorityAlert(
+                        index: idx + 1,
+                        category: category,
+                        title: order.title,
+                        timestampText: formatter.localizedString(for: order.scheduledDate, relativeTo: Date()),
+                        description: order.details,
+                        recommendedAction: "Assign maintenance team and inspect vehicle immediately.",
+                        severity: "Critical",
+                        severityColor: AppTheme.error,
+                        latitude: 19.0760, longitude: 72.8777,
+                        locationName: vehicle?.displayName ?? "Unknown Vehicle",
+                        driverName: driver?.name ?? "Unassigned",
+                        driverPhone: driver?.phone ?? "N/A",
+                        driverTitle: driver?.title ?? "Driver",
+                        vehicleName: vehicle?.displayName ?? "Unknown",
+                        vehiclePlate: vehicle?.plateNumber ?? "—",
+                        vehicleStatus: vehicle?.status.rawValue ?? "Active",
+                        vehicleOdometer: "\(vehicle?.odometer ?? 0) km",
+                        vehicleFuel: "\(vehicle?.fuelLevel ?? 0)%",
+                        extraDetails: [
+                            "Assigned To": maint?.name ?? "Unassigned",
+                            "Est. Cost":   "₹\(Int(order.estimatedCost))"
+                        ]
+                    )
+                }
+
         case "Maintenance":
-            return [
-                DetailedPriorityAlert(
-                    index: 1,
-                    category: category,
-                    title: "Engine Fault P0115",
-                    timestampText: "4 mins ago",
-                    description: "DTC code P0115: Engine Coolant Temperature circuit malfunction detected.",
-                    recommendedAction: "Schedule workshop visit, inspect wiring harness and replace ECT sensor.",
-                    severity: "Service Required",
-                    severityColor: AppTheme.brand,
-                    latitude: 19.0712,
-                    longitude: 72.9984,
-                    locationName: "Vashi Workshop Bay 4, Navi Mumbai",
-                    driverName: rajesh?.name ?? "Rajesh Kumar",
-                    driverPhone: rajesh?.phone ?? "+91 98765 43210",
-                    driverTitle: rajesh?.title ?? "Senior Driver",
-                    vehicleName: ashokLeyland?.displayName ?? "Ashok Leyland 4220",
-                    vehiclePlate: ashokLeyland?.plateNumber ?? "NV-11-CRG",
-                    vehicleStatus: ashokLeyland?.status.rawValue ?? "In Service",
-                    vehicleOdometer: "\(ashokLeyland?.odometer ?? 167540) km",
-                    vehicleFuel: "\(ashokLeyland?.fuelLevel ?? 23)%",
-                    extraDetails: [
-                        "Diagnostic Code": "P0115",
-                        "Sensor Circuit Voltage": "0.12V (Low)"
-                    ]
-                ),
-                DetailedPriorityAlert(
-                    index: 2,
-                    category: category,
-                    title: "Brake Wear Indicator Active",
-                    timestampText: "9 mins ago",
-                    description: "Front axle brake pad wear indicator triggered check warning light.",
-                    recommendedAction: "Schedule replacement of brake pad linings within next 500 km.",
-                    severity: "Scheduled Service",
-                    severityColor: AppTheme.brand,
-                    latitude: 19.0431,
-                    longitude: 73.0163,
-                    locationName: "APMC Market Road, Vashi",
-                    driverName: maya?.name ?? "Maya Singh",
-                    driverPhone: maya?.phone ?? "+91 98765 43211",
-                    driverTitle: maya?.title ?? "Linehaul Driver",
-                    vehicleName: tataPrima?.displayName ?? "Tata Prima 5530",
-                    vehiclePlate: tataPrima?.plateNumber ?? "TX-14-LGT",
-                    vehicleStatus: tataPrima?.status.rawValue ?? "Active",
-                    vehicleOdometer: "\(tataPrima?.odometer ?? 96870) km",
-                    vehicleFuel: "\(tataPrima?.fuelLevel ?? 56)%",
-                    extraDetails: [
-                        "Axle Trigger": "Front Left Axle",
-                        "Pad Life": "12% Remaining"
-                    ]
-                )
-            ]
-        case "Off-Route":
-            return [
-                DetailedPriorityAlert(
-                    index: 1,
-                    category: category,
-                    title: "Off-Route Deviation Detected",
-                    timestampText: "1 min ago",
-                    description: "Vehicle has departed from the assigned route boundary by more than 4.5 km.",
-                    recommendedAction: "Contact the trip controller or driver to verify detour reason (road closure / rest stop).",
-                    severity: "Out of Bounds",
-                    severityColor: AppTheme.warning,
-                    latitude: 18.7302,
-                    longitude: 73.6841,
-                    locationName: "Talegaon Toll Plaza Road, Pune Highway",
-                    driverName: maya?.name ?? "Maya Singh",
-                    driverPhone: maya?.phone ?? "+91 98765 43211",
-                    driverTitle: maya?.title ?? "Linehaul Driver",
-                    vehicleName: eicher?.displayName ?? "Eicher Pro 2110",
-                    vehiclePlate: eicher?.plateNumber ?? "AZ-09-RTE",
-                    vehicleStatus: eicher?.status.rawValue ?? "Idle",
-                    vehicleOdometer: "\(eicher?.odometer ?? 41120) km",
-                    vehicleFuel: "\(eicher?.fuelLevel ?? 91)%",
-                    extraDetails: [
-                        "Original Route": "Mumbai → Pune Warehouse",
-                        "Deviation Distance": "4.8 km",
-                        "GPS Status": "Locked (9 Satellites)"
-                    ]
-                )
-            ]
-        case "Geofence":
-            return [
-                DetailedPriorityAlert(
-                    index: 1,
-                    category: category,
-                    title: "Restricted Geofence Breach",
-                    timestampText: "15 mins ago",
-                    description: "Unauthorized entry into 'Mumbai Restricted Zone' during banned hours.",
-                    recommendedAction: "Check compliance documents or dispatch authority. Coordinate with local traffic coordinator.",
-                    severity: "Unauthorized",
-                    severityColor: AppTheme.error,
-                    latitude: 19.0178,
-                    longitude: 72.8478,
-                    locationName: "Dadar Circle, Mumbai",
-                    driverName: rajesh?.name ?? "Rajesh Kumar",
-                    driverPhone: rajesh?.phone ?? "+91 98765 43210",
-                    driverTitle: rajesh?.title ?? "Senior Driver",
-                    vehicleName: tataAce?.displayName ?? "Tata Ace",
-                    vehiclePlate: tataAce?.plateNumber ?? "TRK-2847",
-                    vehicleStatus: tataAce?.status.rawValue ?? "Active",
-                    vehicleOdometer: "\(tataAce?.odometer ?? 128420) km",
-                    vehicleFuel: "\(tataAce?.fuelLevel ?? 74)%",
-                    extraDetails: [
-                        "Zone Name": "Mumbai Restricted Zone",
-                        "Permit Required": "Zone Entry Type A",
-                        "Banned Hours": "08:00 AM - 08:00 PM"
-                    ]
-                )
-            ]
+            return appViewModel.service.maintenanceSchedules
+                .filter { $0.status == .overdue || $0.status == .upcoming }
+                .enumerated().map { (idx, schedule) in
+                    let vehicle = appViewModel.service.vehicles.first { $0.id == schedule.vehicleID }
+
+                    let formatter = RelativeDateTimeFormatter()
+                    formatter.unitsStyle = .full
+
+                    return DetailedPriorityAlert(
+                        index: idx + 1,
+                        category: category,
+                        title: schedule.serviceType,
+                        timestampText: formatter.localizedString(for: schedule.dueDate, relativeTo: Date()),
+                        description: "\(schedule.serviceType) is \(schedule.status == .overdue ? "overdue" : "upcoming") for \(vehicle?.displayName ?? "this vehicle").",
+                        recommendedAction: "Schedule a workshop visit as soon as possible.",
+                        severity: schedule.status == .overdue ? "Overdue" : "Scheduled Service",
+                        severityColor: schedule.status == .overdue ? AppTheme.error : AppTheme.brand,
+                        latitude: 19.0760, longitude: 72.8777,
+                        locationName: vehicle?.displayName ?? "Unknown Vehicle",
+                        driverName: vehicle.flatMap { v in appViewModel.service.users.first { $0.id == v.assignedDriverID } }?.name ?? "Unassigned",
+                        driverPhone: "N/A",
+                        driverTitle: "Driver",
+                        vehicleName: vehicle?.displayName ?? "Unknown",
+                        vehiclePlate: vehicle?.plateNumber ?? "—",
+                        vehicleStatus: vehicle?.status.rawValue ?? "Active",
+                        vehicleOdometer: "\(vehicle?.odometer ?? 0) km",
+                        vehicleFuel: "\(vehicle?.fuelLevel ?? 0)%",
+                        extraDetails: [
+                            "Service Type": schedule.serviceType,
+                            "Due Date": schedule.dueDate.formatted(date: .abbreviated, time: .omitted)
+                        ]
+                    )
+                }
+
         default:
+            // Off-Route, Geofence etc. have no backing model yet – show empty state
             return []
         }
-    }
-}
+    }}
 
 struct AlertDetailSheet: View {
     @Environment(\.dismiss) private var dismiss

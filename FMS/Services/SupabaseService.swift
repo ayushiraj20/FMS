@@ -272,4 +272,61 @@ final class SupabaseService {
             .insert(message)
             .execute()
     }
+    
+    // MARK: - SOS Alerts
+    func fetchSOSAlerts() async throws -> [SOSAlert] {
+        let alerts: [SOSAlert] = try await client
+            .from("sos_alerts")
+            .select()
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+        return alerts
+    }
+
+    // Only send the fields the driver populates; let Supabase auto-generate id/created_at
+    struct SOSAlertInsert: Encodable {
+        let driver_id: UUID
+        let driver_name: String
+        let vehicle_id: UUID
+        let vehicle_number: String
+        let emergency_type: String
+        let latitude: Double
+        let longitude: Double
+        let description: String?
+        let status: String
+    }
+
+    func addSOSAlert(_ alert: SOSAlert) async throws {
+        let payload = SOSAlertInsert(
+            driver_id: alert.driverID,
+            driver_name: alert.driverName,
+            vehicle_id: alert.vehicleID,
+            vehicle_number: alert.vehicleNumber,
+            emergency_type: alert.emergencyType,
+            latitude: alert.latitude,
+            longitude: alert.longitude,
+            description: alert.description,
+            status: alert.status
+        )
+        try await client
+            .from("sos_alerts")
+            .insert(payload)
+            .execute()
+    }
+
+    // Only update the status field
+    struct SOSAlertStatusUpdate: Encodable {
+        let status: String
+    }
+
+    func updateSOSAlert(_ alert: SOSAlert) async throws {
+        let payload = SOSAlertStatusUpdate(status: alert.status)
+        try await client
+            .from("sos_alerts")
+            .update(payload)
+            .eq("id", value: alert.id)
+            .execute()
+    }
 }
+

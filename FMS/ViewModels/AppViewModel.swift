@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import Supabase
 import Observation
+import AudioToolbox
 
 enum RootFlowState {
     case splash
@@ -32,6 +33,56 @@ final class AppViewModel {
     var notifications: [AppNotification] = []
     let service = MockDataService()
     let supabase = SupabaseService.shared
+
+    // SOS alert state for the Fleet Manager dashboard overlay
+    var activeEmergencyAlert: SOSAlert? = nil
+
+    // Persisted set of SOS alert IDs that the fleet manager has already resolved/dismissed.
+    // Once an ID is in here, the banner will never re-appear for it—even across logins.
+    @ObservationIgnored
+    private var dismissedSOSAlertIDs: Set<UUID> {
+        get {
+            let strings = UserDefaults.standard.stringArray(forKey: "dismissedSOSAlertIDs") ?? []
+            return Set(strings.compactMap { UUID(uuidString: $0) })
+        }
+        set {
+            UserDefaults.standard.set(newValue.map { $0.uuidString }, forKey: "dismissedSOSAlertIDs")
+        }
+    }
+
+    @ObservationIgnored private var sosChannel: RealtimeChannelV2? = nil
+    @ObservationIgnored private var sosPostgresChangeSubscription: Any? = nil
+
+    init() {
+        // Register local observer for offline real-time compatibility
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("LocalSOSTriggered"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            Task { @MainActor in
+                if let alert = notification.userInfo?["alert"] as? SOSAlert {
+                    // Prepend to service.sosAlerts if not already present
+                    if !self.service.sosAlerts.contains(where: { $0.id == alert.id }) {
+                        self.service.sosAlerts.insert(alert, at: 0)
+                    }
+                    
+                    // Show emergency banner if this user is a Fleet Manager and status is ACTIVE
+                    if self.currentUser?.role == .fleetManager && alert.status == "ACTIVE" {
+                        withAnimation(.spring()) {
+                            self.activeEmergencyAlert = alert
+                        }
+                        
+                        // Audio & Vibration Alert
+                        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+                        AudioServicesPlaySystemSound(1005)
+                        UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    }
+                }
+            }
+        }
+    }
 
     // MARK: App Launch
 
@@ -122,6 +173,9 @@ final class AppViewModel {
                             .subscribe(
                                 orgID: orgID
                             )
+                        
+                        self.subscribeToSOSAlerts()
+                        self.checkActiveSOSAlerts()
                     }
 
                 } else {
@@ -190,6 +244,9 @@ final class AppViewModel {
                 .subscribe(
                     orgID: orgID
                 )
+            
+            self.subscribeToSOSAlerts()
+            self.checkActiveSOSAlerts()
         }
 
         isAuthenticating = false
@@ -217,6 +274,9 @@ final class AppViewModel {
         flowState = .authenticated
 
         Task {
+            if SupabaseConfig.isConfigured {
+                await service.syncWithDatabase()
+            }
 
             if let orgID =
             currentOrganization?.id {
@@ -231,7 +291,11 @@ final class AppViewModel {
                     .subscribe(
                         orgID: orgID
                     )
+                
+                self.subscribeToSOSAlerts()
             }
+            
+            self.checkActiveSOSAlerts()
         }
     }
 
@@ -241,6 +305,8 @@ final class AppViewModel {
 
         BroadcastService.shared
             .unsubscribe()
+        
+        self.unsubscribeSOSAlerts()
 
         if SupabaseConfig
             .isConfigured {
@@ -310,6 +376,166 @@ final class AppViewModel {
         }
 
         currentUser = user
+    }
+
+    // MARK: - SOS Realtime Subscription
+    func subscribeToSOSAlerts() {
+        guard SupabaseConfig.isConfigured else { return }
+        
+        unsubscribeSOSAlerts()
+        
+        let newChannel = SupabaseService.shared.client.channel("sos_alerts_channel")
+        
+        sosPostgresChangeSubscription = newChannel.onPostgresChange(
+            InsertAction.self,
+            schema: "public",
+            table: "sos_alerts"
+        ) { [weak self] payload in
+            guard let self else { return }
+            
+            Task { @MainActor in
+                do {
+                    let alert = try payload.decodeRecord(as: SOSAlert.self, decoder: JSONDecoder())
+                    
+                    if !self.service.sosAlerts.contains(where: { $0.id == alert.id }) {
+                        self.service.sosAlerts.insert(alert, at: 0)
+                        
+                        if self.currentUser?.role == .fleetManager && alert.status == "ACTIVE" {
+                            withAnimation(.spring()) {
+                                self.activeEmergencyAlert = alert
+                            }
+                            
+                            // Audio & Vibration Alert
+                            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+                            AudioServicesPlaySystemSound(1005)
+                            UINotificationFeedbackGenerator().notificationOccurred(.error)
+                            
+                            NotificationScheduler.scheduleBroadcastAlert(
+                                title: "🚨 ACTIVE EMERGENCY: \(alert.driverName)",
+                                body: "Vehicle: \(alert.vehicleNumber) | Emergency: \(alert.emergencyType). Tap to respond."
+                            )
+                        }
+                    }
+                } catch {
+                    print("SOS Realtime decode error: \(error)")
+                }
+            }
+        }
+        
+        let _ = newChannel.onPostgresChange(
+            UpdateAction.self,
+            schema: "public",
+            table: "sos_alerts"
+        ) { [weak self] payload in
+            guard let self else { return }
+            
+            Task { @MainActor in
+                do {
+                    let alert = try payload.decodeRecord(as: SOSAlert.self, decoder: JSONDecoder())
+                    
+                    if let idx = self.service.sosAlerts.firstIndex(where: { $0.id == alert.id }) {
+                        self.service.sosAlerts[idx] = alert
+                    }
+                    
+                    if alert.status == "CLOSED" {
+                        if self.activeEmergencyAlert?.id == alert.id {
+                            withAnimation(.spring()) {
+                                self.activeEmergencyAlert = nil
+                            }
+                        }
+                    } else if self.currentUser?.role == .fleetManager {
+                        withAnimation(.spring()) {
+                            self.activeEmergencyAlert = alert
+                        }
+                    }
+                } catch {
+                    print("SOS Realtime update decode error: \(error)")
+                }
+            }
+        }
+        
+        Task {
+            do {
+                try await newChannel.subscribeWithError()
+                print("Supabase SOS Realtime subscription active ✅")
+            } catch {
+                print("Supabase SOS Realtime subscribe error: \(error)")
+            }
+        }
+        
+        sosChannel = newChannel
+    }
+    
+    func unsubscribeSOSAlerts() {
+        if let channel = sosChannel {
+            Task {
+                await channel.unsubscribe()
+            }
+        }
+        sosChannel = nil
+        sosPostgresChangeSubscription = nil
+    }
+    
+    func checkActiveSOSAlerts() {
+        guard currentUser?.role == .fleetManager else { return }
+        let dismissed = dismissedSOSAlertIDs
+        if let firstActive = service.sosAlerts.first(where: { $0.status == "ACTIVE" && !dismissed.contains($0.id) }) {
+            withAnimation(.spring()) {
+                self.activeEmergencyAlert = firstActive
+            }
+        } else {
+            withAnimation(.spring()) {
+                self.activeEmergencyAlert = nil
+            }
+        }
+    }
+
+    /// Marks an SOS alert as dismissed by the fleet manager.
+    /// Persists the dismissal so the banner never re-appears across sessions.
+    func dismissSOSAlert(_ alertID: UUID) {
+        var current = dismissedSOSAlertIDs
+        current.insert(alertID)
+        dismissedSOSAlertIDs = current
+        if activeEmergencyAlert?.id == alertID {
+            withAnimation(.spring()) {
+                activeEmergencyAlert = nil
+            }
+        }
+        // Also mark as CLOSED in Supabase
+        if SupabaseConfig.isConfigured,
+           let alert = service.sosAlerts.first(where: { $0.id == alertID }) {
+            var closed = alert
+            closed.status = "CLOSED"
+            if let idx = service.sosAlerts.firstIndex(where: { $0.id == alertID }) {
+                service.sosAlerts[idx] = closed
+            }
+            Task {
+                try? await SupabaseService.shared.updateSOSAlert(closed)
+            }
+        }
+    }
+
+    /// Fetches the latest SOS alerts from Supabase and refreshes the local list
+    /// and activeEmergencyAlert banner. Call on dashboard appear to catch missed
+    /// realtime events.
+    func refreshSOSAlerts() {
+        guard SupabaseConfig.isConfigured else {
+            checkActiveSOSAlerts()
+            return
+        }
+        Task {
+            do {
+                let fresh = try await SupabaseService.shared.fetchSOSAlerts()
+                let remoteIDs = Set(fresh.map { $0.id })
+                let localOnly = self.service.sosAlerts.filter { !remoteIDs.contains($0.id) }
+                self.service.sosAlerts = fresh + localOnly
+                print("[SOS] Refreshed \(fresh.count) alert(s) from Supabase ✅")
+                self.checkActiveSOSAlerts()
+            } catch {
+                print("[SOS] Refresh failed, using in-memory: \(error)")
+                checkActiveSOSAlerts()
+            }
+        }
     }
 
     // MARK: Helpers

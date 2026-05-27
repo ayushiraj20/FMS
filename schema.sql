@@ -308,6 +308,27 @@ create index if not exists idx_fuel_transactions_vehicle_id on "fuelTransactions
 create index if not exists idx_fuel_transactions_driver_id on "fuelTransactions"("driverID");
 
 -- =========================
+-- =========================
+-- SOS ALERTS
+-- =========================
+create table if not exists sos_alerts (
+  id uuid primary key default gen_random_uuid(),
+  driver_id uuid not null references profiles(id) on delete cascade,
+  driver_name text not null,
+  vehicle_id uuid not null references vehicles(id) on delete cascade,
+  vehicle_number text not null,
+  emergency_type text not null,
+  latitude numeric(9,6) not null,
+  longitude numeric(9,6) not null,
+  description text null,
+  status text not null default 'ACTIVE',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_sos_alerts_driver_id on sos_alerts(driver_id);
+create index if not exists idx_sos_alerts_vehicle_id on sos_alerts(vehicle_id);
+
+-- =========================
 -- INDEXES
 -- =========================
 create index if not exists idx_profiles_organization_id on profiles(organization_id);
@@ -542,6 +563,26 @@ alter table defect_reports
   add column if not exists title text null,
   add column if not exists images text[] null;
 
+-- Migration 7: Add sos_alerts table and indexes (if not already present)
+create table if not exists sos_alerts (
+  id uuid primary key default gen_random_uuid(),
+  driver_id uuid not null references public.profiles(id) on delete cascade,
+  driver_name text not null,
+  vehicle_id uuid not null references public.vehicles(id) on delete cascade,
+  vehicle_number text not null,
+  emergency_type text not null,
+  latitude numeric(9,6) not null,
+  longitude numeric(9,6) not null,
+  description text null,
+  status text not null default 'ACTIVE',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_sos_alerts_driver_id on sos_alerts(driver_id);
+create index if not exists idx_sos_alerts_vehicle_id on sos_alerts(vehicle_id);
+
+alter table sos_alerts enable row level security;
+
 -- =========================
 -- ROW LEVEL SECURITY (RLS)
 -- CRITICAL: Without these policies the app cannot read/write any table.
@@ -564,6 +605,7 @@ alter table notifications      enable row level security;
 alter table chat_messages      enable row level security;
 alter table broadcast_messages enable row level security;
 alter table "fuelTransactions" enable row level security;
+alter table sos_alerts         enable row level security;
 
 -- ── ORGANIZATIONS ──────────────────────────────────────────────────────────
 drop policy if exists "Allow authenticated read organizations" on organizations;
@@ -703,4 +745,14 @@ create policy "Allow authenticated read fuelTransactions"
 drop policy if exists "Allow authenticated write fuelTransactions" on "fuelTransactions";
 create policy "Allow authenticated write fuelTransactions"
   on "fuelTransactions" for all to authenticated using (true) with check (true);
+
+-- ── SOS ALERTS ───────────────────────────────────────────────────────────────
+drop policy if exists "Allow authenticated read sos_alerts" on sos_alerts;
+create policy "Allow authenticated read sos_alerts"
+  on sos_alerts for select to authenticated using (true);
+
+drop policy if exists "Allow authenticated write sos_alerts" on sos_alerts;
+create policy "Allow authenticated write sos_alerts"
+  on sos_alerts for all to authenticated using (true) with check (true);
+
 

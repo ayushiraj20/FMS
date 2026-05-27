@@ -488,30 +488,31 @@ struct FuelReceipt: Identifiable, Codable, Hashable {
     }
 }
 
-enum SOSStatus: String, Codable {
-    case triggered = "Triggered"
-    case confirmed = "Confirmed"
-    case resolved = "Resolved"
-    case cancelled = "Cancelled"
-}
-
 struct SOSAlert: Identifiable, Codable, Hashable {
     let id: UUID
     var driverID: UUID
+    var driverName: String
     var vehicleID: UUID
+    var vehicleNumber: String
+    var emergencyType: String
     var latitude: Double
     var longitude: Double
-    var timestamp: Date
-    var status: SOSStatus
+    var description: String?
+    var status: String
+    var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
         case id
         case driverID = "driver_id"
+        case driverName = "driver_name"
         case vehicleID = "vehicle_id"
+        case vehicleNumber = "vehicle_number"
+        case emergencyType = "emergency_type"
         case latitude
         case longitude
-        case timestamp
+        case description
         case status
+        case createdAt = "created_at"
     }
 }
 

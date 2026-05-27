@@ -19,10 +19,13 @@ final class DriverViewModel {
     var showAlertDetail: VehicleAlert?
 
     // SOS
-    var sosCountdown: Int = 10
+    var sosCountdown: Int = 5
     var sosTriggered = false
     var sosConfirmed = false
+    var selectedEmergencyType: String = "Accident"
+    var sosDescription: String = ""
     @ObservationIgnored private var sosTimer: Timer?
+    @ObservationIgnored private let locationManager = CLLocationManager()
 
     // Inspection
     var inspectionItems: [DriverInspectionItem] = DriverViewModel.defaultInspectionItems()
@@ -47,7 +50,7 @@ final class DriverViewModel {
     // MARK: - SOS
 
     func startSOSCountdown(service: MockDataService, user: User?) {
-        sosCountdown = 10
+        sosCountdown = 5
         sosTriggered = false
         sosConfirmed = false
         showSOSSheet = true
@@ -90,12 +93,35 @@ final class DriverViewModel {
         }
         let vehicleID = vehicle.id
 
-        // Use a default location (Mumbai) for demo
+        // Request location permissions if not already determined
+        if locationManager.authorizationStatus == .notDetermined {
+            locationManager.requestWhenInUseAuthorization()
+        }
+
+        // Get exact coordinates if authorized, otherwise fallback gracefully to Mumbai
+        var finalLat = 19.0760
+        var finalLng = 72.8777
+
+        if locationManager.authorizationStatus == .authorizedWhenInUse || 
+           locationManager.authorizationStatus == .authorizedAlways {
+            if let loc = locationManager.location {
+                finalLat = loc.coordinate.latitude
+                finalLng = loc.coordinate.longitude
+                print("CoreLocation: Resolved exact driver location -> (\(finalLat), \(finalLng)) ✅")
+            } else {
+                print("CoreLocation: Location authorized but coordinates unavailable. Falling back to default. ⚠️")
+            }
+        } else {
+            print("CoreLocation: Location permissions not authorized. Falling back to default. ⚠️")
+        }
+
         service.triggerSOS(
             driverID: user.id,
             vehicleID: vehicleID,
-            latitude: 19.0760,
-            longitude: 72.8777
+            latitude: finalLat,
+            longitude: finalLng,
+            emergencyType: selectedEmergencyType,
+            description: sosDescription.isEmpty ? nil : sosDescription
         )
 
         // Show confirmed after brief delay

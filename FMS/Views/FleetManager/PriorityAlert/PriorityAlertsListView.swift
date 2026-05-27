@@ -5,13 +5,19 @@ struct PriorityAlertsListView: View {
     @State private var selectedCategory = "SOS Alerts"
     @Namespace private var categoryNamespace
 
-    private let categories: [(name: String, icon: String, color: Color, count: Int)] = [
-        ("SOS Alerts",  "exclamationmark.triangle.fill", Color(red: 1, green: 0.25, blue: 0.3),  5),
-        ("Critical",    "bell.badge.fill",               Color(red: 1, green: 0.45, blue: 0.1),  3),
-        ("Maintenance", "wrench.and.screwdriver.fill",   Color(red: 0.35, green: 0.6, blue: 1),  2),
-        ("Off-Route",   "location.slash.fill",           Color(red: 1, green: 0.75, blue: 0.1),  4),
-        ("Geofence",    "shield.slash.fill",             Color(red: 0.6, green: 0.3, blue: 1),   1),
-    ]
+    // Computed from live service data so counts update in real-time
+    private var categories: [(name: String, icon: String, color: Color, count: Int)] {
+        let sosCount = appViewModel.service.sosAlerts.filter { $0.status == "ACTIVE" }.count
+        let criticalCount = appViewModel.service.workOrders.filter { $0.priority == .critical && $0.status != .completed }.count
+        let maintenanceCount = appViewModel.service.maintenanceSchedules.filter { $0.status == .overdue }.count
+        return [
+            ("SOS Alerts",  "exclamationmark.triangle.fill", Color(red: 1, green: 0.25, blue: 0.3),  sosCount),
+            ("Critical",    "bell.badge.fill",               Color(red: 1, green: 0.45, blue: 0.1),  criticalCount),
+            ("Maintenance", "wrench.and.screwdriver.fill",   Color(red: 0.35, green: 0.6, blue: 1),  maintenanceCount),
+            ("Off-Route",   "location.slash.fill",           Color(red: 1, green: 0.75, blue: 0.1),  4),
+            ("Geofence",    "shield.slash.fill",             Color(red: 0.6, green: 0.3, blue: 1),   1),
+        ]
+    }
 
     var body: some View {
         VStack(spacing: 0) {
