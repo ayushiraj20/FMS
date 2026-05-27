@@ -44,6 +44,12 @@ struct MaintenanceDashboardView: View {
                 .accessibilityIdentifier("PROFILE_BUTTON")
             }
             ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: BroadcastInboxView()) {
+                    Image(systemName: "megaphone.fill")
+                }
+                .accessibilityIdentifier("BROADCAST_BUTTON")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: NotificationsView()) {
                     Image(systemName: "bell.fill")
                 }
