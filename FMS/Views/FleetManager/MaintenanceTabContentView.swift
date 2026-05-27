@@ -13,6 +13,8 @@ struct MaintenanceTabContentView: View {
 
     @State private var dutyFilter: DutyFilter = .all
     @State private var showAddSheet = false
+    @State private var memberToDelete: User? = nil
+    @State private var isPresentingDeleteConfirmation = false
 
     private var maintenancePersonnel: [User] {
         appViewModel.service.users.filter { $0.role == .maintenance }
@@ -74,6 +76,25 @@ struct MaintenanceTabContentView: View {
             AddMaintenanceMemberSheet(service: appViewModel.service,
                                      orgID: appViewModel.currentOrganization?.id)
         }
+        .confirmationDialog(
+            "Delete Team Member",
+            isPresented: $isPresentingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let memberToDelete {
+                    appViewModel.service.deleteUser(memberToDelete)
+                }
+                memberToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                memberToDelete = nil
+            }
+        } message: {
+            if let memberToDelete {
+                Text("Are you sure you want to delete \(memberToDelete.name)? This action cannot be undone.")
+            }
+        }
     }
 
     // MARK: – Filter Chips
@@ -132,6 +153,17 @@ struct MaintenanceTabContentView: View {
 
                     Spacer()
 
+                    Menu {
+                        Button("Delete", role: .destructive) {
+                            memberToDelete = member
+                            isPresentingDeleteConfirmation = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    
                     // Status pill
                     HStack(spacing: 5) {
                         Circle()

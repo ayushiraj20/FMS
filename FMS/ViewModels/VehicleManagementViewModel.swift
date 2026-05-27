@@ -162,6 +162,13 @@ final class VehicleManagementViewModel {
     func unresolvedDefectCount(for vehicle: Vehicle) -> Int {
         defects(for: vehicle.id).filter { !$0.isResolved }.count
     }
+    
+    func latestTrip(for vehicle: Vehicle) -> Trip? {
+        service.trips
+            .filter { $0.vehicleID == vehicle.id }
+            .sorted { $0.startDate > $1.startDate }
+            .first
+    }
 
     func driverName(for vehicle: Vehicle) -> String {
         user(for: vehicle.assignedDriverID)?.name ?? "Unassigned"

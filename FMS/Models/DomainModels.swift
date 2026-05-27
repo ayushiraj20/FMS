@@ -15,6 +15,29 @@ enum UserRole: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum LicenseType: String, Codable, CaseIterable, Identifiable {
+    case twoWheeler = "2-Wheeler"
+    case lightVehicle = "Light Vehicle"
+    case heavyVehicle = "Heavy Vehicle"
+
+    var id: String { rawValue }
+    
+    func isEligible(for required: LicenseType) -> Bool {
+        switch (self, required) {
+        case (.heavyVehicle, _):
+            return true
+        case (.lightVehicle, .heavyVehicle):
+            return false
+        case (.lightVehicle, _):
+            return true
+        case (.twoWheeler, .twoWheeler):
+            return true
+        case (.twoWheeler, _):
+            return false
+        }
+    }
+}
+
 enum VehicleStatus: String, Codable, CaseIterable {
     case active = "Active"
     case inService = "In Service"
@@ -103,6 +126,7 @@ struct User: Identifiable, Codable, Hashable {
     var phone: String
     var title: String
     var assignedVehicleID: UUID?
+    var licenseType: LicenseType?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -113,9 +137,10 @@ struct User: Identifiable, Codable, Hashable {
         case phone
         case title
         case assignedVehicleID = "assigned_vehicle_id"
+        case licenseType = "license_type"
     }
 
-    init(id: UUID, organizationID: UUID, name: String, role: UserRole, email: String, password: String = "demo123", phone: String, title: String, assignedVehicleID: UUID? = nil) {
+    init(id: UUID, organizationID: UUID, name: String, role: UserRole, email: String, password: String = "demo123", phone: String, title: String, assignedVehicleID: UUID? = nil, licenseType: LicenseType? = nil) {
         self.id = id
         self.organizationID = organizationID
         self.name = name
@@ -125,6 +150,7 @@ struct User: Identifiable, Codable, Hashable {
         self.phone = phone
         self.title = title
         self.assignedVehicleID = assignedVehicleID
+        self.licenseType = licenseType
     }
 
     init(from decoder: Decoder) throws {
@@ -138,6 +164,7 @@ struct User: Identifiable, Codable, Hashable {
         phone = try container.decode(String.self, forKey: .phone)
         title = try container.decode(String.self, forKey: .title)
         assignedVehicleID = try container.decodeIfPresent(UUID.self, forKey: .assignedVehicleID)
+        licenseType = try container.decodeIfPresent(LicenseType.self, forKey: .licenseType)
     }
 }
 
@@ -166,6 +193,20 @@ struct Vehicle: Identifiable, Codable, Hashable {
         case assignedDriverID = "assigned_driver_id"
         case nextServiceDate = "next_service_date"
         case utilization
+    }
+
+    var requiredLicense: LicenseType {
+        let name = displayName.lowercased()
+        let mdl = model.lowercased()
+        if name.contains("bike") || name.contains("scooter") || name.contains("motorcycle") || mdl.contains("two wheeler") {
+            return .twoWheeler
+        } else if name.contains("prima") || name.contains("leyland") || mdl.contains("heavy") || mdl.contains("container") {
+            return .heavyVehicle
+        } else if name.contains("ace") || name.contains("eicher") || mdl.contains("light") || mdl.contains("urban") {
+            return .lightVehicle
+        } else {
+            return .lightVehicle // Default fallback
+        }
     }
 }
 
@@ -200,6 +241,7 @@ struct Trip: Identifiable, Codable, Hashable {
     var safetyScore: Int? = nil
     var routeDetails: String? = nil
     var notes: String? = nil
+    var isFleetManagerAssigned: Bool = false
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -214,6 +256,7 @@ struct Trip: Identifiable, Codable, Hashable {
         case safetyScore = "safety_score"
         case routeDetails = "route_details"
         case notes
+        case isFleetManagerAssigned = "is_fleet_manager_assigned"
     }
 }
 

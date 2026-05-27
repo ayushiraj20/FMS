@@ -231,16 +231,12 @@ struct AssignDriverTripView: View {
                 currentStep = .selectDriver
             } label: {
                 Text("Calculate Route")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        (tripStartLocation.isEmpty || tripDestination.isEmpty)
-                        ? Color(.systemGray4)
-                        : AppTheme.brand
-                    )
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .tint(AppTheme.brand)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
             .disabled(tripStartLocation.isEmpty || tripDestination.isEmpty)
         }
         .ignoresSafeArea(edges: .top)

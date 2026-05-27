@@ -11,11 +11,15 @@ struct FleetManagerTripsView: View {
         case completed = "Completed"
     }
     
-    @State private var selectedFilter: TripFilter = .ongoing
+    @State private var selectedFilter: TripFilter = .scheduled
     @State private var selectedTrip: Trip? = nil
     
+    private var managerAssignedTrips: [Trip] {
+        appViewModel.service.trips.filter(\.isFleetManagerAssigned)
+    }
+    
     var filteredTrips: [Trip] {
-        let trips = appViewModel.service.trips.filter { trip in
+        let trips = managerAssignedTrips.filter { trip in
             switch selectedFilter {
             case .ongoing: return trip.status == .inProgress
             case .scheduled: return trip.status == .scheduled
@@ -34,7 +38,7 @@ struct FleetManagerTripsView: View {
     }
     
     private func countForFilter(_ filter: TripFilter) -> Int {
-        return appViewModel.service.trips.filter { trip in
+        return managerAssignedTrips.filter { trip in
             switch filter {
             case .ongoing: return trip.status == .inProgress
             case .scheduled: return trip.status == .scheduled
@@ -46,7 +50,7 @@ struct FleetManagerTripsView: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("\(appViewModel.service.trips.count) total trips")
+                Text("\(managerAssignedTrips.count) total trips")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.textSecondary)
                     .padding(.horizontal, 20)
@@ -67,7 +71,7 @@ struct FleetManagerTripsView: View {
                         EmptyStateView(
                             icon: "map.slash",
                             title: "No trips found",
-                            message: "Try adjusting your search or assign a new trip."
+                            message: "Try adjusting your search or assign a new trip from the plus button."
                         )
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
@@ -180,10 +184,10 @@ struct FleetManagerTripsView: View {
                     
                     // Distance metric
                     VStack(spacing: 4) {
-                        Text("/ \\") // Mock icon resembling road perspective
+                        Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
                             .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(.gray)
-                        Text("123 km") // Mock distance
+                        Text(distanceText(for: trip))
                             .font(.caption.weight(.bold))
                             .foregroundStyle(AppTheme.textPrimary)
                     }
@@ -256,5 +260,10 @@ struct FleetManagerTripsView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d · h:mm a"
         return formatter.string(from: date)
+    }
+    
+    private func distanceText(for trip: Trip) -> String {
+        guard trip.distanceKM > 0 else { return "-- km" }
+        return "\(Int(trip.distanceKM.rounded())) km"
     }
 }

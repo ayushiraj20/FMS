@@ -3,6 +3,8 @@ import SwiftUI
 struct DriverAssignmentManagementView: View {
     @State private var viewModel: DriverAssignmentViewModel
     @State private var isPresentingAssignDriverTripModal = false
+    @State private var driverToDelete: User? = nil
+    @State private var isPresentingDriverDeleteConfirmation = false
     
     init(service: MockDataService) {
         _viewModel = State(wrappedValue: DriverAssignmentViewModel(service: service))
@@ -64,6 +66,26 @@ struct DriverAssignmentManagementView: View {
         .sheet(isPresented: $isPresentingAssignDriverTripModal) {
             AssignDriverTripView(service: viewModel.service)
         }
+        .confirmationDialog(
+            "Delete Driver",
+            isPresented: $isPresentingDriverDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Driver", role: .destructive) {
+                if let driverToDelete {
+                    viewModel.unassign(driver: driverToDelete)
+                    viewModel.service.deleteUser(driverToDelete)
+                }
+                driverToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                driverToDelete = nil
+            }
+        } message: {
+            if let driverToDelete {
+                Text("Are you sure you want to delete \(driverToDelete.name)? This action cannot be undone.")
+            }
+        }
     }
     
     // MARK: - Component UI Elements
@@ -117,6 +139,18 @@ struct DriverAssignmentManagementView: View {
                     }
                     
                     Spacer()
+                    
+                    Menu {
+                        Button("Delete Driver", role: .destructive) {
+                            driverToDelete = driver
+                            isPresentingDriverDeleteConfirmation = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .padding(.trailing, 4)
+                    }
                     
                     // Availability status badge
                     HStack(spacing: 4) {

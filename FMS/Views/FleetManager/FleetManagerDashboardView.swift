@@ -381,12 +381,12 @@ struct FleetManagerDashboardView: View {
                                 .frame(width: 90, height: 90)
                             
                             Circle()
-                                .trim(from: 0.1, to: 0.1 + (0.8 * 0.78))
+                                .trim(from: 0.1, to: 0.1 + (0.8 * CGFloat(appViewModel.service.overallUtilization) / 100.0))
                                 .stroke(AngularGradient(gradient: Gradient(colors: [.green, .orange]), center: .center, startAngle: .degrees(90), endAngle: .degrees(90 + 360)), style: StrokeStyle(lineWidth: 12, lineCap: .round))
                                 .rotationEffect(.degrees(90))
                                 .frame(width: 90, height: 90)
                             
-                            Text("78%")
+                            Text("\(appViewModel.service.overallUtilization)%")
                                 .font(.title2.weight(.bold))
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
@@ -398,9 +398,9 @@ struct FleetManagerDashboardView: View {
                     
                     // Stats
                     VStack(spacing: 12) {
-                        utilizationRow(color: .green, label: "Active", value: 78)
-                        utilizationRow(color: .orange, label: "Idle", value: 15)
-                        utilizationRow(color: .red, label: "Maintenance", value: 7)
+                        utilizationRow(color: .green, label: "Active", value: appViewModel.service.utilizationActivePercentage)
+                        utilizationRow(color: .orange, label: "Idle", value: appViewModel.service.utilizationIdlePercentage)
+                        utilizationRow(color: .red, label: "Maintenance", value: appViewModel.service.utilizationMaintenancePercentage)
                     }
                 }
             }
@@ -430,10 +430,10 @@ struct FleetManagerDashboardView: View {
             }
             .frame(height: 6)
             
-            Text("\(value)")
+            Text("\(value)%")
                 .font(.subheadline)
                 .foregroundStyle(AppTheme.textSecondary)
-                .frame(width: 35, alignment: .trailing)
+                .frame(width: 45, alignment: .trailing)
         }
     }
     
@@ -446,9 +446,9 @@ struct FleetManagerDashboardView: View {
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 HStack(spacing: 12) {
-                    needsAttentionCard(count: 2, label: "Maintenance\nDue", color: Color("AccentColor"))
-                    needsAttentionCard(count: 3, label: "Overdue\nServices", color: Color("AccentColor"))
-                    needsAttentionCard(count: 4, label: "Lost\nGPS Feed", color: Color("AccentColor"))
+                    needsAttentionCard(count: appViewModel.service.maintenanceDueCount, label: "Maintenance\nDue", color: Color("AccentColor"))
+                    needsAttentionCard(count: appViewModel.service.overdueServicesCount, label: "Overdue\nServices", color: Color("AccentColor"))
+                    needsAttentionCard(count: appViewModel.service.lostGPSCount, label: "Lost\nGPS Feed", color: Color("AccentColor"))
                 }
             }
         }

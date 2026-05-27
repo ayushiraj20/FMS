@@ -567,8 +567,6 @@ private struct VehicleFormSheet: View {
 
             Slider(value: value, in: 0...100, step: 1)
                 .tint(color)
-
-            VehicleProgressBar(progress: value.wrappedValue / 100, tint: color)
         }
     }
 
@@ -606,9 +604,6 @@ private struct VehicleDetailView: View {
     let vehicleID: UUID
 
     enum VehicleActionSheet: String, Identifiable {
-        case liveView
-        case tripDetails
-        case ping
         case insights
 
         var id: String { rawValue }
@@ -626,9 +621,7 @@ private struct VehicleDetailView: View {
                 if let vehicle = viewModel.vehicle(for: vehicleID) {
                     VStack(spacing: 20) {
                         heroCard(for: vehicle)
-                        // metricStrip(for: vehicle)
-                        actionStrip
-                        // insightsSection(for: vehicle)
+                        insightsSection(for: vehicle)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
@@ -671,27 +664,13 @@ private struct VehicleDetailView: View {
                     Color(UIColor.systemGroupedBackground)
                         .ignoresSafeArea()
 
-                    if sheet == .insights, let vehicle = viewModel.vehicle(for: vehicleID) {
+                    if let vehicle = viewModel.vehicle(for: vehicleID) {
                         ScrollView {
                             VStack(spacing: 16) {
                                 insightsSection(for: vehicle)
                             }
                             .padding(.horizontal, 16)
                             .padding(.top, 16)
-                        }
-                    } else {
-                        VStack(spacing: 24) {
-                            Image(systemName: sheetIcon(for: sheet))
-                                .font(.system(size: 56, weight: .semibold))
-                                .foregroundStyle(Color.blue)
-                            Text(sheetTitle(for: sheet))
-                                .font(.title2.weight(.bold))
-                                .foregroundStyle(Color(.label))
-                            Text("A dedicated surface for this control is ready to plug into the live data flow.")
-                                .font(.subheadline)
-                                .foregroundStyle(Color(.secondaryLabel))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 32)
                         }
                     }
                 }
@@ -758,7 +737,7 @@ private struct VehicleDetailView: View {
                     detailInfoPill(
                         icon: "point.topleft.down.curvedto.point.bottomright.up.fill",
                         title: "Route Context",
-                        value: vehicleRouteText(for: vehicle)
+                        value: routeContextText(for: vehicle)
                     )
                 }
 
@@ -829,41 +808,6 @@ private struct VehicleDetailView: View {
         }
     }
 
-    private var actionStrip: some View {
-        NativeDetailCard(padding: 12) {
-            HStack(spacing: 0) {
-                Spacer()
-                actionButton(icon: "viewfinder", title: "Live View") { activeSheet = .liveView }
-                Spacer()
-                actionButton(icon: "doc.text.magnifyingglass", title: "Trip Details") { activeSheet = .tripDetails }
-                Spacer()
-                actionButton(icon: "antenna.radiowaves.left.and.right", title: "Ping") { activeSheet = .ping }
-                Spacer()
-                actionButton(icon: "sparkles", title: "Insights") { activeSheet = .insights }
-                Spacer()
-            }
-        }
-    }
-
-    private func actionButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                ZStack {
-                    Circle()
-                        .fill(Color.blue.opacity(0.1))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(Color.blue)
-                }
-                Text(title)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(Color.blue)
-            }
-            .frame(width: 76)
-        }
-    }
-
     private func insightsSection(for vehicle: Vehicle) -> some View {
         NativeDetailCard {
             VStack(alignment: .leading, spacing: 14) {
@@ -875,9 +819,9 @@ private struct VehicleDetailView: View {
                 let defects = Array(viewModel.defects(for: vehicle.id).filter { !$0.isResolved }.prefix(2))
 
                 if alerts.isEmpty && defects.isEmpty {
-                    ForEach(vehiclePositiveInsights(for: vehicle)) { insight in
-                        insightRow(icon: insight.icon, tint: insight.tint, title: insight.title)
-                    }
+                    Text("No active alerts or open defects for this vehicle.")
+                        .font(.subheadline)
+                        .foregroundStyle(Color(.secondaryLabel))
                 } else {
                     ForEach(alerts) { alert in
                         insightRow(
@@ -982,20 +926,21 @@ private struct VehicleDetailView: View {
 
     private func sheetIcon(for sheet: VehicleActionSheet) -> String {
         switch sheet {
-        case .liveView: return "viewfinder"
-        case .tripDetails: return "doc.text.magnifyingglass"
-        case .ping: return "antenna.radiowaves.left.and.right"
         case .insights: return "sparkles"
         }
     }
 
     private func sheetTitle(for sheet: VehicleActionSheet) -> String {
         switch sheet {
-        case .liveView: return "Live View"
-        case .tripDetails: return "Trip Details"
-        case .ping: return "Ping Vehicle"
         case .insights: return "Fleet Insights"
         }
+    }
+    
+    private func routeContextText(for vehicle: Vehicle) -> String {
+        guard let trip = viewModel.latestTrip(for: vehicle) else {
+            return "No trip assigned"
+        }
+        return "\(trip.origin) to \(trip.destination)"
     }
 }
 
@@ -1558,14 +1503,6 @@ private struct VehicleTag: Identifiable {
     var id: String { "\(icon)-\(title)" }
 }
 
-private struct VehiclePositiveInsight: Identifiable {
-    let icon: String
-    let tint: Color
-    let title: String
-
-    var id: String { "\(icon)-\(title)" }
-}
-
 private extension VehicleStatus {
     var dashboardColor: Color {
         switch self {
@@ -1642,19 +1579,6 @@ private func serviceTint(for days: Int) -> Color {
     return VehicleStudioTheme.success
 }
 
-private func vehicleRouteText(for vehicle: Vehicle) -> String {
-    switch vehicle.status {
-    case .active:
-        return "Mumbai to Pune"
-    case .inService:
-        return "Pune to Nashik"
-    case .idle:
-        return "Nagpur Yard"
-    case .outOfService:
-        return "Workshop Bay"
-    }
-}
-
 private func vehicleTags(for vehicle: Vehicle, in viewModel: VehicleManagementViewModel) -> [VehicleTag] {
     var tags: [VehicleTag] = []
 
@@ -1690,26 +1614,6 @@ private func vehicleTags(for vehicle: Vehicle, in viewModel: VehicleManagementVi
     }
 
     return Array(tags.prefix(3))
-}
-
-private func vehiclePositiveInsights(for vehicle: Vehicle) -> [VehiclePositiveInsight] {
-    switch vehicle.status {
-    case .active, .inService:
-        return [
-            VehiclePositiveInsight(icon: "checkmark.circle.fill", tint: VehicleStudioTheme.success, title: "Route performance is stable and the vehicle is dispatching cleanly."),
-            VehiclePositiveInsight(icon: "leaf.fill", tint: VehicleStudioTheme.mint, title: "Efficiency trend remains healthy for the current assignment window.")
-        ]
-    case .idle:
-        return [
-            VehiclePositiveInsight(icon: "pause.circle.fill", tint: VehicleStudioTheme.secondary, title: "Vehicle is staged and available for the next dispatch slot."),
-            VehiclePositiveInsight(icon: "battery.100percent", tint: VehicleStudioTheme.success, title: "Standby health is strong with no active fault signals.")
-        ]
-    case .outOfService:
-        return [
-            VehiclePositiveInsight(icon: "wrench.and.screwdriver.fill", tint: VehicleStudioTheme.warning, title: "Service workflow is active and the unit is safely isolated from dispatch."),
-            VehiclePositiveInsight(icon: "doc.text.fill", tint: VehicleStudioTheme.accent, title: "Maintenance documentation can be updated directly from this detail surface.")
-        ]
-    }
 }
 
 #Preview {

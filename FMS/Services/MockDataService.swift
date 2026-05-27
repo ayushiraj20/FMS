@@ -48,7 +48,6 @@ final class MockDataService {
         breakLogs = seed.breakLogs
         driverDutyStatus = seed.dutyStatuses
         geofenceAlertedVehicleIDs = []
-        
         checkOverdueCriticalWorkOrders()
         
         // Asynchronously sync database if credentials are present
@@ -57,6 +56,67 @@ final class MockDataService {
                 await syncWithDatabase()
             }
         }
+    }
+
+    // MARK: - Fleet Utilization & Dashboard Metrics
+    var overallUtilization: Int {
+        return 78
+    }
+    
+    var utilizationActivePercentage: Int {
+        return 78
+    }
+    
+    var utilizationIdlePercentage: Int {
+        return 15
+    }
+    
+    var utilizationMaintenancePercentage: Int {
+        return 7
+    }
+    
+    var maintenanceDueCount: Int {
+        maintenanceSchedules.filter { $0.status == .upcoming }.count
+    }
+    
+    var overdueServicesCount: Int {
+        maintenanceSchedules.filter { $0.status == .overdue }.count
+    }
+    
+    var lostGPSCount: Int {
+        vehicles.filter { $0.status == .outOfService }.count
+    }
+    
+    var avgHoursPerDay: Double {
+        return 8.4
+    }
+    
+    var avgHoursPerDayTrend: Double {
+        return 0.6
+    }
+    
+    var avgIdleTime: Double {
+        return 1.2
+    }
+    
+    var avgIdleTimeTrend: Double {
+        return -0.3
+    }
+    
+    var avgDistanceKM: Double {
+        return 324.0
+    }
+    
+    var avgDistanceTrend: Double {
+        return 12.0
+    }
+    
+    var avgFuelEfficiency: Double {
+        return 6.8
+    }
+    
+    var avgFuelEfficiencyTrend: Double {
+        return 0.2
     }
 
     /// Merge a remote list into a local list by ID.
@@ -385,6 +445,7 @@ final class MockDataService {
     // MARK: - Existing Mutations
 
     func addUser(name: String, role: UserRole, email: String, phone: String, title: String, organizationID: UUID) async throws {
+        let license = (role == .driver) ? LicenseType.lightVehicle : nil
         var user = User(
             id: UUID(),
             organizationID: organizationID,
@@ -394,7 +455,8 @@ final class MockDataService {
             password: "demo123",
             phone: phone,
             title: title,
-            assignedVehicleID: nil
+            assignedVehicleID: nil,
+            licenseType: license
         )
         
         if SupabaseConfig.isConfigured {
@@ -528,6 +590,16 @@ final class MockDataService {
     }
 
     func deleteUser(_ user: User) {
+        if user.role == .driver {
+            for index in vehicles.indices where vehicles[index].assignedDriverID == user.id {
+                vehicles[index].assignedDriverID = nil
+            }
+        }
+        if user.role == .maintenance {
+            for index in workOrders.indices where workOrders[index].assignedMaintenanceID == user.id {
+                workOrders[index].assignedMaintenanceID = nil
+            }
+        }
         users.removeAll { $0.id == user.id }
         
         if SupabaseConfig.isConfigured {
@@ -967,7 +1039,8 @@ final class MockDataService {
             status: .scheduled,
             safetyScore: nil,
             routeDetails: routeDetails,
-            notes: notes
+            notes: notes,
+            isFleetManagerAssigned: true
         )
         trips.insert(trip, at: 0)
         
@@ -1088,6 +1161,9 @@ enum DemoSeed {
         let managerID = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB") ?? UUID()
         let driver1ID = UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC") ?? UUID()
         let driver2ID = UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDBBBBBBBB") ?? UUID()
+        let driver3ID = UUID(uuidString: "GGGGGGGG-GGGG-GGGG-GGGG-GGGGGGGGGGGG") ?? UUID()
+        let driver4ID = UUID(uuidString: "HHHHHHHH-HHHH-HHHH-HHHH-HHHHHHHHHHHH") ?? UUID()
+        let driver5ID = UUID(uuidString: "IIIIIIII-IIII-IIII-IIII-IIIIIIIIIIII") ?? UUID()
         let maint1ID = UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE") ?? UUID()
         let maint2ID = UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF") ?? UUID()
 
@@ -1110,8 +1186,11 @@ enum DemoSeed {
 
         let users = [
             User(id: managerID, organizationID: orgID, name: "Ava Peterson", role: .fleetManager, email: "manager@northstar.com", password: "demo123", phone: "+1 415 555 0192", title: "Fleet Operations Lead", assignedVehicleID: nil),
-            User(id: driver1ID, organizationID: orgID, name: "Rajesh Kumar", role: .driver, email: "driver@northstar.com", password: "demo123", phone: "+91 98765 43210", title: "Senior Driver", assignedVehicleID: vehicle1ID),
-            User(id: driver2ID, organizationID: orgID, name: "Maya Singh", role: .driver, email: "driver2@northstar.com", password: "demo123", phone: "+91 98765 43211", title: "Linehaul Driver", assignedVehicleID: vehicle2ID),
+            User(id: driver1ID, organizationID: orgID, name: "Rajesh Kumar", role: .driver, email: "driver@northstar.com", password: "demo123", phone: "+91 98765 43210", title: "Senior Driver", assignedVehicleID: vehicle1ID, licenseType: .heavyVehicle),
+            User(id: driver2ID, organizationID: orgID, name: "Maya Singh", role: .driver, email: "driver2@northstar.com", password: "demo123", phone: "+91 98765 43211", title: "Linehaul Driver", assignedVehicleID: vehicle2ID, licenseType: .heavyVehicle),
+            User(id: driver3ID, organizationID: orgID, name: "Amit Patel", role: .driver, email: "driver3@northstar.com", password: "demo123", phone: "+91 98765 43212", title: "Delivery Driver", assignedVehicleID: nil, licenseType: .lightVehicle),
+            User(id: driver4ID, organizationID: orgID, name: "Sanjay Sharma", role: .driver, email: "driver4@northstar.com", password: "demo123", phone: "+91 98765 43213", title: "Heavy Truck Driver", assignedVehicleID: nil, licenseType: .heavyVehicle),
+            User(id: driver5ID, organizationID: orgID, name: "Priya Rao", role: .driver, email: "driver5@northstar.com", password: "demo123", phone: "+91 98765 43214", title: "Express Rider", assignedVehicleID: nil, licenseType: .twoWheeler),
             User(id: maint1ID, organizationID: orgID, name: "Chris Miller", role: .maintenance, email: "maintenance@northstar.com", password: "demo123", phone: "+1 415 555 0141", title: "Workshop Supervisor", assignedVehicleID: nil),
             User(id: maint2ID, organizationID: orgID, name: "Nina Lopez", role: .maintenance, email: "maintenance2@northstar.com", password: "demo123", phone: "+1 415 555 0148", title: "Maintenance Technician", assignedVehicleID: nil)
         ]
@@ -1186,9 +1265,16 @@ enum DemoSeed {
         let shiftEnd = todayStart.addingTimeInterval(18 * 3600)  // 6:00 PM
         let breakAt = todayStart.addingTimeInterval(12 * 3600)   // 12:00 PM
 
+        let shiftStart3 = todayStart.addingTimeInterval(6 * 3600) // 6:00 AM
+        let shiftEnd3 = todayStart.addingTimeInterval(18 * 3600)  // 6:00 PM
+        let shiftStart4 = todayStart.addingTimeInterval(16 * 3600) // 4:00 PM (starts later today)
+        let shiftEnd4 = todayStart.addingTimeInterval(24 * 3600)  // 12:00 AM
+
         let shifts = [
             ShiftInfo(id: UUID(), driverID: driver1ID, startTime: shiftStart, endTime: shiftEnd, breakTime: breakAt, date: todayStart),
-            ShiftInfo(id: UUID(), driverID: driver2ID, startTime: shiftStart, endTime: shiftEnd, breakTime: breakAt, date: todayStart)
+            ShiftInfo(id: UUID(), driverID: driver2ID, startTime: shiftStart, endTime: shiftEnd, breakTime: breakAt, date: todayStart),
+            ShiftInfo(id: UUID(), driverID: driver3ID, startTime: shiftStart3, endTime: shiftEnd3, breakTime: breakAt, date: todayStart),
+            ShiftInfo(id: UUID(), driverID: driver4ID, startTime: shiftStart4, endTime: shiftEnd4, breakTime: nil, date: todayStart)
         ]
 
         let fuelReceipts = [
@@ -1220,7 +1306,10 @@ enum DemoSeed {
 
         let dutyStatuses: [UUID: DutyStatus] = [
             driver1ID: .onDuty,
-            driver2ID: .offDuty
+            driver2ID: .offDuty,
+            driver3ID: .onDuty,
+            driver4ID: .offDuty,
+            driver5ID: .offDuty
         ]
 
         return (

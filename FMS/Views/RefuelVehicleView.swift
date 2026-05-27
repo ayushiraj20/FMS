@@ -63,7 +63,6 @@ struct RefuelVehicleView: View {
             Task {
                 guard let item = newItem else { return }
                 guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-                let image = Image(decorative: data as! CGImage, scale: 1.0)
                 // Use UIImage-free approach via SwiftUI
                 if let uiImage = await loadUIImage(from: data) {
                     let swiftUIImage = Image(uiImage: uiImage)

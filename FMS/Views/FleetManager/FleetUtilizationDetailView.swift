@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct FleetUtilizationDetailView: View {
+    @Environment(AppViewModel.self) private var appViewModel
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -33,7 +35,7 @@ struct FleetUtilizationDetailView: View {
                         .frame(width: 140, height: 140)
                     
                     Circle()
-                        .trim(from: 0.1, to: 0.1 + (0.8 * 0.78))
+                        .trim(from: 0.1, to: 0.1 + (0.8 * CGFloat(appViewModel.service.overallUtilization) / 100.0))
                         .stroke(
                             AngularGradient(gradient: Gradient(colors: [.green, .orange]), center: .center, startAngle: .degrees(90), endAngle: .degrees(90 + 360)),
                             style: StrokeStyle(lineWidth: 16, lineCap: .round)
@@ -42,12 +44,12 @@ struct FleetUtilizationDetailView: View {
                         .frame(width: 140, height: 140)
                     
                     VStack {
-                        Text("78%")
+                        Text("\(appViewModel.service.overallUtilization)%")
                             .font(.system(size: 36, weight: .bold))
                             .foregroundStyle(AppTheme.textPrimary)
-                        Text("Optimal")
+                        Text(appViewModel.service.overallUtilization >= 70 ? "Optimal" : "Sub-optimal")
                             .font(.caption)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(appViewModel.service.overallUtilization >= 70 ? .green : .red)
                     }
                 }
                 .padding(.vertical, 10)
@@ -65,9 +67,9 @@ struct FleetUtilizationDetailView: View {
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 VStack(spacing: 16) {
-                    utilizationRow(color: .green, label: "Active", value: 78, detail: "Vehicles on the road")
-                    utilizationRow(color: .orange, label: "Idle", value: 15, detail: "Available but not in use")
-                    utilizationRow(color: .red, label: "Maintenance", value: 7, detail: "Currently being serviced")
+                    utilizationRow(color: .green, label: "Active", value: appViewModel.service.utilizationActivePercentage, detail: "Vehicles on the road")
+                    utilizationRow(color: .orange, label: "Idle", value: appViewModel.service.utilizationIdlePercentage, detail: "Available but not in use")
+                    utilizationRow(color: .red, label: "Maintenance", value: appViewModel.service.utilizationMaintenancePercentage, detail: "Currently being serviced")
                 }
             }
         }
@@ -82,13 +84,33 @@ struct FleetUtilizationDetailView: View {
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 HStack(spacing: 12) {
-                    metricBox(title: "Avg. Hours/Day", value: "8.4h", trend: "+0.2h", isPositive: true)
-                    metricBox(title: "Idle Time", value: "1.2h", trend: "-0.3h", isPositive: true)
+                    metricBox(
+                        title: "Avg. Hours/Day",
+                        value: String(format: "%.1fh", appViewModel.service.avgHoursPerDay),
+                        trend: String(format: "%+.1fh", appViewModel.service.avgHoursPerDayTrend),
+                        isPositive: appViewModel.service.avgHoursPerDayTrend >= 0
+                    )
+                    metricBox(
+                        title: "Idle Time",
+                        value: String(format: "%.1fh", appViewModel.service.avgIdleTime),
+                        trend: String(format: "%+.1fh", appViewModel.service.avgIdleTimeTrend),
+                        isPositive: appViewModel.service.avgIdleTimeTrend <= 0
+                    )
                 }
                 
                 HStack(spacing: 12) {
-                    metricBox(title: "Avg. Distance", value: "240 km", trend: "+12 km", isPositive: true)
-                    metricBox(title: "Fuel Efficiency", value: "14 km/L", trend: "-0.5 km/L", isPositive: false)
+                    metricBox(
+                        title: "Avg. Distance",
+                        value: String(format: "%.0f km", appViewModel.service.avgDistanceKM),
+                        trend: String(format: "%+.0f km", appViewModel.service.avgDistanceTrend),
+                        isPositive: appViewModel.service.avgDistanceTrend >= 0
+                    )
+                    metricBox(
+                        title: "Fuel Efficiency",
+                        value: String(format: "%.1f km/L", appViewModel.service.avgFuelEfficiency),
+                        trend: String(format: "%+.1f km/L", appViewModel.service.avgFuelEfficiencyTrend),
+                        isPositive: appViewModel.service.avgFuelEfficiencyTrend >= 0
+                    )
                 }
             }
         }
@@ -108,7 +130,7 @@ struct FleetUtilizationDetailView: View {
                 
                 Spacer()
                 
-                Text("\(value)")
+                Text("\(value)%")
                     .font(.headline)
                     .foregroundStyle(AppTheme.textPrimary)
             }
@@ -167,5 +189,6 @@ struct FleetUtilizationDetailView: View {
 #Preview {
     NavigationStack {
         FleetUtilizationDetailView()
+            .environment(AppViewModel())
     }
 }

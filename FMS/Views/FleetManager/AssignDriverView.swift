@@ -40,8 +40,10 @@ struct AssignDriverView: View {
                         .padding(.horizontal)
 
                         // Smart Match Card
-                        let possibleMatches = min(viewModel.unassignedVehicles.count, viewModel.unassignedDrivers.count)
-                        if possibleMatches > 0 {
+                        let possibleMatches = viewModel.selectedVehicle == nil
+                            ? 0
+                            : viewModel.availableDriversForSelection.count
+                        if viewModel.selectedVehicle != nil {
                             smartMatchBanner(possibleMatches: possibleMatches)
                         }
 
@@ -68,16 +70,21 @@ struct AssignDriverView: View {
 
                         // Select Driver Section
                         VStack(alignment: .leading, spacing: 12) {
-                            SectionTitle(title: "Step 2: Select Available Driver", subtitle: "\(viewModel.unassignedDrivers.count) drivers unassigned")
+                            SectionTitle(
+                                title: "Step 2: Select Available Driver",
+                                subtitle: viewModel.selectedVehicle == nil
+                                ? "\(viewModel.unassignedDrivers.count) drivers unassigned"
+                                : "\(viewModel.availableDriversForSelection.count) license-compatible drivers"
+                            )
                                 .padding(.horizontal)
 
-                            if viewModel.unassignedDrivers.isEmpty {
+                            if viewModel.availableDriversForSelection.isEmpty {
                                 EmptyStateView(icon: "person.2.fill", title: "No Drivers Available", message: "All drivers are currently assigned to vehicles.")
                                     .padding(.horizontal)
                             } else {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 16) {
-                                        ForEach(viewModel.unassignedDrivers) { driver in
+                                        ForEach(viewModel.availableDriversForSelection) { driver in
                                             driverSelectionCard(driver: driver)
                                         }
                                     }
@@ -115,7 +122,6 @@ struct AssignDriverView: View {
 
     // Banner for Auto Smart Matching
     private func smartMatchBanner(possibleMatches: Int) -> some View {
-        let vehicleSuffix = possibleMatches > 1 ? "s" : ""
         let driverSuffix = possibleMatches > 1 ? "s" : ""
         
         return GlassCard {
@@ -131,10 +137,10 @@ struct AssignDriverView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Smart Match Available")
+                    Text("Auto Assign")
                         .font(.headline)
                         .foregroundStyle(AppTheme.textPrimary)
-                    Text("Instantly pair \(possibleMatches) vehicle\(vehicleSuffix) & driver\(driverSuffix).")
+                    Text("Select a vehicle, then auto-assign from \(possibleMatches) compatible driver\(driverSuffix).")
                         .font(.caption)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
@@ -143,10 +149,10 @@ struct AssignDriverView: View {
 
                 Button {
                     withAnimation {
-                        viewModel.smartMatchAll()
+                        viewModel.autoAssignSelectedVehicle()
                     }
                 } label: {
-                    Text("Auto-Match")
+                    Text("Auto Assign")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
@@ -156,6 +162,8 @@ struct AssignDriverView: View {
                                 .fill(AppTheme.brand)
                         )
                 }
+                .disabled(viewModel.selectedVehicle == nil || possibleMatches == 0)
+                .opacity(viewModel.selectedVehicle == nil || possibleMatches == 0 ? 0.5 : 1)
             }
         }
         .padding(.horizontal)
@@ -171,6 +179,10 @@ struct AssignDriverView: View {
                     viewModel.selectedVehicle = nil
                 } else {
                     viewModel.selectedVehicle = vehicle
+                    if let selectedDriver = viewModel.selectedDriver,
+                       !viewModel.isEligible(driver: selectedDriver, for: vehicle) {
+                        viewModel.selectedDriver = nil
+                    }
                 }
             }
         } label: {
@@ -334,9 +346,10 @@ struct AssignDriverView: View {
 
     // success notification toast
     private func successToast(message: String) -> some View {
-        VStack {
+        let isError = viewModel.isShowingErrorToast
+        return VStack {
             HStack(spacing: 12) {
-                Image(systemName: "checkmark.circle.fill")
+                Image(systemName: isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                     .foregroundStyle(.white)
                     .font(.headline)
                 Text(message)
@@ -347,9 +360,9 @@ struct AssignDriverView: View {
             .padding(.vertical, 14)
             .background(
                 Capsule()
-                    .fill(AppTheme.success)
+                    .fill(isError ? AppTheme.warning : AppTheme.success)
             )
-            .shadow(color: AppTheme.success.opacity(0.4), radius: 10, y: 4)
+            .shadow(color: (isError ? AppTheme.warning : AppTheme.success).opacity(0.4), radius: 10, y: 4)
             .padding(.top, 40)
             Spacer()
         }
