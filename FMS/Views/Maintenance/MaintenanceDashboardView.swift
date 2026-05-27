@@ -24,7 +24,7 @@ struct MaintenanceDashboardView: View {
             .padding(.top, 8)
             .padding(.bottom, 16)
         }
-        .background(AppTheme.background.ignoresSafeArea())
+        .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("Dashboard")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -77,10 +77,20 @@ struct MaintenanceDashboardView: View {
         }
     }
     private var assignedVehicleIDs: Set<UUID> { Set(assignedOrders.map(\.vehicleID)) }
-    private var waitingOnPartsCount: Int { assignedOrders.filter { $0.status == .waitingParts }.count }
     private var upcomingSchedules: [MaintenanceSchedule] {
         let schedules = appViewModel.service.schedules(for: assignedVehicleIDs.isEmpty ? nil : assignedVehicleIDs)
         return schedules.filter { $0.status != .completed }
+    }
+    private var criticalOrders: [WorkOrder] {
+        assignedOrders.filter { $0.priority == .critical && $0.status != .completed }
+    }
+    private var inProgressOrders: [WorkOrder] {
+        assignedOrders.filter { $0.status == .inProgress }
+    }
+    private var pendingVehicleCount: Int {
+        let allOrders = appViewModel.service.workOrders(for: nil)
+        let openOrWaiting = allOrders.filter { $0.status == .open || $0.status == .waitingParts }
+        return Set(openOrWaiting.map(\.vehicleID)).count
     }
 
     private var metricsGrid: some View {
@@ -88,41 +98,45 @@ struct MaintenanceDashboardView: View {
             GridItem(.flexible(), spacing: 10),
             GridItem(.flexible(), spacing: 10)
         ], spacing: 10) {
-            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .pending)) {
-                MaintenanceMetricCard(
-                    icon: "list.clipboard.fill",
-                    title: "Open Orders",
-                    value: "\(activeAssignedOrders.count)",
-                    tint: maintenanceAccent
-                )
-            }
-            .buttonStyle(.plain)
-            
+            // 1st Card: Critical
             NavigationLink(destination: MaintenanceWorkOrdersView(showOnlyCritical: true)) {
                 MaintenanceMetricCard(
                     icon: "exclamationmark.triangle.fill",
                     title: "Critical",
-                    value: "\(assignedOrders.filter { $0.priority == .critical && $0.status != .completed }.count)",
+                    value: "\(criticalOrders.count)",
                     tint: maintenanceAccent
                 )
             }
             .buttonStyle(.plain)
             
-            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .inProgress)) {
+            // 2nd Card: Work In Progress
+            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .inProgress, isLockedFilter: true)) {
                 MaintenanceMetricCard(
                     icon: "wrench.and.screwdriver.fill",
                     title: "In Progress",
-                    value: "\(assignedOrders.filter { $0.status == .inProgress }.count)",
+                    value: "\(inProgressOrders.count)",
                     tint: maintenanceAccent
                 )
             }
             .buttonStyle(.plain)
             
-            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .waitingParts)) {
+            // 3rd Card: Pending Vehicles needing maintenance
+            NavigationLink(destination: PendingVehiclesView()) {
                 MaintenanceMetricCard(
-                    icon: "shippingbox.fill",
-                    title: "Waiting on Parts",
-                    value: "\(waitingOnPartsCount)",
+                    icon: "car.side.fill",
+                    title: "Pending Vehicles",
+                    value: "\(pendingVehicleCount)",
+                    tint: maintenanceAccent
+                )
+            }
+            .buttonStyle(.plain)
+            
+            // 4th Card: Past Part Orders (shortage parts ordered)
+            NavigationLink(destination: PastPartOrdersView()) {
+                MaintenanceMetricCard(
+                    icon: "clock.arrow.circlepath",
+                    title: "Past Orders",
+                    value: "\(PastPartOrdersView.shortageOrders.count)",
                     tint: maintenanceAccent
                 )
             }
@@ -237,32 +251,25 @@ private struct MaintenanceMetricCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption)
-                    .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
 
                 if let subtitle {
                     Text(subtitle)
                         .font(.caption2)
-                        .foregroundStyle(Color.dynamic(light: "#8A7066", dark: "#BDA39A"))
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
 
                 Text(value)
                     .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.dynamic(light: "#1F2024", dark: "#F2E8E4"))
+                    .foregroundStyle(.primary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1D23").opacity(0.92))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 0.5)
-                )
-        )
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
