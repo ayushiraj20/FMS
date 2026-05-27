@@ -72,7 +72,7 @@ enum NotificationScheduler {
         let request =
         UNNotificationRequest(
             identifier:
-            "broadcast-\(UUID().uuidString)",
+                "broadcast-\(UUID().uuidString)",
             content: content,
             trigger: nil
         )

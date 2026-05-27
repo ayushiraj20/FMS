@@ -25,28 +25,29 @@ final class MockDataService {
     var vehicleAlerts: [VehicleAlert]
     var breakLogs: [BreakLogEntry]
     var driverDutyStatus: [UUID: DutyStatus]
+    var geofenceAlertedVehicleIDs: Set<UUID>
 
     init() {
-        // All data loads from Supabase via syncWithDatabase().
-        // No mock/seed data — real data only.
-        organizations = []
-        users = []
-        vehicles = []
-        documents = []
-        trips = []
-        inspections = []
-        defects = []
-        workOrders = []
-        maintenanceSchedules = []
-        notifications = []
-        shifts = []
-        fuelReceipts = []
+        let seed = DemoSeed.make()
+        organizations = seed.organizations
+        users = seed.users
+        vehicles = seed.vehicles
+        documents = seed.documents
+        trips = seed.trips
+        inspections = seed.inspections
+        defects = seed.defects
+        workOrders = seed.workOrders
+        maintenanceSchedules = seed.maintenanceSchedules
+        notifications = seed.notifications
+        shifts = seed.shifts
+        fuelReceipts = seed.fuelReceipts
         sosAlerts = []
-        chatMessages = []
-        tripCheckpoints = []
-        vehicleAlerts = []
-        breakLogs = []
-        driverDutyStatus = [:]
+        chatMessages = seed.chatMessages
+        tripCheckpoints = seed.tripCheckpoints
+        vehicleAlerts = seed.vehicleAlerts
+        breakLogs = seed.breakLogs
+        driverDutyStatus = seed.dutyStatuses
+        geofenceAlertedVehicleIDs = []
         
         checkOverdueCriticalWorkOrders()
         
@@ -128,13 +129,6 @@ final class MockDataService {
         }
         if let notificationsList = try? await SupabaseService.shared.fetchNotifications() {
             self.notifications = notificationsList
-        }
-        do {
-            let sosList = try await SupabaseService.shared.fetchSOSAlerts()
-            self.sosAlerts = sosList
-            print("[Sync] Synced \(sosList.count) SOS alert(s) from Supabase ✅")
-        } catch {
-            print("[Sync] SOS alerts fetch FAILED: \(error) ❌")
         }
     }
 
@@ -296,44 +290,17 @@ final class MockDataService {
         fuelReceipts.insert(receipt, at: 0)
     }
 
-    func triggerSOS(driverID: UUID, vehicleID: UUID, latitude: Double, longitude: Double, emergencyType: String = "Accident", description: String? = nil) {
-        let driver = users.first { $0.id == driverID }
-        let vehicle = vehicles.first { $0.id == vehicleID }
-        let driverName = driver?.name ?? "Unknown Driver"
-        let vehicleNumber = vehicle?.plateNumber ?? "KA01AB1234"
-
+    func triggerSOS(driverID: UUID, vehicleID: UUID, latitude: Double, longitude: Double) {
         let alert = SOSAlert(
             id: UUID(),
             driverID: driverID,
-            driverName: driverName,
             vehicleID: vehicleID,
-            vehicleNumber: vehicleNumber,
-            emergencyType: emergencyType,
             latitude: latitude,
             longitude: longitude,
-            description: description,
-            status: "ACTIVE",
-            createdAt: .now
+            timestamp: .now,
+            status: .triggered
         )
         sosAlerts.insert(alert, at: 0)
-        
-        if SupabaseConfig.isConfigured {
-            Task {
-                do {
-                    try await SupabaseService.shared.addSOSAlert(alert)
-                    print("Supabase: Successfully saved SOS alert ✅")
-                } catch {
-                    print("Supabase: Error inserting SOSAlert: \(error.localizedDescription) ❌")
-                }
-            }
-        }
-        
-        // Post local notification for real-time offline demo mode
-        NotificationCenter.default.post(
-            name: NSNotification.Name("LocalSOSTriggered"),
-            object: nil,
-            userInfo: ["alert": alert]
-        )
     }
 
     func sendChatMessage(senderID: UUID, receiverID: UUID?, message: String, workOrderID: UUID? = nil) {
@@ -1097,4 +1064,183 @@ final class MockDataService {
 
 // MARK: - Demo Seed Data
 
-// DemoSeed removed – all data is sourced from Supabase.
+enum DemoSeed {
+    static func make() -> (
+        organizations: [Organization],
+        users: [User],
+        vehicles: [Vehicle],
+        documents: [VehicleDocument],
+        trips: [Trip],
+        inspections: [InspectionRecord],
+        defects: [DefectReport],
+        workOrders: [WorkOrder],
+        maintenanceSchedules: [MaintenanceSchedule],
+        notifications: [AppNotification],
+        shifts: [ShiftInfo],
+        fuelReceipts: [FuelReceipt],
+        chatMessages: [ChatMessage],
+        tripCheckpoints: [TripCheckpoint],
+        vehicleAlerts: [VehicleAlert],
+        breakLogs: [BreakLogEntry],
+        dutyStatuses: [UUID: DutyStatus]
+    ) {
+        let orgID = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA") ?? UUID()
+        let managerID = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB") ?? UUID()
+        let driver1ID = UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC") ?? UUID()
+        let driver2ID = UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDBBBBBBBB") ?? UUID()
+        let maint1ID = UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE") ?? UUID()
+        let maint2ID = UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF") ?? UUID()
+
+        let vehicle1ID = UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID()
+        let vehicle2ID = UUID(uuidString: "22222222-2222-2222-2222-222222222222") ?? UUID()
+        let vehicle3ID = UUID(uuidString: "33333333-3333-3333-3333-333333333333") ?? UUID()
+        let vehicle4ID = UUID(uuidString: "44444444-4444-4444-4444-444444444444") ?? UUID()
+
+        let activeTripID = UUID(uuidString: "55555555-5555-5555-5555-555555555555") ?? UUID()
+        let scheduledTrip1ID = UUID(uuidString: "66666666-6666-6666-6666-666666666666") ?? UUID()
+        let scheduledTrip2ID = UUID(uuidString: "77777777-7777-7777-7777-777777777777") ?? UUID()
+
+        let organization = Organization(
+            id: orgID,
+            name: "NorthStar Logistics",
+            industry: "Regional Distribution",
+            fleetSize: 24,
+            complianceScore: 96
+        )
+
+        let users = [
+            User(id: managerID, organizationID: orgID, name: "Ava Peterson", role: .fleetManager, email: "manager@northstar.com", password: "demo123", phone: "+1 415 555 0192", title: "Fleet Operations Lead", assignedVehicleID: nil),
+            User(id: driver1ID, organizationID: orgID, name: "Rajesh Kumar", role: .driver, email: "driver@northstar.com", password: "demo123", phone: "+91 98765 43210", title: "Senior Driver", assignedVehicleID: vehicle1ID),
+            User(id: driver2ID, organizationID: orgID, name: "Maya Singh", role: .driver, email: "driver2@northstar.com", password: "demo123", phone: "+91 98765 43211", title: "Linehaul Driver", assignedVehicleID: vehicle2ID),
+            User(id: maint1ID, organizationID: orgID, name: "Chris Miller", role: .maintenance, email: "maintenance@northstar.com", password: "demo123", phone: "+1 415 555 0141", title: "Workshop Supervisor", assignedVehicleID: nil),
+            User(id: maint2ID, organizationID: orgID, name: "Nina Lopez", role: .maintenance, email: "maintenance2@northstar.com", password: "demo123", phone: "+1 415 555 0148", title: "Maintenance Technician", assignedVehicleID: nil)
+        ]
+
+        let vehicles = [
+            Vehicle(id: vehicle1ID, organizationID: orgID, displayName: "Tata Ace", plateNumber: "TRK-2847", model: "2024 Light Truck", status: .active, fuelLevel: 74, odometer: 128_420, assignedDriverID: driver1ID, nextServiceDate: .now.addingTimeInterval(86400 * 8), utilization: 88),
+            Vehicle(id: vehicle2ID, organizationID: orgID, displayName: "Tata Prima 5530", plateNumber: "TX-14-LGT", model: "2023 Heavy Duty", status: .active, fuelLevel: 56, odometer: 96_870, assignedDriverID: driver2ID, nextServiceDate: .now.addingTimeInterval(86400 * 17), utilization: 81),
+            Vehicle(id: vehicle3ID, organizationID: orgID, displayName: "Ashok Leyland 4220", plateNumber: "NV-11-CRG", model: "2022 Container Carrier", status: .inService, fuelLevel: 23, odometer: 167_540, assignedDriverID: nil, nextServiceDate: .now.addingTimeInterval(86400 * 2), utilization: 67),
+            Vehicle(id: vehicle4ID, organizationID: orgID, displayName: "Eicher Pro 2110", plateNumber: "AZ-09-RTE", model: "2024 Urban Delivery", status: .idle, fuelLevel: 91, odometer: 41_120, assignedDriverID: nil, nextServiceDate: .now.addingTimeInterval(86400 * 24), utilization: 49)
+        ]
+
+        let documents: [VehicleDocument] = [
+            VehicleDocument(id: UUID(), vehicleID: vehicle1ID, type: .rc, documentNumber: "RC-982371", expiryDate: .now.addingTimeInterval(86400 * 250), isVerified: true),
+            VehicleDocument(id: UUID(), vehicleID: vehicle1ID, type: .insurance, documentNumber: "INS-443201", expiryDate: .now.addingTimeInterval(86400 * 120), isVerified: true),
+            VehicleDocument(id: UUID(), vehicleID: vehicle1ID, type: .puc, documentNumber: "PUC-220914", expiryDate: .now.addingTimeInterval(86400 * 46), isVerified: true),
+            VehicleDocument(id: UUID(), vehicleID: vehicle1ID, type: .permit, documentNumber: "PMT-572104", expiryDate: .now.addingTimeInterval(86400 * 180), isVerified: true),
+            VehicleDocument(id: UUID(), vehicleID: vehicle2ID, type: .rc, documentNumber: "RC-812003", expiryDate: .now.addingTimeInterval(86400 * 190), isVerified: true),
+            VehicleDocument(id: UUID(), vehicleID: vehicle2ID, type: .insurance, documentNumber: "INS-392212", expiryDate: .now.addingTimeInterval(86400 * 85), isVerified: true),
+            VehicleDocument(id: UUID(), vehicleID: vehicle3ID, type: .permit, documentNumber: "PMT-102914", expiryDate: .now.addingTimeInterval(86400 * 30), isVerified: false)
+        ]
+
+        let trips = [
+            Trip(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, origin: "Mumbai", destination: "Nashik", startDate: .now.addingTimeInterval(-86400), endDate: .now.addingTimeInterval(-82000), distanceKM: 168, status: .completed, safetyScore: 94),
+            Trip(id: activeTripID, driverID: driver1ID, vehicleID: vehicle1ID, origin: "Mumbai", destination: "Pune Warehouse", startDate: .now.addingTimeInterval(-7200), endDate: nil, distanceKM: 148, status: .inProgress),
+            Trip(id: scheduledTrip1ID, driverID: driver1ID, vehicleID: vehicle1ID, origin: "Pune", destination: "Kolhapur", startDate: .now.addingTimeInterval(86400), endDate: nil, distanceKM: 232, status: .scheduled),
+            Trip(id: scheduledTrip2ID, driverID: driver1ID, vehicleID: vehicle1ID, origin: "Mumbai", destination: "Surat", startDate: .now.addingTimeInterval(86400 * 2), endDate: nil, distanceKM: 284, status: .scheduled),
+            Trip(id: UUID(), driverID: driver2ID, vehicleID: vehicle2ID, origin: "Delhi", destination: "Jaipur", startDate: .now.addingTimeInterval(8600), endDate: nil, distanceKM: 280, status: .scheduled)
+        ]
+
+        let inspectionTemplate = [
+            InspectionItem(id: UUID(), title: "Brakes and parking brake", isChecked: true),
+            InspectionItem(id: UUID(), title: "Lights and indicators", isChecked: true),
+            InspectionItem(id: UUID(), title: "Tyres and wheel nuts", isChecked: true),
+            InspectionItem(id: UUID(), title: "Fluid leaks under vehicle", isChecked: true),
+            InspectionItem(id: UUID(), title: "Horn, mirrors, and camera view", isChecked: true)
+        ]
+
+        let inspections = [
+            InspectionRecord(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, type: .preTrip, date: .now.addingTimeInterval(-90000), notes: "All systems normal before departure.", passed: true, items: inspectionTemplate),
+            InspectionRecord(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, type: .postTrip, date: .now.addingTimeInterval(-50000), notes: "Minor dirt buildup near rear lamp housing.", passed: true, items: inspectionTemplate)
+        ]
+
+        let defects = [
+            DefectReport(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, severity: .medium, description: "Rear left marker lamp flickers intermittently on rough roads.", reportedDate: .now.addingTimeInterval(-30000), isResolved: false, title: "Marker Lamp Flicker", images: nil, status: .pending),
+            DefectReport(id: UUID(), driverID: driver2ID, vehicleID: vehicle2ID, severity: .high, description: "Noticeable vibration from front axle above 70 km/h.", reportedDate: .now.addingTimeInterval(-54000), isResolved: false, title: "Front Axle Vibration", images: nil, status: .pending)
+        ]
+
+        let workOrders = [
+            WorkOrder(id: UUID(), vehicleID: vehicle3ID, assignedMaintenanceID: maint1ID, title: "Brake line inspection", details: "ABS alert triggered during highway run. Inspect brake lines and sensor cluster.", priority: .critical, status: .inProgress, scheduledDate: .now.addingTimeInterval(-7200), completedDate: nil, estimatedCost: 1450, repairSummary: ""),
+            WorkOrder(id: UUID(), vehicleID: vehicle2ID, assignedMaintenanceID: maint2ID, title: "Front axle vibration diagnosis", details: "Driver reported vibration beyond 70 km/h. Check alignment and suspension mounts.", priority: .high, status: .open, scheduledDate: .now.addingTimeInterval(14400), completedDate: nil, estimatedCost: 780, repairSummary: ""),
+            WorkOrder(id: UUID(), vehicleID: vehicle1ID, assignedMaintenanceID: maint1ID, title: "Marker lamp replacement", details: "Replace rear left marker lamp and inspect connector corrosion.", priority: .medium, status: .waitingParts, scheduledDate: .now.addingTimeInterval(86400), completedDate: nil, estimatedCost: 120, repairSummary: "")
+        ]
+
+        let schedules = [
+            MaintenanceSchedule(id: UUID(), vehicleID: vehicle1ID, serviceType: "Engine oil and filters", dueDate: .now.addingTimeInterval(86400 * 8), status: .upcoming),
+            MaintenanceSchedule(id: UUID(), vehicleID: vehicle2ID, serviceType: "Tyre rotation and balancing", dueDate: .now.addingTimeInterval(86400 * 17), status: .upcoming),
+            MaintenanceSchedule(id: UUID(), vehicleID: vehicle3ID, serviceType: "Brake system audit", dueDate: .now.addingTimeInterval(-86400), status: .overdue),
+            MaintenanceSchedule(id: UUID(), vehicleID: vehicle4ID, serviceType: "Quarterly preventive maintenance", dueDate: .now.addingTimeInterval(86400 * 24), status: .upcoming)
+        ]
+
+        let notifications = [
+            AppNotification(id: UUID(), userID: managerID, roleTarget: nil, title: "Insurance renewal due", message: "Two policies will expire within the next 90 days. Review documents dashboard.", date: .now.addingTimeInterval(-1800), isRead: false, category: .warning),
+            AppNotification(id: UUID(), userID: nil, roleTarget: .driver, title: "Pre-trip inspection required", message: "Complete the inspection checklist before starting your next trip.", date: .now.addingTimeInterval(-2400), isRead: false, category: .info),
+            AppNotification(id: UUID(), userID: nil, roleTarget: .maintenance, title: "Critical work order assigned", message: "Brake line inspection for Ashok Leyland 4220 is now in progress.", date: .now.addingTimeInterval(-4000), isRead: false, category: .critical),
+            AppNotification(id: UUID(), userID: nil, roleTarget: nil, title: "Compliance score improved", message: "NorthStar Logistics reached 96% documentation compliance this week.", date: .now.addingTimeInterval(-8600), isRead: true, category: .success),
+            AppNotification(id: UUID(), userID: driver1ID, roleTarget: nil, title: "Route Updated", message: "Your trip Mumbai → Pune has been updated with a new waypoint.", date: .now.addingTimeInterval(-600), isRead: false, category: .warning)
+        ]
+
+        // Driver shift for today
+        let todayStart = Calendar.current.startOfDay(for: .now)
+        let shiftStart = todayStart.addingTimeInterval(6 * 3600) // 6:00 AM
+        let shiftEnd = todayStart.addingTimeInterval(18 * 3600)  // 6:00 PM
+        let breakAt = todayStart.addingTimeInterval(12 * 3600)   // 12:00 PM
+
+        let shifts = [
+            ShiftInfo(id: UUID(), driverID: driver1ID, startTime: shiftStart, endTime: shiftEnd, breakTime: breakAt, date: todayStart),
+            ShiftInfo(id: UUID(), driverID: driver2ID, startTime: shiftStart, endTime: shiftEnd, breakTime: breakAt, date: todayStart)
+        ]
+
+        let fuelReceipts = [
+            FuelReceipt(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, date: .now.addingTimeInterval(-86400), stationName: "HP Petroleum, Panvel", litres: 45.0, amount: 4725.0, vehiclePlate: "TRK-2847"),
+            FuelReceipt(id: UUID(), driverID: driver1ID, vehicleID: vehicle1ID, date: .now.addingTimeInterval(-86400 * 3), stationName: "IOCL, Vashi", litres: 50.0, amount: 5250.0, vehiclePlate: "TRK-2847")
+        ]
+
+        let chatMessages = [
+            ChatMessage(id: UUID(), senderID: driver1ID, receiverID: maint1ID, message: "Hi, the rear lamp is flickering again on highway.", timestamp: .now.addingTimeInterval(-3600), isRead: true),
+            ChatMessage(id: UUID(), senderID: maint1ID, receiverID: driver1ID, message: "Noted. We have ordered the replacement part. Will fix during next service.", timestamp: .now.addingTimeInterval(-3000), isRead: true),
+            ChatMessage(id: UUID(), senderID: driver1ID, receiverID: maint1ID, message: "Thanks. Is it safe to continue driving?", timestamp: .now.addingTimeInterval(-2400), isRead: true),
+            ChatMessage(id: UUID(), senderID: maint1ID, receiverID: driver1ID, message: "Yes, it's safe. Just avoid night driving if possible until we fix it.", timestamp: .now.addingTimeInterval(-1800), isRead: false)
+        ]
+
+        let tripCheckpoints = [
+            TripCheckpoint(id: UUID(), tripID: activeTripID, name: "Departed", status: .completed, arrivalTime: .now.addingTimeInterval(-7200), departureTime: .now.addingTimeInterval(-7200), sortOrder: 0),
+            TripCheckpoint(id: UUID(), tripID: activeTripID, name: "Checkpoint 1 - Panvel", status: .completed, arrivalTime: .now.addingTimeInterval(-5400), departureTime: .now.addingTimeInterval(-5000), sortOrder: 1),
+            TripCheckpoint(id: UUID(), tripID: activeTripID, name: "Checkpoint 2 - Lonavala", status: .inTransit, arrivalTime: nil, departureTime: nil, sortOrder: 2),
+            TripCheckpoint(id: UUID(), tripID: activeTripID, name: "Pune Warehouse", status: .upcoming, arrivalTime: nil, departureTime: nil, sortOrder: 3)
+        ]
+
+        let vehicleAlerts = [
+            VehicleAlert(id: UUID(), vehicleID: vehicle1ID, alertType: .fuel, severity: .warning, alertDescription: "Fuel level dropping faster than expected", recommendedAction: "Check for fuel leaks and refuel at the next station", isAcknowledged: false, createdAt: .now.addingTimeInterval(-1200))
+        ]
+
+        let breakLogs = [
+            BreakLogEntry(id: UUID(), driverID: driver1ID, startTime: .now.addingTimeInterval(-86400 + 21600), endTime: .now.addingTimeInterval(-86400 + 23400), breakType: "Lunch Break")
+        ]
+
+        let dutyStatuses: [UUID: DutyStatus] = [
+            driver1ID: .onDuty,
+            driver2ID: .offDuty
+        ]
+
+        return (
+            organizations: [organization],
+            users: users,
+            vehicles: vehicles,
+            documents: documents,
+            trips: trips,
+            inspections: inspections,
+            defects: defects,
+            workOrders: workOrders,
+            maintenanceSchedules: schedules,
+            notifications: notifications,
+            shifts: shifts,
+            fuelReceipts: fuelReceipts,
+            chatMessages: chatMessages,
+            tripCheckpoints: tripCheckpoints,
+            vehicleAlerts: vehicleAlerts,
+            breakLogs: breakLogs,
+            dutyStatuses: dutyStatuses
+        )
+    }
+}
