@@ -359,12 +359,17 @@ final class MockDataService {
         vehicleAlerts[index].isAcknowledged = true
     }
 
-    func addBreakLog(driverID: UUID, breakType: String) {
+    func addBreakLog(driverID: UUID, breakType: String, durationMinutes: Int? = nil) {
+        var end: Date? = nil
+        if let duration = durationMinutes {
+            end = Date().addingTimeInterval(TimeInterval(duration * 60))
+        }
+        
         let entry = BreakLogEntry(
             id: UUID(),
             driverID: driverID,
             startTime: .now,
-            endTime: nil,
+            endTime: end,
             breakType: breakType
         )
         breakLogs.insert(entry, at: 0)

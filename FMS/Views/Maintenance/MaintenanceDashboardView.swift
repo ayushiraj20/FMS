@@ -10,10 +10,10 @@ struct MaintenanceDashboardView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 14) {
                 if isLoading {
                     LoadingStateView(title: "Loading workshop queue...")
-                        .frame(height: 320)
+                        .frame(height: 240)
                 } else {
                     metricsGrid
                     priorityQueue
@@ -21,8 +21,8 @@ struct MaintenanceDashboardView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 18)
-            .padding(.bottom, 28)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
         }
         .background(AppTheme.background.ignoresSafeArea())
         .navigationTitle("Dashboard")
@@ -33,12 +33,14 @@ struct MaintenanceDashboardView: View {
                     ZStack {
                         Circle()
                             .fill(maintenanceAccent)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 30, height: 30)
                         Text(userInitials)
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(.white)
                     }
                 }
+                .buttonStyle(.plain)
+                .buttonBorderShape(.circle)
                 .accessibilityIdentifier("PROFILE_BUTTON")
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -53,50 +55,6 @@ struct MaintenanceDashboardView: View {
             guard isLoading else { return }
             try? await Task.sleep(for: .seconds(0.35))
             isLoading = false
-        }
-    }
-
-    private var topBar: some View {
-        HStack {
-            NavigationLink(destination: ProfileSettingsView()) {
-                ZStack {
-                    Circle()
-                        .fill(maintenanceAccent)
-                        .frame(width: 44, height: 44)
-                    Text(userInitials)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white)
-                }
-            }
-            .accessibilityIdentifier("PROFILE_BUTTON")
-
-            Spacer()
-
-            NavigationLink(destination: NotificationsView()) {
-                ZStack(alignment: .topTrailing) {
-                    Circle()
-                        .fill(AppTheme.surfaceSecondary)
-                        .frame(width: 44, height: 44)
-
-                    Image(systemName: "bell.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(maintenanceAccent)
-                        .frame(width: 44, height: 44)
-
-                    if appViewModel.unreadNotificationsCount > 0 {
-                        Circle()
-                            .fill(AppTheme.error)
-                            .frame(width: 18, height: 18)
-                            .overlay(
-                                Text("\(appViewModel.unreadNotificationsCount)")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white)
-                            )
-                            .offset(x: 2, y: -2)
-                    }
-                }
-            }
-            .accessibilityIdentifier("BELL_BUTTON")
         }
     }
 
@@ -119,23 +77,11 @@ struct MaintenanceDashboardView: View {
         return schedules.filter { $0.status != .completed }
     }
 
-    private var dashboardHeader: some View {
-        HStack(alignment: .center, spacing: 14) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Hey \(userFirstName)")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(warmPrimaryText)
-            }
-
-            Spacer()
-        }
-    }
-
     private var metricsGrid: some View {
         LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 16),
-            GridItem(.flexible(), spacing: 16)
-        ], spacing: 16) {
+            GridItem(.flexible(), spacing: 10),
+            GridItem(.flexible(), spacing: 10)
+        ], spacing: 10) {
             NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .pending)) {
                 MaintenanceMetricCard(
                     icon: "list.clipboard.fill",
@@ -170,7 +116,6 @@ struct MaintenanceDashboardView: View {
                 MaintenanceMetricCard(
                     icon: "shippingbox.fill",
                     title: "Waiting on Parts",
-                    subtitle: "Jobs paused until stock arrives",
                     value: "\(waitingOnPartsCount)",
                     tint: maintenanceAccent
                 )
@@ -180,15 +125,10 @@ struct MaintenanceDashboardView: View {
     }
 
     private var priorityQueue: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(maintenanceAccent)
-                    .frame(width: 8, height: 8)
-                Text("Today's Priority Queue")
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(warmPrimaryText)
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Today's Priority Queue")
+                .font(.headline)
+                .foregroundStyle(warmPrimaryText)
 
             if priorityOrders.isEmpty {
                 EmptyStateView(icon: "checkmark.circle.fill", title: "No active assignments", message: "New admin-assigned work orders will appear here.")
@@ -202,20 +142,20 @@ struct MaintenanceDashboardView: View {
                 }
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 4)
     }
 
     private var maintenanceScheduleStrip: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Scheduled Maintenance")
-                .font(.title3.weight(.bold))
+                .font(.headline)
                 .foregroundStyle(warmPrimaryText)
 
             if upcomingSchedules.isEmpty {
                 EmptyStateView(icon: "calendar.badge.checkmark", title: "No scheduled maintenance", message: "Upcoming service jobs will appear here.")
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
+                    HStack(spacing: 10) {
                         ForEach(upcomingSchedules.prefix(6)) { schedule in
                             MaintenanceSchedulePreviewCard(
                                 schedule: schedule,
@@ -227,64 +167,9 @@ struct MaintenanceDashboardView: View {
                 }
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 4)
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Workshop Command")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.textPrimary)
-            Text("Track assigned work, close repairs quickly, and keep preventive maintenance on schedule.")
-                .foregroundStyle(AppTheme.textSecondary)
-        }
-    }
-
-    private var activeOrders: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionTitle(title: "Assigned Work Orders", subtitle: "Your active workshop queue")
-            ForEach(appViewModel.service.workOrders(for: currentUser?.id).prefix(3)) { order in
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(order.title)
-                            .font(.headline)
-                            .foregroundStyle(AppTheme.textPrimary)
-                        Text(order.details)
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.textSecondary)
-                        Text(order.status.rawValue)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(order.status == .completed ? AppTheme.success : AppTheme.warning)
-                    }
-                }
-            }
-        }
-    }
-
-    private var schedulePreview: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionTitle(title: "Maintenance Schedule", subtitle: "Upcoming and overdue service")
-            ForEach(appViewModel.service.schedules().prefix(3)) { schedule in
-                let vehicle = appViewModel.service.vehicle(for: schedule.vehicleID)
-                GlassCard {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(schedule.serviceType)
-                                .font(.headline)
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text(vehicle?.displayName ?? "Vehicle")
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                        Spacer()
-                        Text(schedule.dueDate.formatted(date: .abbreviated, time: .omitted))
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(schedule.status == .overdue ? AppTheme.error : AppTheme.brand)
-                    }
-                }
-            }
-        }
-    }
 
     private var userInitials: String {
         guard let name = currentUser?.name else { return "MS" }
@@ -337,17 +222,15 @@ private struct MaintenanceMetricCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Image(systemName: icon)
-                .font(.title3.weight(.semibold))
+                .font(.callout.weight(.semibold))
                 .foregroundStyle(tint)
-                .frame(width: 24, height: 24, alignment: .leading)
+                .frame(width: 20, height: 20, alignment: .leading)
 
-            Spacer(minLength: 4)
-
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
@@ -360,18 +243,18 @@ private struct MaintenanceMetricCard: View {
                 }
 
                 Text(value)
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.dynamic(light: "#1F2024", dark: "#F2E8E4"))
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 108, alignment: .leading)
-        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1D23").opacity(0.92))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 0.5)
                 )
         )
     }
@@ -383,36 +266,36 @@ private struct MaintenancePriorityOrderCard: View {
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 Text("WO #\(String(order.id.uuidString.prefix(8)))")
-                    .font(.caption.monospaced().weight(.semibold))
+                    .font(.caption2.monospaced().weight(.semibold))
                     .foregroundStyle(Color.dynamic(light: "#8A7066", dark: "#C8A99D"))
 
                 Spacer()
 
                 Text(order.priority.rawValue.uppercased())
                     .font(.caption2.weight(.bold))
-                    .tracking(0.8)
+                    .tracking(0.6)
                     .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
                     .background(tint.opacity(0.18), in: Capsule())
             }
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("\(vehicle?.displayName ?? "Assigned Vehicle") • \(vehicle?.plateNumber ?? "No plate")")
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
                     .lineLimit(2)
 
                 Text(order.title)
-                    .font(.headline.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color(hex: "#FF5A1F"))
                     .lineLimit(2)
 
                 Text(order.details)
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
                     .lineLimit(2)
             }
@@ -422,28 +305,28 @@ private struct MaintenancePriorityOrderCard: View {
 
             HStack(spacing: 8) {
                 Image(systemName: statusIcon)
-                    .font(.caption.weight(.bold))
+                    .font(.caption2.weight(.bold))
                 Text(order.status.rawValue)
-                    .font(.footnote.weight(.semibold))
+                    .font(.caption.weight(.semibold))
                 Spacer()
                 Text(order.scheduledDate.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption)
+                    .font(.caption2)
             }
             .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
         }
-        .padding(16)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.dynamic(light: "#FFFFFF", dark: "#24262E").opacity(0.95))
                 .overlay(alignment: .leading) {
                     Rectangle()
                         .fill(tint)
-                        .frame(width: 4)
+                        .frame(width: 3)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#373A45"), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#373A45"), lineWidth: 0.5)
                 )
         )
     }
@@ -463,40 +346,40 @@ private struct MaintenanceSchedulePreviewCard: View {
     let vehicle: Vehicle?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: "clock")
                 Text(schedule.dueDate.formatted(date: .abbreviated, time: .omitted))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
             }
-            .font(.caption.monospaced().weight(.semibold))
+            .font(.caption2.monospaced().weight(.semibold))
             .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
 
             Text(schedule.serviceType)
-                .font(.headline)
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
                 .lineLimit(2)
-                .frame(height: 44, alignment: .topLeading)
+                .frame(height: 36, alignment: .topLeading)
 
             Text(vehicle?.displayName ?? "Vehicle")
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
                 .lineLimit(1)
 
             Text(schedule.status.rawValue)
-                .font(.caption.weight(.bold))
+                .font(.caption2.weight(.bold))
                 .foregroundStyle(schedule.status == .overdue ? Color(hex: "#FF5A1F") : AppTheme.brand)
         }
-        .frame(width: 230, alignment: .leading)
-        .frame(minHeight: 138, alignment: .leading)
-        .padding(16)
+        .frame(width: 200, alignment: .leading)
+        .frame(minHeight: 110, alignment: .leading)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1D23").opacity(0.94))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 0.5)
                 )
         )
     }

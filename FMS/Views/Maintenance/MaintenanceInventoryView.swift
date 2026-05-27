@@ -50,18 +50,18 @@ struct MaintenanceInventoryView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 12) {
                 cardsGrid
-                searchField
                 bubbleFilter
                 inventoryList
             }
             .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 28)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
         }
         .navigationTitle("Inventory")
         .navigationBarTitleDisplayMode(.large)
+        .searchable(text: $searchText, prompt: "Search name, part no. or category...")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 NavigationLink {
@@ -165,43 +165,6 @@ struct MaintenanceInventoryView: View {
                 }
                 .buttonStyle(.plain)
             }
-
-            HStack(spacing: 12) {
-                NavigationLink {
-                    InventoryForecastView(parts: parts, upcomingTaskCount: appViewModel.service.schedules().count)
-                } label: {
-                    gridCard(
-                        icon: "brain.head.profile",
-                        title: "AI Forecast",
-                        subtitle: "Shortage risk",
-                        value: nil,
-                        badgeCount: forecastRiskCount > 0 ? forecastRiskCount : nil,
-                        iconBg: Color.orange.opacity(0.15),
-                        iconColor: .orange
-                    )
-                }
-                .buttonStyle(.plain)
-
-                NavigationLink {
-                    InventoryReconciliationView(onConfirm: { returnedParts in
-                        for item in returnedParts {
-                            restock(partID: item.partID, quantity: item.quantity)
-                        }
-                        reorderMessage = "Cancelled work order parts reconciled."
-                    })
-                } label: {
-                    gridCard(
-                        icon: "xmark.octagon.fill",
-                        title: "Cancelled WO",
-                        subtitle: "Reconcile parts",
-                        value: nil,
-                        badgeCount: nil,
-                        iconBg: Color.purple.opacity(0.15),
-                        iconColor: .purple
-                    )
-                }
-                .buttonStyle(.plain)
-            }
         }
     }
 
@@ -214,13 +177,13 @@ struct MaintenanceInventoryView: View {
         iconBg: Color,
         iconColor: Color
     ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 Image(systemName: icon)
-                    .font(.title3)
+                    .font(.callout)
                     .foregroundStyle(iconColor)
-                    .frame(width: 38, height: 38)
-                    .background(iconBg, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .frame(width: 30, height: 30)
+                    .background(iconBg, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
 
                 Spacer()
 
@@ -228,12 +191,12 @@ struct MaintenanceInventoryView: View {
                     Text("\(badgeCount)")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
                         .background(Color.red, in: Capsule())
                 } else if let value = value {
                     Text(value)
-                        .font(.title3.weight(.bold))
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundStyle(headingText)
                 } else {
                     Image(systemName: "chevron.right")
@@ -244,38 +207,23 @@ struct MaintenanceInventoryView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.subheadline.weight(.bold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(headingText)
                 Text(subtitle)
                     .font(.caption2)
                     .foregroundStyle(detailText)
             }
         }
-        .padding(14)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1)
+                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 0.5)
         )
     }
 
-    private var searchField: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(detailText)
-            TextField("Search name, part no. or category...", text: $searchText)
-                .textInputAutocapitalization(.never)
-                .foregroundStyle(headingText)
-        }
-        .padding(.horizontal, 14)
-        .frame(height: 46)
-        .background(Color.dynamic(light: "#FFFFFF", dark: "#202127"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#58372B"), lineWidth: 1)
-        )
-    }
+
 
     private var bubbleFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -288,17 +236,17 @@ struct MaintenanceInventoryView: View {
                         }
                     } label: {
                         Text(category)
-                            .font(.subheadline.weight(.semibold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(isSelected ? .white : Color.dynamic(light: "#715B54", dark: "#E3C8BE"))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
                             .background(
                                 Capsule()
                                     .fill(isSelected ? accent : Color.dynamic(light: "#FFFFFF", dark: "#202127"))
                             )
                             .overlay(
                                 Capsule()
-                                    .stroke(isSelected ? Color.clear : Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1)
+                                    .stroke(isSelected ? Color.clear : Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 0.5)
                             )
                     }
                     .buttonStyle(.plain)
@@ -419,41 +367,6 @@ private struct InventoryPart: Identifiable, Hashable {
     ]
 }
 
-private struct InventorySummaryCard: View {
-    let icon: String
-    let label: String
-    let value: String
-    let title: String
-    let tint: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundStyle(tint)
-                Spacer()
-                Text(label)
-                    .font(.caption2.monospaced().weight(.bold))
-                    .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
-            }
-            Text(value)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
-        }
-        .frame(width: 132, alignment: .leading)
-        .frame(minHeight: 82, alignment: .leading)
-        .padding(14)
-        .background(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1)
-        )
-    }
-}
-
 private struct InventoryPartRow: View {
     let part: InventoryPart
     let onAdd: () -> Void
@@ -464,45 +377,94 @@ private struct InventoryPartRow: View {
         HStack(spacing: 14) {
             Rectangle()
                 .fill(statusColor)
-                .frame(width: 6)
+                .frame(width: 4)
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(part.partNumber)
                     .font(.caption.monospaced().weight(.bold))
                     .foregroundStyle(accent)
                 Text(part.name)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
-                    .lineLimit(2)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .lineLimit(1)
                 Text(stockText)
-                    .font(.headline.weight(.bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(statusColor)
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, 8)
 
             Spacer()
 
             Button(action: onAdd) {
                 Image(systemName: "plus")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.white)
-                    .frame(width: 34, height: 34)
-                    .background(accent, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .frame(width: 32, height: 32)
+                    .background(
+                        ZStack {
+                            // Liquid Glass Gradient Background
+                            LinearGradient(
+                                colors: [
+                                    Color(hex: "#FF7A2F"),
+                                    Color(hex: "#FF3B30")
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            
+                            // Specular highlight/gloss (light source from top)
+                            LinearGradient(
+                                colors: [
+                                    .white.opacity(0.35),
+                                    .white.opacity(0.0)
+                                ],
+                                startPoint: .top,
+                                endPoint: .center
+                            )
+                            
+                            // Radial shine overlay
+                            RadialGradient(
+                                colors: [
+                                    .white.opacity(0.2),
+                                    .clear
+                                ],
+                                center: .topLeading,
+                                startRadius: 0,
+                                endRadius: 15
+                            )
+                        }
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        .white.opacity(0.6),
+                                        .white.opacity(0.15)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 0.8
+                            )
+                    )
+                    .shadow(color: Color(hex: "#FF5A1F").opacity(0.35), radius: 5, x: 0, y: 2.5)
             }
             .buttonStyle(.plain)
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(Color.dynamic(light: "#D0C8C5", dark: "#5E5552"))
-                .padding(.trailing, 14)
+                .padding(.trailing, 10)
         }
-        .frame(minHeight: 82)
-        .background(backgroundColor)
+        .frame(height: 76)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(strokeColor, lineWidth: 1)
+                .stroke(AppTheme.border, lineWidth: 0.5)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var stockText: String {
@@ -520,26 +482,6 @@ private struct InventoryPartRow: View {
         }
         return Color.dynamic(light: "#1E5BE4", dark: "#7EA5FF")
     }
-
-    private var backgroundColor: Color {
-        if part.isOutOfStock {
-            return Color.dynamic(light: "#FFF1F1", dark: "#2C1416")
-        }
-        if part.isLowStock {
-            return Color.dynamic(light: "#FFF9F6", dark: "#2A1810")
-        }
-        return Color.dynamic(light: "#FFFFFF", dark: "#1B1C22")
-    }
-
-    private var strokeColor: Color {
-        if part.isOutOfStock {
-            return Color.dynamic(light: "#F5C2C2", dark: "#5E292C")
-        }
-        if part.isLowStock {
-            return Color.dynamic(light: "#F7D8BF", dark: "#5C3822")
-        }
-        return Color.dynamic(light: "#D8E1F7", dark: "#2A3C63")
-    }
 }
 
 private struct InventoryForecastView: View {
@@ -552,12 +494,12 @@ private struct InventoryForecastView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 12) {
                 forecastHeader
                 ForEach(parts.sorted { $0.statusRank > $1.statusRank }.prefix(5)) { part in
                     ForecastPartCard(part: part)
                 }
-                HStack(spacing: 14) {
+                HStack(spacing: 10) {
                     ForecastMetricCard(icon: "chart.line.uptrend.xyaxis", value: "94%", label: "Forecast Accuracy")
                     ForecastMetricCard(icon: "clock", value: "3 Days", label: "Avg Lead Time")
                 }
@@ -571,25 +513,25 @@ private struct InventoryForecastView: View {
     private var forecastHeader: some View {
         HStack(spacing: 14) {
             Image(systemName: "brain.head.profile")
-                .font(.title2.weight(.bold))
+                .font(.title3.weight(.bold))
                 .foregroundStyle(Color.dynamic(light: "#431300", dark: "#240900"))
-                .frame(width: 52, height: 52)
+                .frame(width: 40, height: 40)
                 .background(Circle().fill(accent))
             VStack(alignment: .leading, spacing: 4) {
                 Text("AI Forecast")
-                    .font(.title3.weight(.bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(headingText)
-                Text("Based on upcoming \(max(upcomingTaskCount, 1) + 10) maintenance tasks")
-                    .font(.caption)
+                Text("Based on upcoming \(max(upcomingTaskCount, 1) + 10) tasks")
+                    .font(.caption2)
                     .foregroundStyle(detailText)
             }
             Spacer()
         }
-        .padding(18)
+        .padding(14)
         .background(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1)
+                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 0.5)
         )
     }
 }
@@ -598,11 +540,11 @@ private struct ForecastPartCard: View {
     let part: InventoryPart
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(part.name)
-                        .font(.headline.weight(.bold))
+                        .font(.headline.weight(.semibold))
                         .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
                     Text(part.partNumber)
                         .font(.caption.monospaced().weight(.bold))
@@ -611,7 +553,7 @@ private struct ForecastPartCard: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("\(part.quantity) units")
-                        .font(.headline.weight(.bold))
+                        .font(.headline.weight(.semibold))
                         .foregroundStyle(part.quantity < part.forecastDemand ? Color(hex: "#FFB0A3") : Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
                     Text("In Stock")
                         .font(.caption)
@@ -619,23 +561,23 @@ private struct ForecastPartCard: View {
                 }
             }
 
-            Label("\(part.forecastDemand) units required for \(part.upcomingTaskCount) upcoming tasks", systemImage: "calendar.badge.clock")
-                .font(.headline.weight(.semibold))
+            Label("\(part.forecastDemand) required for \(part.upcomingTaskCount) tasks", systemImage: "calendar.badge.clock")
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
 
             Label(part.quantity < part.forecastDemand ? "Insufficient stock - Reorder needed" : "Stock levels sufficient", systemImage: part.quantity < part.forecastDemand ? "exclamationmark.triangle" : "checkmark.circle")
-                .font(.subheadline.weight(.bold))
+                .font(.caption.weight(.bold))
                 .foregroundStyle(part.quantity < part.forecastDemand ? Color(hex: "#FFB0A3") : AppTheme.success)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 10)
-                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
                 .background(Color.dynamic(light: "#F1E8E5", dark: "#4A3F40"), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-        .padding(18)
+        .padding(12)
         .background(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1)
+                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 0.5)
         )
     }
 }
@@ -646,22 +588,22 @@ private struct ForecastMetricCard: View {
     let label: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Image(systemName: icon)
                 .foregroundStyle(Color(hex: "#FFB0A3"))
             Text(value)
-                .font(.title3.weight(.bold))
+                .font(.headline.weight(.bold))
                 .foregroundStyle(Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
             Text(label)
-                .font(.caption)
+                .font(.caption2)
                 .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(12)
         .background(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1)
+                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 0.5)
         )
     }
 }
