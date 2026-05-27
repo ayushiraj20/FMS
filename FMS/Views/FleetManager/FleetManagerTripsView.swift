@@ -52,25 +52,14 @@ struct FleetManagerTripsView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 12)
                 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(TripFilter.allCases, id: \.self) { filter in
-                            Button {
-                                selectedFilter = filter
-                            } label: {
-                                Text("\(filter.rawValue) (\(countForFilter(filter)))")
-                                    .font(.subheadline)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(selectedFilter == filter ? Color.white.opacity(0.2) : Color.white.opacity(0.05))
-                                    .foregroundStyle(selectedFilter == filter ? .white : AppTheme.textSecondary)
-                                    .clipShape(Capsule())
-                            }
-                        }
+                Picker("Filter Trips", selection: $selectedFilter) {
+                    ForEach(TripFilter.allCases, id: \.self) { filter in
+                        Text("\(filter.rawValue) (\(countForFilter(filter)))").tag(filter)
                     }
-                    .padding(.horizontal, 20)
                 }
-                .padding(.bottom, 10)
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
                 
                 // MARK: - Trips List
                 List {
