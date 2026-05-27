@@ -155,7 +155,13 @@ struct FleetManagerDashboardView: View {
             )
 
         case "Fuel Spend":
-            FuelSpendDetailView()
+            FuelTransactionsListView(
+                repo: FuelRepository(
+                    service: FuelService(
+                        client: SupabaseService.shared.client
+                    )
+                )
+            )
 
         case "Open Work Orders":
             WorkOrderManagementView(
