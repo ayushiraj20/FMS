@@ -1,5 +1,3 @@
-// Created for Maintenance Dashboard - Pending Vehicles
-
 import SwiftUI
 
 struct PendingVehiclesView: View {
@@ -9,109 +7,61 @@ struct PendingVehiclesView: View {
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
     private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
 
-    private var currentUser: User? { appViewModel.currentUser }
-
-    /// All pending (open or waiting parts) work orders in the system
-    private var pendingOrders: [WorkOrder] {
-        appViewModel.service
-            .workOrders(for: nil)
-            .filter { $0.status == .open || $0.status == .waitingParts }
-            .sorted { $0.scheduledDate < $1.scheduledDate }
-    }
-
-    /// Unique vehicles that have pending work orders
     private var pendingVehicles: [(vehicle: Vehicle, orders: [WorkOrder])] {
-        let grouped = Dictionary(grouping: pendingOrders) { $0.vehicleID }
+        let allOrders = appViewModel.service.workOrders(for: nil)
+        let openOrWaiting = allOrders.filter { $0.status == .open || $0.status == .waitingParts }
+        let grouped = Dictionary(grouping: openOrWaiting, by: \.vehicleID)
         return grouped.compactMap { (vehicleID, orders) in
             guard let vehicle = appViewModel.service.vehicle(for: vehicleID) else { return nil }
             return (vehicle: vehicle, orders: orders)
         }
-        .sorted { $0.orders.count > $1.orders.count }
+        .sorted { $0.vehicle.displayName < $1.vehicle.displayName }
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(spacing: 14) {
                 if pendingVehicles.isEmpty {
                     EmptyStateView(
                         icon: "car.side.fill",
                         title: "No pending vehicles",
-                        message: "All vehicles are up to date. No maintenance is pending."
+                        message: "All vehicles are up to date with maintenance."
                     )
                     .padding(.top, 40)
                 } else {
-                    // Summary banner
-                    summaryBanner
-
-                    ForEach(pendingVehicles, id: \.vehicle.id) { entry in
-                        vehicleCard(vehicle: entry.vehicle, orders: entry.orders)
+                    ForEach(pendingVehicles, id: \.vehicle.id) { item in
+                        vehicleCard(vehicle: item.vehicle, orders: item.orders)
                     }
                 }
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
-            .padding(.bottom, 24)
+            .padding(.bottom, 20)
         }
-        .background(AppTheme.background.ignoresSafeArea())
         .navigationTitle("Pending Vehicles")
         .navigationBarTitleDisplayMode(.large)
     }
 
-    private var summaryBanner: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "exclamationmark.circle.fill")
-                .font(.title2)
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(pendingVehicles.count) Vehicle\(pendingVehicles.count == 1 ? "" : "s") Pending")
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(.white)
-
-                Text("\(pendingOrders.count) open work order\(pendingOrders.count == 1 ? "" : "s") awaiting action")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.85))
-            }
-
-            Spacer()
-        }
-        .padding(16)
-        .background(
-            LinearGradient(
-                colors: [Color(hex: "#FF5A1F"), Color(hex: "#D70B1B")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-        )
-    }
-
     private func vehicleCard(vehicle: Vehicle, orders: [WorkOrder]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             // Vehicle header
             HStack(spacing: 12) {
                 Image(systemName: "truck.box.fill")
-                    .font(.title3.weight(.bold))
+                    .font(.title2)
                     .foregroundStyle(accent)
-                    .frame(width: 44, height: 44)
-                    .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(vehicle.displayName)
-                        .font(.headline.weight(.bold))
+                        .font(.headline)
                         .foregroundStyle(headingText)
-                        .lineLimit(1)
-
                     Text(vehicle.plateNumber)
-                        .font(.caption.monospaced().weight(.semibold))
+                        .font(.caption.monospaced())
                         .foregroundStyle(detailText)
                 }
 
                 Spacer()
 
-                Text("\(orders.count) pending")
+                Text("\(orders.count)")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
@@ -144,58 +94,30 @@ struct PendingVehiclesView: View {
 
                         Spacer()
 
-                        Text(order.priority.rawValue.uppercased())
-                            .font(.system(size: 8, weight: .black))
-                            .foregroundStyle(priorityColor(order.priority))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(priorityColor(order.priority).opacity(0.12), in: Capsule())
-
                         Image(systemName: "chevron.right")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(detailText)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(detailText.opacity(0.5))
                     }
-                    .contentShape(Rectangle())
+                    .padding(.vertical, 4)
                 }
                 .buttonStyle(.plain)
             }
-
-            // Scheduled date info
-            if let earliest = orders.min(by: { $0.scheduledDate < $1.scheduledDate }) {
-                HStack(spacing: 6) {
-                    Image(systemName: "calendar")
-                        .font(.caption2)
-                    Text("Scheduled: \(earliest.scheduledDate.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption.weight(.semibold))
-                }
-                .foregroundStyle(detailText)
-                .padding(.top, 2)
-            }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22").opacity(0.96))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 0.5)
-                )
+        .padding(16)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(AppTheme.border, lineWidth: 0.3)
         )
     }
 
     private func priorityColor(_ priority: WorkOrderPriority) -> Color {
         switch priority {
-        case .low: AppTheme.success
-        case .medium: Color.orange
-        case .high: Color(hex: "#FF5A1F")
-        case .critical: Color.red
+        case .low:      Color.dynamic(light: "#1E5BE4", dark: "#7EA5FF")
+        case .medium:   Color.dynamic(light: "#8F4E00", dark: "#FFB874")
+        case .high:     Color(hex: "#FF5A1F")
+        case .critical: Color.dynamic(light: "#BA1A1A", dark: "#FF8989")
         }
-    }
-}
-
-#Preview {
-    NavigationStack {
-        PendingVehiclesView()
-            .environment(AppViewModel())
     }
 }

@@ -61,6 +61,9 @@ struct MaintenanceInventoryView: View {
         }
         .navigationTitle("Inventory")
         .navigationBarTitleDisplayMode(.large)
+        .background(Color(uiColor: .systemGroupedBackground))
+        .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .searchable(text: $searchText, prompt: "Search name, part no. or category...")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -271,7 +274,7 @@ struct MaintenanceInventoryView: View {
     }
 
     private var inventoryList: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 6) {
             if visibleParts.isEmpty {
                 EmptyStateView(
                     icon: "shippingbox",
@@ -376,102 +379,68 @@ private struct InventoryPartRow: View {
     private var accent: Color { Color(hex: "#FF5A1F") }
 
     var body: some View {
-        HStack(spacing: 14) {
-            Rectangle()
-                .fill(statusColor)
-                .frame(width: 4)
+        HStack(spacing: 12) {
+            // ── Main info capsule (liquid glass) ──
+            HStack(spacing: 10) {
+                // Status indicator dot
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 8, height: 8)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(part.partNumber)
-                    .font(.caption.monospaced().weight(.bold))
-                    .foregroundStyle(accent)
-                Text(part.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                    .lineLimit(1)
-                Text(stockText)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(statusColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(part.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .lineLimit(1)
+
+                    HStack(spacing: 6) {
+                        Text(part.partNumber)
+                            .font(.caption2.monospaced().weight(.medium))
+                            .foregroundStyle(AppTheme.textSecondary)
+
+                        Text("·")
+                            .foregroundStyle(AppTheme.textSecondary)
+
+                        Text(stockText)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(statusColor)
+                    }
+                }
+
+                Spacer(minLength: 4)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.6))
             }
-            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(.regularMaterial)
+            )
+            .glassEffect(.regular.interactive(), in: .capsule)
 
-            Spacer()
-
+            // ── Plus button capsule (liquid glass) ──
             Button(action: onAdd) {
                 Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 32, height: 32)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(accent)
+                    .frame(width: 44, height: 44)
                     .background(
-                        ZStack {
-                            // Liquid Glass Gradient Background
-                            LinearGradient(
-                                colors: [
-                                    Color(hex: "#FF7A2F"),
-                                    Color(hex: "#FF3B30")
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                            
-                            // Specular highlight/gloss (light source from top)
-                            LinearGradient(
-                                colors: [
-                                    .white.opacity(0.35),
-                                    .white.opacity(0.0)
-                                ],
-                                startPoint: .top,
-                                endPoint: .center
-                            )
-                            
-                            // Radial shine overlay
-                            RadialGradient(
-                                colors: [
-                                    .white.opacity(0.2),
-                                    .clear
-                                ],
-                                center: .topLeading,
-                                startRadius: 0,
-                                endRadius: 15
-                            )
-                        }
+                        Circle()
+                            .fill(.regularMaterial)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        .white.opacity(0.6),
-                                        .white.opacity(0.15)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                ),
-                                lineWidth: 0.8
-                            )
-                    )
-                    .shadow(color: Color(hex: "#FF5A1F").opacity(0.35), radius: 5, x: 0, y: 2.5)
+                    .glassEffect(.regular.interactive(), in: .circle)
             }
             .buttonStyle(.plain)
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(Color.dynamic(light: "#D0C8C5", dark: "#5E5552"))
-                .padding(.trailing, 10)
         }
-        .frame(height: 76)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(AppTheme.border, lineWidth: 0.5)
-        )
+        .padding(.horizontal, 4)
     }
 
     private var stockText: String {
         if part.isOutOfStock { return "OUT OF STOCK" }
-        if part.isLowStock { return "\(part.quantity) units remaining" }
+        if part.isLowStock { return "\(part.quantity) remaining" }
         return "\(part.quantity) units"
     }
 
@@ -736,6 +705,7 @@ private struct StockAlertView: View {
             }
             .padding(16)
         }
+        .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("Stock Alert")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -744,27 +714,32 @@ private struct StockAlertView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Image(systemName: "archivebox.fill")
-                    .font(.title2)
+                    .font(.system(.title2, design: .rounded))
                     .frame(width: 56, height: 56)
-                    .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .glassEffect(.regular, in: .rect(cornerRadius: 12))
                 Spacer()
                 Text("PRIORITY HIGH")
-                    .font(.caption2.monospaced().weight(.bold))
+                    .font(.system(.caption2, design: .rounded).monospaced().weight(.bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
-                    .background(.white.opacity(0.18), in: Capsule())
+                    .background(Capsule().fill(.ultraThinMaterial))
+                    .glassEffect(.regular, in: .capsule)
             }
             Text(part.isOutOfStock ? "Out of Stock Alert" : "Low Stock Alert")
-                .font(.title3.weight(.bold))
+                .font(.system(.title3, design: .rounded).weight(.bold))
             Text("Critical inventory threshold reached for fleet essential components.")
-                .font(.subheadline)
+                .font(.system(.subheadline, design: .rounded))
         }
         .foregroundStyle(.white)
         .padding(18)
         .background(
             LinearGradient(colors: [Color(hex: "#FFB000"), Color(hex: "#FF5A1F")], startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
         )
     }
 
@@ -773,61 +748,74 @@ private struct StockAlertView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(part.name)
-                        .font(.headline.weight(.bold))
+                        .font(.system(.headline, design: .rounded).weight(.bold))
+                        .foregroundStyle(.primary)
                     Text(part.partNumber)
-                        .font(.caption.monospaced().weight(.bold))
-                        .foregroundStyle(Color(hex: "#FFB0A3"))
+                        .font(.system(.caption, design: .monospaced).weight(.bold))
+                        .foregroundStyle(Color(hex: "#FF5A1F"))
                 }
                 Spacer()
-                Text(part.isOutOfStock ? "OUT" : "LOW STOCK")
-                    .font(.caption2.monospaced().weight(.bold))
-                    .foregroundStyle(Color(hex: "#FFB0A3"))
+                Text(part.isOutOfStock ? "OUT" : "LOW")
+                    .font(.system(.caption2, design: .rounded).weight(.bold))
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Color(hex: "#FF5A1F").opacity(0.18), in: Capsule())
+                    .background(
+                        Capsule().fill(part.isOutOfStock ? Color.red : Color.orange)
+                    )
             }
 
-            HStack(spacing: 14) {
+            HStack(spacing: 12) {
                 AlertMetricBox(title: "Current Stock", value: "\(part.quantity) units", emphasized: true)
                 AlertMetricBox(title: "Min. Required", value: "\(part.minimumRequired) units", emphasized: false)
             }
         }
         .padding(18)
-        .background(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1))
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.regularMaterial)
+        )
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
     }
 
     private var affectedWorkOrders: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Affected Work Orders")
-                    .font(.headline.weight(.bold))
+                    .font(.system(.headline, design: .rounded).weight(.bold))
+                    .foregroundStyle(.primary)
                 Spacer()
                 Text("\(affectedOrders.count) Active")
-                    .font(.caption.monospaced().weight(.bold))
-                    .foregroundStyle(Color(hex: "#FFB0A3"))
+                    .font(.system(.caption, design: .rounded).weight(.bold))
+                    .foregroundStyle(Color(hex: "#FF5A1F"))
             }
 
             ForEach(affectedOrders.prefix(3)) { order in
                 HStack(spacing: 12) {
                     Image(systemName: "wrench.fill")
-                        .foregroundStyle(Color(hex: "#FFB0A3"))
+                        .font(.system(.callout, design: .rounded))
+                        .foregroundStyle(Color(hex: "#FF5A1F"))
                         .frame(width: 42, height: 42)
                         .background(Color(hex: "#FF5A1F").opacity(0.12), in: Circle())
                     VStack(alignment: .leading, spacing: 4) {
                         Text("WO #\(String(order.id.uuidString.prefix(4)))")
-                            .font(.caption.monospaced().weight(.bold))
-                            .foregroundStyle(Color(hex: "#FFB0A3"))
+                            .font(.system(.caption, design: .monospaced).weight(.bold))
+                            .foregroundStyle(.secondary)
                         Text(order.title)
-                            .font(.subheadline.weight(.bold))
+                            .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                            .foregroundStyle(.primary)
                     }
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+                        .font(.system(.caption2, design: .rounded).weight(.semibold))
+                        .foregroundStyle(.tertiary)
                 }
                 .padding(14)
-                .background(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 1))
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(.regularMaterial)
+                )
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
             }
         }
     }
@@ -839,11 +827,11 @@ private struct StockAlertView: View {
                 onReorder()
             } label: {
                 Label(didReorder ? "Reorder Initiated" : "Initiate Reorder", systemImage: "cart.badge.plus")
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(Color.dynamic(light: "#431300", dark: "#240900"))
+                    .font(.system(.headline, design: .rounded).weight(.bold))
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
-                    .background(Color(hex: "#FF5A1F"), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .background(Color(hex: "#FF5A1F"), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)
 
@@ -852,11 +840,15 @@ private struct StockAlertView: View {
                 onNotify()
             } label: {
                 Label(didNotify ? "Manager Notified" : "Notify Manager", systemImage: "person.badge.plus")
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
+                    .font(.system(.headline, design: .rounded).weight(.bold))
+                    .foregroundStyle(Color(hex: "#FF5A1F"))
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"), lineWidth: 1))
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(.regularMaterial)
+                    )
+                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
             }
             .buttonStyle(.plain)
         }
@@ -871,14 +863,19 @@ private struct AlertMetricBox: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.caption)
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.secondary)
             Text(value)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(emphasized ? Color(hex: "#FFB0A3") : Color.dynamic(light: "#25262D", dark: "#E7E3E8"))
+                .font(.system(.subheadline, design: .rounded).weight(.bold))
+                .foregroundStyle(emphasized ? Color(hex: "#FF5A1F") : .primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(Color.dynamic(light: "#F3F4F7", dark: "#22242B"), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .glassEffect(.regular, in: .rect(cornerRadius: 10))
     }
 }
 

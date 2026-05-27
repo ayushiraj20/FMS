@@ -24,9 +24,11 @@ struct MaintenanceDashboardView: View {
             .padding(.top, 8)
             .padding(.bottom, 16)
         }
-        .background(AppTheme.background.ignoresSafeArea())
+        .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("Dashboard")
         .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 NavigationLink(destination: ProfileSettingsView()) {
@@ -251,32 +253,25 @@ private struct MaintenanceMetricCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption)
-                    .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
 
                 if let subtitle {
                     Text(subtitle)
                         .font(.caption2)
-                        .foregroundStyle(Color.dynamic(light: "#8A7066", dark: "#BDA39A"))
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
 
                 Text(value)
                     .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.dynamic(light: "#1F2024", dark: "#F2E8E4"))
+                    .foregroundStyle(.primary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1D23").opacity(0.92))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 0.5)
-                )
-        )
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

@@ -1,47 +1,6 @@
-// Created for Maintenance Dashboard - Past Part Orders
-
 import SwiftUI
 
-/// Represents a past part order record (simulated from inventory shortage data)
-struct PastPartOrder: Identifiable {
-    let id = UUID()
-    let partName: String
-    let partNumber: String
-    let category: String
-    let quantityOrdered: Int
-    let orderDate: Date
-    let status: PastPartOrderStatus
-    let icon: String
-
-    enum PastPartOrderStatus: String, CaseIterable, Identifiable {
-        case delivered = "Delivered"
-        case inTransit = "In Transit"
-        case processing = "Processing"
-
-        var id: String { rawValue }
-
-        var color: Color {
-            switch self {
-            case .delivered: AppTheme.success
-            case .inTransit: Color(hex: "#2EA7FF")
-            case .processing: Color.orange
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .delivered: "checkmark.circle.fill"
-            case .inTransit: "truck.box.fill"
-            case .processing: "clock.fill"
-            }
-        }
-    }
-}
-
 struct PastPartOrdersView: View {
-    @Environment(AppViewModel.self) private var appViewModel
-    @State private var selectedStatus: PastPartOrder.PastPartOrderStatus = .delivered
-
     private var accent: Color { Color(hex: "#FF5A1F") }
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
     private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
@@ -52,148 +11,161 @@ struct PastPartOrdersView: View {
             PastPartOrder(
                 partName: "Hydraulic Filter Assembly",
                 partNumber: "#PN-8821",
-                category: "Fluid System",
-                quantityOrdered: 10,
-                orderDate: Date.now.addingTimeInterval(-86400 * 5),
+                orderedQuantity: 10,
+                orderDate: Calendar.current.date(byAdding: .day, value: -3, to: .now)!,
                 status: .delivered,
-                icon: "shippingbox"
+                estimatedDelivery: Calendar.current.date(byAdding: .day, value: -1, to: .now)!
             ),
             PastPartOrder(
                 partName: "Heavy Duty Brake Pads",
                 partNumber: "#PN-4402",
-                category: "Brake System",
-                quantityOrdered: 8,
-                orderDate: Date.now.addingTimeInterval(-86400 * 3),
-                status: .delivered,
-                icon: "slider.horizontal.3"
+                orderedQuantity: 8,
+                orderDate: Calendar.current.date(byAdding: .day, value: -2, to: .now)!,
+                status: .inTransit,
+                estimatedDelivery: Calendar.current.date(byAdding: .day, value: 1, to: .now)!
             ),
             PastPartOrder(
                 partName: "Halogen Headlight Bulbs",
                 partNumber: "#PN-3115",
-                category: "Electrical",
-                quantityOrdered: 15,
-                orderDate: Date.now.addingTimeInterval(-86400 * 2),
-                status: .inTransit,
-                icon: "lightbulb"
+                orderedQuantity: 15,
+                orderDate: Calendar.current.date(byAdding: .day, value: -1, to: .now)!,
+                status: .processing,
+                estimatedDelivery: Calendar.current.date(byAdding: .day, value: 3, to: .now)!
             )
         ]
     }
 
-    private var pastOrders: [PastPartOrder] {
-        Self.shortageOrders
-    }
-
-    private var filteredOrders: [PastPartOrder] {
-        pastOrders.filter { $0.status == selectedStatus }
-    }
-
-    private func count(for status: PastPartOrder.PastPartOrderStatus) -> Int {
-        pastOrders.filter { $0.status == status }.count
-    }
+    @State private var selectedSegment: PastPartOrderStatus = .delivered
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                if pastOrders.isEmpty {
-                    EmptyStateView(
-                        icon: "clock.arrow.circlepath",
-                        title: "No past orders",
-                        message: "Parts ordered due to shortage will appear here."
-                    )
-                    .padding(.top, 40)
-                } else {
-                    // Native Segmented Control for filtering
-                    Picker("Order Status", selection: $selectedStatus) {
-                        ForEach(PastPartOrder.PastPartOrderStatus.allCases) { status in
-                            Text("\(status.rawValue) (\(count(for: status)))")
-                                .tag(status)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.bottom, 6)
-                    
-                    if filteredOrders.isEmpty {
+        VStack(spacing: 0) {
+            // Segmented control
+            Picker("Status", selection: $selectedSegment) {
+                ForEach(PastPartOrderStatus.allCases) { status in
+                    Text(status.title).tag(status)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+
+            ScrollView {
+                let filtered = PastPartOrdersView.shortageOrders.filter { $0.status == selectedSegment }
+                VStack(spacing: 12) {
+                    if filtered.isEmpty {
                         EmptyStateView(
-                            icon: selectedStatus.icon,
-                            title: "No \(selectedStatus.rawValue) Orders",
-                            message: "There are no part orders currently in \(selectedStatus.rawValue.lowercased()) status."
+                            icon: "shippingbox",
+                            title: "No \(selectedSegment.title.lowercased()) orders",
+                            message: "Orders with this status will appear here."
                         )
                         .padding(.top, 40)
                     } else {
-                        ForEach(filteredOrders) { order in
-                            pastOrderCard(order)
+                        ForEach(filtered) { order in
+                            orderCard(order)
                         }
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 20)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 24)
         }
-        .background(AppTheme.background.ignoresSafeArea())
-        .navigationTitle("Past Part Orders")
+        .navigationTitle("Past Orders")
         .navigationBarTitleDisplayMode(.large)
     }
 
-    private func pastOrderCard(_ order: PastPartOrder) -> some View {
-        HStack(spacing: 14) {
-            // Part icon
-            Image(systemName: order.icon)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(accent)
-                .frame(width: 44, height: 44)
-                .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(order.partName)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(headingText)
-                    .lineLimit(1)
-
-                Text("\(order.partNumber) · \(order.category)")
-                    .font(.caption.monospaced().weight(.semibold))
-                    .foregroundStyle(accent)
-                    .lineLimit(1)
-
-                HStack(spacing: 12) {
-                    Label("Qty: \(order.quantityOrdered)", systemImage: "shippingbox")
-                        .font(.caption)
-                        .foregroundStyle(detailText)
-
-                    Label(order.orderDate.formatted(date: .abbreviated, time: .omitted), systemImage: "calendar")
-                        .font(.caption)
-                        .foregroundStyle(detailText)
+    private func orderCard(_ order: PastPartOrder) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(order.partNumber)
+                        .font(.caption.monospaced().weight(.bold))
+                        .foregroundStyle(accent)
+                    Text(order.partName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(headingText)
                 }
+                Spacer()
+                Text(order.status.title.uppercased())
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(order.status.color, in: Capsule())
             }
 
-            Spacer()
+            Divider().overlay(Color.dynamic(light: "#E6D8D2", dark: "#343741"))
 
-            // Status badge
-            VStack(spacing: 4) {
-                Image(systemName: order.status.icon)
-                    .font(.callout.weight(.bold))
-                    .foregroundStyle(order.status.color)
-
-                Text(order.status.rawValue)
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(order.status.color)
+            HStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Qty Ordered")
+                        .font(.caption2)
+                        .foregroundStyle(detailText)
+                    Text("\(order.orderedQuantity) units")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(headingText)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Order Date")
+                        .font(.caption2)
+                        .foregroundStyle(detailText)
+                    Text(order.orderDate.formatted(date: .abbreviated, time: .omitted))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(headingText)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("Est. Delivery")
+                        .font(.caption2)
+                        .foregroundStyle(detailText)
+                    Text(order.estimatedDelivery.formatted(date: .abbreviated, time: .omitted))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(headingText)
+                }
             }
         }
         .padding(14)
-        .background(
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22").opacity(0.96))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 0.5)
-                )
+                .stroke(AppTheme.border, lineWidth: 0.3)
         )
     }
 }
 
-#Preview {
-    NavigationStack {
-        PastPartOrdersView()
-            .environment(AppViewModel())
+// MARK: - Models
+
+struct PastPartOrder: Identifiable {
+    let id = UUID()
+    let partName: String
+    let partNumber: String
+    let orderedQuantity: Int
+    let orderDate: Date
+    let status: PastPartOrderStatus
+    let estimatedDelivery: Date
+}
+
+enum PastPartOrderStatus: String, CaseIterable, Identifiable {
+    case delivered
+    case inTransit
+    case processing
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .delivered:  "Delivered"
+        case .inTransit:  "In Transit"
+        case .processing: "Processing"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .delivered:  Color.dynamic(light: "#1E7A34", dark: "#6CDB80")
+        case .inTransit:  Color.dynamic(light: "#1E5BE4", dark: "#7EA5FF")
+        case .processing: Color.dynamic(light: "#8F4E00", dark: "#FFB874")
+        }
     }
 }
