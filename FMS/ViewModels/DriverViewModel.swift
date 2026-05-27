@@ -241,3 +241,4 @@ final class DriverViewModel {
         return initials.isEmpty ? "?" : initials
     }
 }
+

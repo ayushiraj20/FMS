@@ -290,17 +290,52 @@ final class MockDataService {
         fuelReceipts.insert(receipt, at: 0)
     }
 
-    func triggerSOS(driverID: UUID, vehicleID: UUID, latitude: Double, longitude: Double) {
+    func triggerSOS(
+        driverID: UUID,
+        vehicleID: UUID,
+        latitude: Double,
+        longitude: Double,
+        emergencyType: String = "SOS Alert",
+        description: String? = nil
+    ) {
+        let driver = users.first { $0.id == driverID }
+        let driverName = driver?.name ?? "Unknown Driver"
+        
+        let vehicle = vehicles.first { $0.id == vehicleID }
+        let vehicleNumber = vehicle?.plateNumber ?? "Unknown Vehicle"
+        
         let alert = SOSAlert(
             id: UUID(),
             driverID: driverID,
+            driverName: driverName,
             vehicleID: vehicleID,
+            vehicleNumber: vehicleNumber,
+            emergencyType: emergencyType,
             latitude: latitude,
             longitude: longitude,
-            timestamp: .now,
-            status: .triggered
+            description: description,
+            status: "ACTIVE",
+            createdAt: Date()
         )
         sosAlerts.insert(alert, at: 0)
+        
+        // Notify Fleet Managers
+        let managers = users.filter { $0.role == .fleetManager }
+        for mgr in managers {
+            addNotification(
+                userID: mgr.id,
+                roleTarget: nil,
+                title: "🚨 SOS Alert Active!",
+                message: "\(driverName) triggered an emergency SOS from \(vehicleNumber).",
+                category: .critical
+            )
+        }
+        
+        if SupabaseConfig.isConfigured {
+            Task {
+                try? await SupabaseService.shared.addSOSAlert(alert)
+            }
+        }
     }
 
     func sendChatMessage(senderID: UUID, receiverID: UUID?, message: String, workOrderID: UUID? = nil) {
