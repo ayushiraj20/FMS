@@ -114,6 +114,17 @@ struct FleetManagerTripsView: View {
         .fullScreenCover(item: $selectedTrip) { trip in
             FleetTripDetailSheet(trip: trip)
         }
+        .refreshable {
+            await appViewModel.service.syncWithDatabase()
+        }
+        .task {
+            await appViewModel.service.syncWithDatabase()
+        }
+        .onAppear {
+            Task {
+                await appViewModel.service.syncWithDatabase()
+            }
+        }
     }
     
     // MARK: - Trip Card

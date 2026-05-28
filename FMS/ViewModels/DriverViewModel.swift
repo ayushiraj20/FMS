@@ -26,6 +26,7 @@ final class DriverViewModel {
     var sosDescription: String = ""
     @ObservationIgnored private var sosTimer: Timer?
     @ObservationIgnored private let locationManager = CLLocationManager()
+    @ObservationIgnored private var locationDelegate: LocationDelegate?
 
     // Inspection
     var inspectionItems: [DriverInspectionItem] = DriverViewModel.defaultInspectionItems()
@@ -37,9 +38,11 @@ final class DriverViewModel {
     var toastMessage: String?
     var showToast = false
 
-    // Trip map
-    var currentSpeed: Double = 72.0
-    var speedLimit: Double = 80.0
+    // Trip map & live GPS tracking
+    var currentSpeed: Double = 0.0
+    var speedLimit: Double = 60.0
+    var currentLocation: CLLocationCoordinate2D?
+    var isTracking = false
 
     func load() async {
         guard isLoading else { return }
@@ -239,6 +242,97 @@ final class DriverViewModel {
         let parts = name.components(separatedBy: " ")
         let initials = parts.prefix(2).compactMap { $0.first }.map(String.init).joined()
         return initials.isEmpty ? "?" : initials
+    }
+
+    // MARK: - Live GPS Tracking
+
+    func startLiveTracking() {
+        guard !isTracking else { return }
+
+        if locationManager.authorizationStatus == .notDetermined {
+            locationManager.requestWhenInUseAuthorization()
+        }
+
+        var lastLocation: CLLocation? = nil
+        let delegate = LocationDelegate { [weak self] location in
+            MainActor.assumeIsolated {
+                guard let self = self else { return }
+                self.currentLocation = location.coordinate
+                
+                var calculatedSpeed = location.speed
+                // In iOS Simulator, location.speed is often -1.0 or 0.0 even during motion.
+                // We calculate speed dynamically from the distance and time elapsed between updates.
+                if calculatedSpeed <= 0 {
+                    if let last = lastLocation {
+                        let distance = location.distance(from: last) // meters
+                        let time = location.timestamp.timeIntervalSince(last.timestamp) // seconds
+                        if time > 0 {
+                            calculatedSpeed = distance / time
+                        }
+                    }
+                }
+                lastLocation = location
+                
+                let speedKMH = max(0, calculatedSpeed * 3.6)
+                if speedKMH > 0 {
+                    // Cap at 65 km/h for a realistic simulated heavy commercial vehicle speed,
+                    // but allow it to exceed the 60 km/h limit occasionally to demonstrate overspeed alerts!
+                    self.currentSpeed = min(speedKMH, 65.0)
+                } else {
+                    self.currentSpeed = 0.0
+                }
+            }
+        }
+        self.locationDelegate = delegate
+        locationManager.delegate = delegate
+        locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+        locationManager.distanceFilter = 10 // Update every 10 meters
+        locationManager.allowsBackgroundLocationUpdates = false
+        locationManager.startUpdatingLocation()
+        isTracking = true
+        print("[GPS] Live tracking started ✅")
+    }
+
+    func stopLiveTracking() {
+        guard isTracking else { return }
+        locationManager.stopUpdatingLocation()
+        locationManager.delegate = nil
+        locationDelegate = nil
+        isTracking = false
+        currentSpeed = 0.0
+        print("[GPS] Live tracking stopped ⛔️")
+    }
+}
+
+// MARK: - CLLocationManagerDelegate Helper
+
+private class LocationDelegate: NSObject, CLLocationManagerDelegate {
+    private let onUpdate: (CLLocation) -> Void
+
+    init(onUpdate: @escaping (CLLocation) -> Void) {
+        self.onUpdate = onUpdate
+        super.init()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let latest = locations.last else { return }
+        onUpdate(latest)
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("[GPS] Location error: \(error.localizedDescription)")
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            print("[GPS] Location authorized ✅")
+            manager.startUpdatingLocation()
+        case .denied, .restricted:
+            print("[GPS] Location denied ⚠️")
+        default:
+            break
+        }
     }
 }
 

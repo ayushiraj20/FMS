@@ -22,6 +22,7 @@ struct RefuelVehicleView: View {
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
     @State private var showSourcePicker = false
     @State private var showPhotoLibrary = false
+    @State private var showFullScreenReceipt = false
 
     init(vehicleID: UUID, driverID: UUID, tripID: UUID?, repo: FuelRepository) {
         self.vehicleID = vehicleID
@@ -45,12 +46,15 @@ struct RefuelVehicleView: View {
                 .padding(20)
             }
             .background(Color(uiColor: .systemBackground).ignoresSafeArea())
-            .navigationTitle("Refuel Vehicle")
+            .navigationTitle("Log Refuel")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+            }
+            .sheet(isPresented: $showFullScreenReceipt) {
+                ImagePreviewSheet(image: fuelVM.receiptImage, imageURLString: nil)
             }
         }
         .presentationDetents([.large])
@@ -164,13 +168,25 @@ struct RefuelVehicleView: View {
             if fuelVM.receiptUploadSucceeded, let image = fuelVM.receiptImage {
                 // Preview
                 ZStack(alignment: .topTrailing) {
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 200)
-                        .clipShape(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        )
+                    ZStack(alignment: .bottomTrailing) {
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 200)
+                            .clipShape(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            )
+                        
+                        Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.white.opacity(0.85))
+                            .background(Circle().fill(.black.opacity(0.35)))
+                            .padding(10)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        showFullScreenReceipt = true
+                    }
 
                     Button {
                         fuelVM.clearReceipt()

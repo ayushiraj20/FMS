@@ -88,10 +88,18 @@ struct FleetManagerDashboardView: View {
             }
         }
         .task {
+            await appViewModel.service.syncWithDatabase()
             await viewModel.load()
             appViewModel.refreshSOSAlerts()
         }
         .onAppear {
+            appViewModel.refreshSOSAlerts()
+            Task {
+                await appViewModel.service.syncWithDatabase()
+            }
+        }
+        .refreshable {
+            await appViewModel.service.syncWithDatabase()
             appViewModel.refreshSOSAlerts()
         }
         .sheet(

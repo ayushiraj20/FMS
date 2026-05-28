@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - Verification Status
 
-enum FuelVerificationStatus: String, Codable, CaseIterable {
+enum FuelVerificationStatus: String, Codable, CaseIterable, Sendable {
     case pending  = "Pending"
     case verified = "Verified"
     case rejected = "Rejected"
@@ -27,7 +27,7 @@ enum FuelVerificationStatus: String, Codable, CaseIterable {
 
 // MARK: - Fuel Transaction
 
-struct FuelTransaction: Identifiable, Codable, Hashable {
+struct FuelTransaction: Identifiable, Hashable, Sendable {
     let id: UUID
     var vehicleID: UUID
     var driverID: UUID
@@ -71,6 +71,38 @@ struct FuelTransaction: Identifiable, Codable, Hashable {
         self.timestamp = Date()
         self.verificationStatus = .pending
         self.rejectionReason = nil
+    }
+}
+
+extension FuelTransaction: Encodable {
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(vehicleID, forKey: .vehicleID)
+        try container.encode(driverID, forKey: .driverID)
+        try container.encode(tripID, forKey: .tripID)
+        try container.encode(manualAmount, forKey: .manualAmount)
+        try container.encode(odometerReading, forKey: .odometerReading)
+        try container.encode(receiptImageURL, forKey: .receiptImageURL)
+        try container.encode(timestamp, forKey: .timestamp)
+        try container.encode(verificationStatus, forKey: .verificationStatus)
+        try container.encode(rejectionReason, forKey: .rejectionReason)
+    }
+}
+
+extension FuelTransaction: Decodable {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        vehicleID = try container.decode(UUID.self, forKey: .vehicleID)
+        driverID = try container.decode(UUID.self, forKey: .driverID)
+        tripID = try container.decodeIfPresent(UUID.self, forKey: .tripID)
+        manualAmount = try container.decode(Double.self, forKey: .manualAmount)
+        odometerReading = try container.decode(Int.self, forKey: .odometerReading)
+        receiptImageURL = try container.decode(String.self, forKey: .receiptImageURL)
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+        verificationStatus = try container.decode(FuelVerificationStatus.self, forKey: .verificationStatus)
+        rejectionReason = try container.decodeIfPresent(String.self, forKey: .rejectionReason)
     }
 }
 

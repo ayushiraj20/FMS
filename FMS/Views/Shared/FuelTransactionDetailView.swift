@@ -1,3 +1,4 @@
+
 //
 //  FuelTransactionDetailView.swift
 //  FMS
@@ -17,6 +18,7 @@ struct FuelTransactionDetailView: View {
     @State private var rejectionReason = ""
     @State private var isVerifying = false
     @State private var isRejecting = false
+    @State private var showFullScreenReceipt = false
 
     private var driverName: String {
         appViewModel.service.user(for: transaction.driverID)?.name ?? "Unknown Driver"
@@ -58,6 +60,9 @@ struct FuelTransactionDetailView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
+            }
+            .sheet(isPresented: $showFullScreenReceipt) {
+                ImagePreviewSheet(image: nil, imageURLString: transaction.receiptImageURL)
             }
         }
         .alert("Reject Transaction", isPresented: $showRejectionAlert) {
@@ -151,13 +156,25 @@ struct FuelTransactionDetailView: View {
                     .frame(height: 180)
 
                 case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .clipShape(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        )
-                        .padding(.horizontal, 16)
+                    ZStack(alignment: .bottomTrailing) {
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            )
+                        
+                        Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.white.opacity(0.85))
+                            .background(Circle().fill(.black.opacity(0.35)))
+                            .padding(12)
+                    }
+                    .padding(.horizontal, 16)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        showFullScreenReceipt = true
+                    }
 
                 case .failure:
                     VStack(spacing: 8) {

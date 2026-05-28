@@ -25,13 +25,22 @@ final class VehicleManagementViewModel {
     var odometer = ""
     var assignedDriverID: UUID? = nil
     var nextServiceDate = Date.now.addingTimeInterval(86400 * 10)
-    var utilization = 70.0
+    var utilization = ""
+    var fuelConsumption = ""
+    var vehicleType = "Truck"
+    var fuelType = "Diesel"
+    var manufacturer = ""
+    var vehicleYear = ""
+    var vinNumber = ""
 
     // Detail/Document State
+    var activeVehicleID = UUID()
     var isPresentingDocumentSheet = false
     var documentNumbers: [DocumentType: String] = [:]
     var documentExpiries: [DocumentType: Date] = [:]
     var documentImages: [DocumentType: UIImage?] = [:]
+    var documentImageURLs: [DocumentType: String] = [:]
+    var uploadingDocuments: Set<DocumentType> = []
     var activeDocumentTypeForPhoto: DocumentType? = nil
     var selectedFileURL: URL? = nil
     var isPresentingFilePicker = false
@@ -172,6 +181,24 @@ final class VehicleManagementViewModel {
         return name.components(separatedBy: " ").first ?? name
     }
 
+    /// Returns the active (in-progress) trip for the driver assigned to this vehicle, if any.
+    func activeTrip(for vehicle: Vehicle) -> Trip? {
+        guard let driverID = vehicle.assignedDriverID else { return nil }
+        return service.trips.first { $0.driverID == driverID && $0.status == .inProgress }
+    }
+
+    /// Human-readable route string from real trip data, or a status-based fallback.
+    func routeText(for vehicle: Vehicle) -> String {
+        if let trip = activeTrip(for: vehicle) {
+            return "\(trip.origin) → \(trip.destination)"
+        }
+        switch vehicle.status {
+        case .active, .inService: return "No active trip"
+        case .idle:               return "Awaiting dispatch"
+        case .outOfService:       return "In maintenance"
+        }
+    }
+
     func isLiveTracked(_ vehicle: Vehicle) -> Bool {
         vehicle.status == .active || vehicle.status == .inService
     }
@@ -207,6 +234,7 @@ final class VehicleManagementViewModel {
 
     func prepareForAdd() {
         selectedVehicle = nil
+        activeVehicleID = UUID()
         displayName = ""
         plateNumber = ""
         model = ""
@@ -215,11 +243,19 @@ final class VehicleManagementViewModel {
         odometer = ""
         assignedDriverID = nil
         nextServiceDate = Date.now.addingTimeInterval(86400 * 10)
-        utilization = 70.0
+        utilization = "0"
+        fuelConsumption = "0"
+        vehicleType = "Truck"
+        fuelType = "Diesel"
+        manufacturer = ""
+        vehicleYear = ""
+        vinNumber = ""
         
         // Reset all document fields
         documentNumbers = [:]
         documentExpiries = [:]
+        documentImageURLs = [:]
+        uploadingDocuments = []
         for type in DocumentType.allCases {
             documentNumbers[type] = ""
             documentExpiries[type] = Date.now.addingTimeInterval(86400 * 120)
@@ -232,6 +268,7 @@ final class VehicleManagementViewModel {
 
     func prepareForEdit(_ vehicle: Vehicle) {
         selectedVehicle = vehicle
+        activeVehicleID = vehicle.id
         displayName = vehicle.displayName
         plateNumber = vehicle.plateNumber
         model = vehicle.model
@@ -240,14 +277,35 @@ final class VehicleManagementViewModel {
         odometer = String(vehicle.odometer)
         assignedDriverID = vehicle.assignedDriverID
         nextServiceDate = vehicle.nextServiceDate
-        utilization = Double(vehicle.utilization)
+        utilization = String(vehicle.utilization)
+        fuelConsumption = String(vehicle.fuelConsumption)
+        vehicleType = vehicle.vehicleType
+        fuelType = vehicle.fuelType
+        manufacturer = vehicle.manufacturer
+        vehicleYear = vehicle.vehicleYear
+        vinNumber = vehicle.vinNumber
         
-        // Reset all document fields for editing
+        // Reset and populate document fields for editing
         documentNumbers = [:]
         documentExpiries = [:]
+        documentImages = [:]
+        documentImageURLs = [:]
+        uploadingDocuments = []
+        
+        let existingDocs = service.documents(for: vehicle.id)
+        for doc in existingDocs {
+            documentNumbers[doc.type] = doc.documentNumber
+            documentExpiries[doc.type] = doc.expiryDate
+            documentImageURLs[doc.type] = doc.imageUrl
+        }
+        
         for type in DocumentType.allCases {
-            documentNumbers[type] = ""
-            documentExpiries[type] = Date.now.addingTimeInterval(86400 * 120)
+            if documentNumbers[type] == nil {
+                documentNumbers[type] = ""
+            }
+            if documentExpiries[type] == nil {
+                documentExpiries[type] = Date.now.addingTimeInterval(86400 * 120)
+            }
             documentImages[type] = nil
         }
         
@@ -256,10 +314,17 @@ final class VehicleManagementViewModel {
     }
 
     func saveVehicle() {
-        guard let orgID = currentOrgID, let odo = Int(odometer) else { return }
+        let cleanOdo = odometer.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+        guard let orgID = currentOrgID, let odo = Int(cleanOdo) else { return }
+
+        let cleanFuel = fuelConsumption.replacingOccurrences(of: "[^0-9.]", with: "", options: .regularExpression)
+        let fuelCons = Double(cleanFuel) ?? 0.0
+
+        let cleanUtil = utilization.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+        let util = Int(cleanUtil) ?? 0
 
         let vehicle = Vehicle(
-            id: selectedVehicle?.id ?? UUID(),
+            id: activeVehicleID,
             organizationID: orgID,
             displayName: displayName,
             plateNumber: plateNumber,
@@ -268,8 +333,14 @@ final class VehicleManagementViewModel {
             fuelLevel: Int(fuelLevel),
             odometer: odo,
             assignedDriverID: assignedDriverID,
-            nextServiceDate: nextServiceDate,
-            utilization: Int(utilization)
+            nextServiceDate: selectedVehicle?.nextServiceDate ?? Date.now,
+            utilization: util,
+            fuelConsumption: fuelCons,
+            vehicleType: vehicleType,
+            fuelType: fuelType,
+            manufacturer: manufacturer,
+            vehicleYear: vehicleYear,
+            vinNumber: vinNumber
         )
 
         if selectedVehicle == nil {
@@ -297,22 +368,38 @@ final class VehicleManagementViewModel {
                     vehicleID: vehicle.id,
                     type: type,
                     number: number,
-                    expiryDate: documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120)
+                    expiryDate: documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120),
+                    imageUrl: documentImageURLs[type]
                 )
             }
         }
         
         isPresentingForm = false
-
     }
 
     // Documents
-    func prepareForDocumentUpload() {
+    func prepareForDocumentUpload(for vehicleID: UUID) {
+        activeVehicleID = vehicleID
         documentNumbers = [:]
         documentExpiries = [:]
+        documentImages = [:]
+        documentImageURLs = [:]
+        uploadingDocuments = []
+        
+        let existingDocs = service.documents(for: vehicleID)
+        for doc in existingDocs {
+            documentNumbers[doc.type] = doc.documentNumber
+            documentExpiries[doc.type] = doc.expiryDate
+            documentImageURLs[doc.type] = doc.imageUrl
+        }
+        
         for type in DocumentType.allCases {
-            documentNumbers[type] = ""
-            documentExpiries[type] = Date.now.addingTimeInterval(86400 * 120)
+            if documentNumbers[type] == nil {
+                documentNumbers[type] = ""
+            }
+            if documentExpiries[type] == nil {
+                documentExpiries[type] = Date.now.addingTimeInterval(86400 * 120)
+            }
             documentImages[type] = nil
         }
         isPresentingDocumentSheet = true
@@ -325,11 +412,68 @@ final class VehicleManagementViewModel {
                     vehicleID: vehicleID,
                     type: type,
                     number: number,
-                    expiryDate: documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120)
+                    expiryDate: documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120),
+                    imageUrl: documentImageURLs[type]
                 )
             }
         }
         isPresentingDocumentSheet = false
+    }
+
+    private func saveImageLocally(_ image: UIImage, vehicleID: UUID, type: DocumentType) -> URL? {
+        let fileManager = FileManager.default
+        guard let cachesDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
+        let dirURL = cachesDir.appendingPathComponent("vehicle-documents/\(vehicleID.uuidString)")
+        do {
+            try fileManager.createDirectory(at: dirURL, withIntermediateDirectories: true)
+            let fileURL = dirURL.appendingPathComponent("\(type.rawValue).jpg")
+            if let data = image.jpegData(compressionQuality: 0.8) {
+                try data.write(to: fileURL)
+                print("[Local Storage] Saved image locally to: \(fileURL.path)")
+                return fileURL
+            }
+        } catch {
+            print("[Local Storage] Error saving image locally: \(error)")
+        }
+        return nil
+    }
+
+    func uploadImage(_ image: UIImage, for type: DocumentType) {
+        documentImages[type] = image
+        
+        let localURL = saveImageLocally(image, vehicleID: activeVehicleID, type: type)
+        
+        guard SupabaseConfig.isConfigured else {
+            // Local mockup fallback URL: save to local file URL so it persists and loads instantly!
+            if let localURL = localURL {
+                documentImageURLs[type] = localURL.absoluteString
+            } else {
+                documentImageURLs[type] = "mock-local://vehicle-documents/\(activeVehicleID.uuidString)/\(type.rawValue).jpg"
+            }
+            return
+        }
+        
+        uploadingDocuments.insert(type)
+        Task {
+            do {
+                if let data = image.jpegData(compressionQuality: 0.8) {
+                    let urlString = try await SupabaseService.shared.uploadDocumentImage(
+                        imageData: data,
+                        vehicleID: activeVehicleID,
+                        documentType: type.rawValue
+                    )
+                    await MainActor.run {
+                        self.documentImageURLs[type] = urlString
+                        self.uploadingDocuments.remove(type)
+                    }
+                }
+            } catch {
+                print("Failed to upload: \(error)")
+                _ = await MainActor.run {
+                    self.uploadingDocuments.remove(type)
+                }
+            }
+        }
     }
 
     private func vehiclePrioritySort(lhs: Vehicle, rhs: Vehicle) -> Bool {

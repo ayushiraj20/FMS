@@ -61,8 +61,9 @@ final class AppViewModel {
             queue: .main
         ) { [weak self] notification in
             guard let self else { return }
+            let alert = notification.userInfo?["alert"] as? SOSAlert
             Task { @MainActor in
-                if let alert = notification.userInfo?["alert"] as? SOSAlert {
+                if let alert = alert {
                     // Prepend to service.sosAlerts if not already present
                     if !self.service.sosAlerts.contains(where: { $0.id == alert.id }) {
                         self.service.sosAlerts.insert(alert, at: 0)
@@ -257,44 +258,53 @@ final class AppViewModel {
     func loginAsDemo(
         role: UserRole
     ) {
-
-        guard let user =
-        service.users(
-            for: role
-        ).first
-
-        else {
-
+        if SupabaseConfig.isConfigured {
+            isAuthenticating = true
+            authErrorMessage = nil
+            Task {
+                await service.syncWithDatabase()
+                if let user = service.users.first(where: { $0.role == role }) {
+                    // Sign in to Supabase Auth so RLS permissions are granted
+                    do {
+                        let _ = try await SupabaseService.shared.client.auth.signIn(
+                            email: user.email,
+                            password: user.password
+                        )
+                        print("[Supabase Auth] Successfully authenticated as demo role: \(role.rawValue) (\(user.email))")
+                    } catch {
+                        print("[Supabase Auth ERROR] Failed to authenticate as demo role: \(error.localizedDescription)")
+                    }
+                    
+                    currentUser = user
+                    notifications = service.notifications(for: user)
+                    
+                    if let orgID = currentOrganization?.id {
+                        await BroadcastService.shared.load(orgID: orgID)
+                        BroadcastService.shared.subscribe(orgID: orgID)
+                        self.subscribeToSOSAlerts()
+                    }
+                    self.checkActiveSOSAlerts()
+                    flowState = .authenticated
+                } else {
+                    authErrorMessage = "No backend user profile found for role: \(role.rawValue). Please check database profiles table."
+                }
+                isAuthenticating = false
+            }
             return
         }
 
+        // Offline mode fallback:
+        guard let user = service.users(for: role).first else { return }
         currentUser = user
-        // Pre-load notifications filtered for this demo user's UUID
         notifications = service.notifications(for: user)
         flowState = .authenticated
 
         Task {
-            if SupabaseConfig.isConfigured {
-                await service.syncWithDatabase()
-            }
-
-            if let orgID =
-            currentOrganization?.id {
-
-                await
-                BroadcastService.shared
-                    .load(
-                        orgID: orgID
-                    )
-
-                BroadcastService.shared
-                    .subscribe(
-                        orgID: orgID
-                    )
-                
+            if let orgID = currentOrganization?.id {
+                await BroadcastService.shared.load(orgID: orgID)
+                BroadcastService.shared.subscribe(orgID: orgID)
                 self.subscribeToSOSAlerts()
             }
-            
             self.checkActiveSOSAlerts()
         }
     }

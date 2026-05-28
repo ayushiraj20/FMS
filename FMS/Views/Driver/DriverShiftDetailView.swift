@@ -140,24 +140,24 @@ struct DriverShiftDetailView: View {
     private var shiftTimingsWidget: some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 12) {
-                timingRow(label: "Start", time: shift?.startTime.formatted(date: .omitted, time: .shortened) ?? "6:00 AM")
-                timingRow(label: "Break", time: shift?.breakTime?.formatted(date: .omitted, time: .shortened) ?? "12:00 PM")
-                timingRow(label: "End", time: shift?.endTime.formatted(date: .omitted, time: .shortened) ?? "6:00 PM")
+                timingRow(label: "Start", time: shift?.startTime.formatted(date: .omitted, time: .shortened) ?? "--:--")
+                timingRow(label: "Break", time: shift?.breakTime?.formatted(date: .omitted, time: .shortened) ?? "--:--")
+                timingRow(label: "End", time: shift?.endTime.formatted(date: .omitted, time: .shortened) ?? "--:--")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer()
 
-            let progress = shift?.progress ?? 0.65
-            let totalHours = shift?.totalHours ?? 12.0
+            let progress = shift?.progress ?? 0.0
+            let totalHours = shift?.totalHours ?? 0.0
             
             ZStack {
                 CircularProgressRing(progress: progress, size: 100, strokeWidth: 10)
                 VStack(spacing: 2) {
-                    Text("\(Int(progress * 100))%")
+                    Text(shift != nil ? "\(Int(progress * 100))%" : "--")
                         .font(.system(.title3, design: .rounded).bold())
                         .contentTransition(.numericText())
-                    Text("\(Int(totalHours))h")
+                    Text(shift != nil ? "\(Int(totalHours))h" : "--")
                         .font(.caption.bold())
                         .foregroundStyle(DriverTheme.textSecondary)
                 }

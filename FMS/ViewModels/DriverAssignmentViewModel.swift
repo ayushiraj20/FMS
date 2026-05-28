@@ -80,17 +80,18 @@ final class DriverAssignmentViewModel {
     }
     
     func unassign(driver: User) {
-        // Find any vehicle currently assigned to this driver and clear it
+        // Find any vehicle currently assigned to this driver and clear it.
+        // The vehicles table is the source of truth for assignment — the fleet manager
+        // has write access to vehicles but NOT to other users' profile rows (RLS policy).
         if let vehicle = service.vehicles.first(where: { $0.assignedDriverID == driver.id }) {
             var updatedVehicle = vehicle
             updatedVehicle.assignedDriverID = nil
             service.updateVehicle(updatedVehicle)
         }
-        
-        // Clear driver profile assignment directly and sync to database
-        var updatedDriver = driver
-        updatedDriver.assignedVehicleID = nil
-        service.updateUser(updatedDriver)
+        // NOTE: We intentionally do NOT call service.updateUser here to set
+        // assignedVehicleID = nil on the driver profile, because Supabase RLS
+        // blocks the fleet manager from updating another user's profile row.
+        // assignedVehicleID is re-derived from vehicles on every sync instead.
     }
     
     // MARK: - Helpers

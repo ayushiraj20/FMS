@@ -338,8 +338,14 @@ struct TripStartInspectionSheet: View {
         isSubmitting = true
         submitError = nil
 
-        guard let user = appViewModel.currentUser, let vehicle = appViewModel.assignedVehicle else {
-            submitError = "No user or vehicle found."
+        guard let user = appViewModel.currentUser else {
+            submitError = "No user found."
+            isSubmitting = false
+            return
+        }
+
+        guard let vehicleID = trip?.vehicleID ?? appViewModel.assignedVehicle?.id else {
+            submitError = "No vehicle associated with this trip."
             isSubmitting = false
             return
         }
@@ -349,11 +355,11 @@ struct TripStartInspectionSheet: View {
         if !overallNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { notesParts.append("General: \(overallNotes)") }
         let combinedNotes = notesParts.isEmpty ? "All items passed." : notesParts.joined(separator: " | ")
 
-        appViewModel.service.addInspection(driverID: user.id, vehicleID: vehicle.id, type: inspectionType, notes: combinedNotes, items: serviceItems)
+        appViewModel.service.addInspection(driverID: user.id, vehicleID: vehicleID, type: inspectionType, notes: combinedNotes, items: serviceItems)
 
         for fi in failedItems {
             let desc = fi.failureNote.isEmpty ? "Inspection failed: \(fi.title)" : "\(fi.title) — \(fi.failureNote)"
-            appViewModel.service.addDefect(driverID: user.id, vehicleID: vehicle.id, severity: criticalItems.contains(fi.title) ? .critical : .medium, description: desc, title: "\(inspectionType.rawValue): \(fi.title)", images: nil)
+            appViewModel.service.addDefect(driverID: user.id, vehicleID: vehicleID, severity: criticalItems.contains(fi.title) ? .critical : .medium, description: desc, title: "\(inspectionType.rawValue): \(fi.title)", images: nil)
         }
 
         isSubmitting = false
@@ -366,12 +372,9 @@ struct TripStartInspectionSheet: View {
     }
 
     private func startTripAndDismiss() {
-        guard let user = appViewModel.currentUser else { return }
         if inspectionType == .preTrip {
             if let t = trip {
                 appViewModel.service.startScheduledTrip(id: t.id)
-            } else if let vehicle = appViewModel.assignedVehicle {
-                appViewModel.service.startTrip(driverID: user.id, vehicleID: vehicle.id, origin: "Current Location", destination: "Destination")
             }
         } else {
             if let t = trip {

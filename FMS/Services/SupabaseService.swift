@@ -102,6 +102,36 @@ final class SupabaseService {
         try await client.from("vehicle_documents").insert(document).execute()
     }
     
+    func updateDocument(_ document: VehicleDocument) async throws {
+        try await client.from("vehicle_documents")
+            .update(document)
+            .eq("id", value: document.id)
+            .execute()
+    }
+    
+    func uploadDocumentImage(
+        imageData: Data,
+        vehicleID: UUID,
+        documentType: String
+    ) async throws -> String {
+        let bucketName = "vehicle-documents"
+        let filePath = "\(vehicleID.uuidString)/\(documentType).jpg"
+        
+        try await client.storage
+            .from(bucketName)
+            .upload(
+                filePath,
+                data: imageData,
+                options: FileOptions(contentType: "image/jpeg", upsert: true)
+            )
+            
+        let signedURL = try await client.storage
+            .from(bucketName)
+            .createSignedURL(path: filePath, expiresIn: 315360000) // 10 years
+            
+        return signedURL.absoluteString
+    }
+    
     // Trips
     func fetchTrips() async throws -> [Trip] {
         let trips: [Trip] = try await client.from("trips").select().execute().value

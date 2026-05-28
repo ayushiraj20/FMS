@@ -242,227 +242,67 @@ struct VehicleManagementView: View {
 // Removed unused resultLabel.
 }
 
+
+// MARK: - Multi-Step Add Vehicle Form
+
 private struct VehicleFormSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var viewModel: VehicleManagementViewModel
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
+    @State private var currentStep: Int = 0
+    @State private var driverSearchText: String = ""
+    @State private var showDriverPicker: Bool = false
+    
+    @State private var isPresentingPhotoSource = false
+    @State private var isPresentingCamera = false
+    @State private var capturedImage: UIImage? = nil
 
     private var isEditing: Bool { viewModel.selectedVehicle != nil }
-    private var canSave: Bool {
+
+    private var step1Valid: Bool {
         !viewModel.displayName.trimmingCharacters(in: .whitespaces).isEmpty &&
         !viewModel.plateNumber.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !viewModel.model.trimmingCharacters(in: .whitespaces).isEmpty &&
-        Int(viewModel.odometer) != nil
+        !viewModel.model.trimmingCharacters(in: .whitespaces).isEmpty
     }
+
+    private var step2Valid: Bool {
+        let cleanOdo = viewModel.odometer.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+        return !cleanOdo.isEmpty && Int(cleanOdo) != nil
+    }
+
+    private var canSave: Bool { step1Valid && step2Valid }
+
+    private let stepTitles = ["Identity", "Operations", "Compliance"]
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                VehicleSectionBackground()
-
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        VehicleGlassPanel {
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack(spacing: 14) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(VehicleStudioTheme.accent.opacity(0.16))
-                                            .frame(width: 62, height: 62)
-                                        Image(systemName: isEditing ? "square.and.pencil.circle.fill" : "plus.circle.fill")
-                                            .font(.system(size: 30, weight: .semibold))
-                                            .foregroundStyle(VehicleStudioTheme.accent)
-                                    }
-
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(isEditing ? "Refine Vehicle Profile" : "Create Vehicle Profile")
-                                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                                            .foregroundStyle(VehicleStudioTheme.primary)
-                                        Text("Keep the fleet record polished with assignment, service, and document details.")
-                                            .font(.subheadline)
-                                            .foregroundStyle(VehicleStudioTheme.secondary)
-                                    }
-                                }
-                            }
-                        }
-
-                        formSection(title: "Identity", icon: "car.side.fill") {
-                            formField(label: "Display Name", placeholder: "e.g. Truck Alpha", text: $viewModel.displayName)
-                            formField(label: "Plate Number", placeholder: "e.g. MH12AB1234", text: $viewModel.plateNumber)
-                            formField(label: "Model", placeholder: "e.g. Tata Ace", text: $viewModel.model)
-                            formField(label: "Odometer (km)", placeholder: "e.g. 52000", text: $viewModel.odometer, keyboard: .numberPad)
-
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Status")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(VehicleStudioTheme.secondary)
-
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 10) {
-                                        ForEach(VehicleStatus.allCases, id: \.self) { status in
-                                            let selected = viewModel.status == status
-                                            Button {
-                                                viewModel.status = status
-                                            } label: {
-                                                HStack(spacing: 8) {
-                                                    Image(systemName: status.iconName)
-                                                        .font(.caption.weight(.bold))
-                                                    Text(status.rawValue)
-                                                        .font(.caption.weight(.semibold))
-                                                }
-                                                .foregroundStyle(selected ? .white : status.dashboardColor)
-                                                .padding(.horizontal, 14)
-                                                .padding(.vertical, 10)
-                                                .background(
-                                                    Capsule()
-                                                        .fill(selected ? status.dashboardColor : status.dashboardColor.opacity(0.12))
-                                                )
-                                            }
-                                            .buttonStyle(VehiclePressableStyle())
-                                        }
-                                    }
-                                    .padding(.vertical, 2)
-                                }
-                            }
-                        }
-
-                        formSection(title: "Operations", icon: "person.crop.circle.badge.checkmark") {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Assigned Driver")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(VehicleStudioTheme.secondary)
-
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 10) {
-                                        driverChip(name: "Unassigned", id: nil)
-                                        ForEach(viewModel.drivers) { driver in
-                                            driverChip(name: driver.name, id: driver.id)
-                                        }
-                                    }
-                                    .padding(.vertical, 2)
-                                }
-                            }
-
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Next Service")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(VehicleStudioTheme.secondary)
-
-                                DatePicker("", selection: $viewModel.nextServiceDate, displayedComponents: .date)
-                                    .datePickerStyle(.compact)
-                                    .labelsHidden()
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 12)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                            .fill(VehicleStudioTheme.softFill)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                                    .stroke(VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
-                                            )
-                                    )
-                            }
-
-                            sliderRow(
-                                label: "Fuel Level",
-                                icon: "fuelpump.fill",
-                                value: $viewModel.fuelLevel,
-                                color: fuelTint(for: Int(viewModel.fuelLevel))
-                            )
-
-                            sliderRow(
-                                label: "Utilization",
-                                icon: "speedometer",
-                                value: $viewModel.utilization,
-                                color: VehicleStudioTheme.accent
-                            )
-                        }
-
-                        formSection(title: "Compliance Info", icon: "doc.richtext.fill") {
-                            Text("All documents are mandatory for vehicle approval.")
-                                .font(.caption)
-                                .foregroundStyle(VehicleStudioTheme.secondary)
-                                .padding(.bottom, 8)
-
-                            ForEach(DocumentType.allCases) { type in
-                                VStack(alignment: .leading, spacing: 14) {
-                                    Text(type.rawValue)
-                                        .font(.subheadline.weight(.bold))
-                                        .foregroundStyle(VehicleStudioTheme.accent)
-
-                                    formField(label: "Number", placeholder: "e.g. \(exampleNumberFor(type))", text: Binding(
-                                        get: { viewModel.documentNumbers[type] ?? "" },
-                                        set: { viewModel.documentNumbers[type] = $0 }
-                                    ))
-
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Expiry")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundStyle(VehicleStudioTheme.secondary)
-
-                                        DatePicker("", selection: Binding(
-                                            get: { viewModel.documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120) },
-                                            set: { viewModel.documentExpiries[type] = $0 }
-                                        ), displayedComponents: .date)
-                                        .datePickerStyle(.compact)
-                                        .labelsHidden()
-                                        .padding(.horizontal, 14)
-                                        .padding(.vertical, 12)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                                .fill(VehicleStudioTheme.softFill)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                                        .stroke(VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
-                                                )
-                                        )
-                                    }
-                                }
-                                .padding(.bottom, 16)
-                            }
-                        }
-                    
-                    
-
-                        Button {
-                            viewModel.saveVehicle()
-                            dismiss()
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: isEditing ? "checkmark.circle.fill" : "plus.circle.fill")
-                                Text(isEditing ? "Save Changes" : "Add Vehicle")
-                                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                            }
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .background(
-                                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                    .fill(canSave ? VehicleStudioTheme.accentGradient : LinearGradient(colors: [VehicleStudioTheme.neutral, VehicleStudioTheme.neutral], startPoint: .leading, endPoint: .trailing))
-                                    .shadow(color: canSave ? VehicleStudioTheme.accent.opacity(0.28) : .clear, radius: 18, x: 0, y: 10)
-                            )
-                        }
-                        .buttonStyle(VehiclePressableStyle())
-                        .disabled(!canSave || DocumentType.allCases.contains { type in
-                            (viewModel.documentNumbers[type] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
-                        })
-                        .padding(.bottom, 28)
-                    }
+            VStack(spacing: 0) {
+                stepIndicator
                     .padding(.horizontal, 20)
-                    .padding(.top, 12)
+                    .padding(.top, 16)
+                    .padding(.bottom, 4)
+
+                TabView(selection: $currentStep) {
+                    step1View.tag(0)
+                    step2View.tag(1)
+                    step3View.tag(2)
                 }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .animation(.easeInOut(duration: 0.25), value: currentStep)
+
+                bottomNav
             }
+            .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle(isEditing ? "Edit Vehicle" : "Add Vehicle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .foregroundStyle(VehicleStudioTheme.accent)
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(VehicleStudioTheme.accent)
                 }
+            }
+            .sheet(isPresented: $showDriverPicker) {
+                driverPickerSheet
             }
             .photosPicker(isPresented: $viewModel.isPresentingImagePicker, selection: $selectedPhotoItem, matching: .images)
             .onChange(of: selectedPhotoItem) { _, newItem in
@@ -470,105 +310,372 @@ private struct VehicleFormSheet: View {
                     if let data = try? await newItem?.loadTransferable(type: Data.self),
                        let image = UIImage(data: data),
                        let type = viewModel.activeDocumentTypeForPhoto {
-                        viewModel.documentImages[type] = image
+                        viewModel.uploadImage(image, for: type)
                     }
                     selectedPhotoItem = nil
                 }
             }
+            .confirmationDialog(
+                "Select Photo Source",
+                isPresented: $isPresentingPhotoSource,
+                titleVisibility: .visible
+            ) {
+                Button("Take Photo (Camera)") {
+                    isPresentingCamera = true
+                }
+                Button("Choose from Library") {
+                    viewModel.isPresentingImagePicker = true
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+            .fullScreenCover(isPresented: $isPresentingCamera) {
+                CameraView(image: $capturedImage) { image in
+                    if let type = viewModel.activeDocumentTypeForPhoto {
+                        viewModel.uploadImage(image, for: type)
+                    }
+                }
+                .ignoresSafeArea()
+            }
         }
     }
 
-    private func formSection<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
-        VehicleGlassPanel {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 8) {
-                    Image(systemName: icon)
+    // MARK: - Step Indicator
+    private var stepIndicator: some View {
+        HStack(spacing: 0) {
+            ForEach(0..<3) { index in
+                HStack(spacing: 0) {
+                    ZStack {
+                        Circle()
+                            .fill(index <= currentStep ? VehicleStudioTheme.accent : Color(UIColor.systemGray5))
+                            .frame(width: 26, height: 26)
+                        if index < currentStep {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white)
+                        } else {
+                            Text("\(index + 1)")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(index == currentStep ? .white : Color(UIColor.secondaryLabel))
+                        }
+                    }
+
+                    Text(stepTitles[index])
+                        .font(.system(size: 11, weight: index == currentStep ? .semibold : .regular))
+                        .foregroundStyle(index == currentStep ? VehicleStudioTheme.accent : Color(UIColor.secondaryLabel))
+                        .padding(.leading, 5)
+
+                    if index < 2 {
+                        Rectangle()
+                            .fill(index < currentStep ? VehicleStudioTheme.accent : Color(UIColor.systemGray4))
+                            .frame(height: 1.5)
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 8)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Bottom Navigation
+    private var bottomNav: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 12) {
+                if currentStep > 0 {
+                    Button {
+                        withAnimation { currentStep -= 1 }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "chevron.left").font(.system(size: 12, weight: .semibold))
+                            Text("Back").font(.system(size: 15, weight: .semibold))
+                        }
                         .foregroundStyle(VehicleStudioTheme.accent)
-                    Text(title)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(VehicleStudioTheme.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.7)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(VehicleStudioTheme.accent.opacity(0.08)))
+                    }
+                    .buttonStyle(VehiclePressableStyle())
                 }
 
-                content()
-            }
-        }
-    }
-
-    private func formField(label: String, placeholder: String, text: Binding<String>, keyboard: UIKeyboardType = .default) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(label)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(VehicleStudioTheme.secondary)
-
-            TextField(placeholder, text: text)
-                .font(.system(size: 16, weight: .medium, design: .rounded))
-                .foregroundStyle(VehicleStudioTheme.primary)
-                .keyboardType(keyboard)
-                .textInputAutocapitalization(.words)
-                .autocorrectionDisabled()
-                .padding(.horizontal, 14)
-                .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(VehicleStudioTheme.softFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
+                if currentStep < 2 {
+                    let stepInvalid = (currentStep == 0 && !step1Valid) || (currentStep == 1 && !step2Valid)
+                    Button {
+                        withAnimation { currentStep += 1 }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text("Continue").font(.system(size: 15, weight: .semibold))
+                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(stepInvalid ? Color(UIColor.systemGray4) : VehicleStudioTheme.accent)
                         )
-                )
-        }
-    }
-
-    private func driverChip(name: String, id: UUID?) -> some View {
-        let selected = viewModel.assignedDriverID == id
-        return Button {
-            viewModel.assignedDriverID = id
-        } label: {
-            HStack(spacing: 8) {
-                if id == nil {
-                    Image(systemName: "person.crop.circle.badge.xmark")
-                        .font(.caption.weight(.bold))
+                    }
+                    .buttonStyle(VehiclePressableStyle())
+                    .disabled(stepInvalid)
                 } else {
-                    AvatarView(name: name, size: 22, customColor: VehicleStudioTheme.accent)
+                    Button {
+                        viewModel.saveVehicle()
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: isEditing ? "checkmark.circle.fill" : "plus.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text(isEditing ? "Save Changes" : "Add Vehicle")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(canSave ? VehicleStudioTheme.accent : Color(UIColor.systemGray4))
+                        )
+                    }
+                    .buttonStyle(VehiclePressableStyle())
+                    .disabled(!canSave)
                 }
-
-                Text(name)
-                    .font(.caption.weight(.semibold))
             }
-            .foregroundStyle(selected ? .white : VehicleStudioTheme.primary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(selected ? VehicleStudioTheme.accent : VehicleStudioTheme.softFill)
-                    .overlay(
-                        Capsule()
-                            .stroke(selected ? VehicleStudioTheme.accent : VehicleStudioTheme.stroke.opacity(0.65), lineWidth: 1)
-                    )
-            )
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(Color(UIColor.systemGroupedBackground))
         }
-        .buttonStyle(VehiclePressableStyle())
     }
 
-    private func sliderRow(label: String, icon: String, value: Binding<Double>, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label(label, systemImage: icon)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(VehicleStudioTheme.secondary)
-                Spacer()
-                Text("\(Int(value.wrappedValue))%")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(VehicleStudioTheme.primary)
-                    .monospacedDigit()
+    // MARK: - Step 1: Vehicle Identity
+    private var step1View: some View {
+        Form {
+            Section {
+                inlineField("Display Name", placeholder: "e.g. Truck Alpha", text: $viewModel.displayName)
+                inlineField("Plate Number", placeholder: "e.g. MH12AB1234", text: $viewModel.plateNumber, autocap: .characters)
+                inlineField("Model", placeholder: "e.g. Tata Ace", text: $viewModel.model)
+            } header: {
+                Text("Basic Info")
             }
 
-            Slider(value: value, in: 0...100, step: 1)
-                .tint(color)
+            Section {
+                inlineField("Manufacturer", placeholder: "e.g. Tata Motors", text: $viewModel.manufacturer)
+                inlineField("Year", placeholder: "e.g. 2022", text: $viewModel.vehicleYear, keyboard: .numberPad)
+                Picker("Vehicle Type", selection: $viewModel.vehicleType) {
+                    ForEach(["Truck", "Van", "SUV", "Sedan", "Bus", "Pickup"], id: \.self) { Text($0).tag($0) }
+                }
+                inlineField("VIN / Chassis No.", placeholder: "e.g. MALA851HXNM123456", text: $viewModel.vinNumber, autocap: .characters)
+                Picker("Fuel Type", selection: $viewModel.fuelType) {
+                    ForEach(["Diesel", "Petrol", "CNG", "Electric", "Hybrid"], id: \.self) { Text($0).tag($0) }
+                }
+            } header: {
+                Text("Vehicle Details")
+            } footer: {
+                Text("VIN uniquely identifies this vehicle in your fleet records.")
+            }
+        }
+        .formStyle(.grouped)
+    }
 
-            VehicleProgressBar(progress: value.wrappedValue / 100, tint: color)
+    // MARK: - Step 2: Assignment & Operations
+    private var step2View: some View {
+        Form {
+            Section {
+                inlineField("Odometer (km)", placeholder: "e.g. 52000", text: $viewModel.odometer, keyboard: .numberPad)
+                inlineField("Fuel Consumption (L/100km)", placeholder: "e.g. 8.5", text: $viewModel.fuelConsumption, keyboard: .decimalPad)
+                inlineField("Utilization (%)", placeholder: "e.g. 75", text: $viewModel.utilization, keyboard: .numberPad)
+            } header: {
+                Text("Operations")
+            } footer: {
+                Text("Fuel level is tracked automatically via telemetry.")
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    // MARK: - Step 3: Compliance Documents
+    private var step3View: some View {
+        Form {
+            Section {
+                Text("All documents are recommended for vehicle compliance. You can also add them later from the vehicle profile.")
+                    .font(.footnote)
+                    .foregroundStyle(Color(UIColor.secondaryLabel))
+            }
+
+            ForEach(DocumentType.allCases) { docType in
+                let number = viewModel.documentNumbers[docType] ?? ""
+                let expiry = viewModel.documentExpiries[docType] ?? Date.now.addingTimeInterval(86400 * 120)
+                let hasDoc = !number.trimmingCharacters(in: .whitespaces).isEmpty
+
+                Section {
+                    inlineField(
+                        "Document Number",
+                        placeholder: exampleNumberFor(docType),
+                        text: Binding(
+                            get: { viewModel.documentNumbers[docType] ?? "" },
+                            set: { viewModel.documentNumbers[docType] = $0 }
+                        ),
+                        autocap: .characters
+                    )
+
+                    DatePicker(
+                        "Expiry Date",
+                        selection: Binding(
+                            get: { viewModel.documentExpiries[docType] ?? Date.now.addingTimeInterval(86400 * 120) },
+                            set: { viewModel.documentExpiries[docType] = $0 }
+                        ),
+                        displayedComponents: .date
+                    )
+
+                    // Upload row
+                    Button {
+                        viewModel.activeDocumentTypeForPhoto = docType
+                        isPresentingPhotoSource = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            if let img = viewModel.documentImages[docType] as? UIImage {
+                                Image(uiImage: img)
+                                    .resizable().scaledToFill()
+                                    .frame(width: 32, height: 32)
+                                    .clipShape(RoundedRectangle(cornerRadius: 7))
+                                Text("Replace Photo").foregroundStyle(VehicleStudioTheme.accent)
+                            } else if let urlString = viewModel.documentImageURLs[docType], let url = URL(string: urlString) {
+                                AsyncImage(url: url) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image.resizable().scaledToFill()
+                                            .frame(width: 32, height: 32)
+                                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                                    default:
+                                        Image(systemName: "doc.text").foregroundStyle(VehicleStudioTheme.accent)
+                                    }
+                                }
+                                Text("Replace Photo").foregroundStyle(VehicleStudioTheme.accent)
+                            } else {
+                                Image(systemName: "doc.badge.plus").foregroundStyle(VehicleStudioTheme.accent)
+                                Text("Attach Document").foregroundStyle(VehicleStudioTheme.accent)
+                            }
+                            
+                            if viewModel.uploadingDocuments.contains(docType) {
+                                Spacer()
+                                ProgressView()
+                            }
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    // Expiry status
+                    let daysLeft = Calendar.current.dateComponents([.day], from: .now, to: expiry).day ?? 0
+                    HStack(spacing: 5) {
+                        if daysLeft < 0 {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red).font(.caption2)
+                            Text("Expired \(-daysLeft)d ago").font(.caption).foregroundStyle(.red)
+                        } else if daysLeft <= 30 {
+                            Image(systemName: "clock.badge.exclamationmark").foregroundStyle(.orange).font(.caption2)
+                            Text("Expires in \(daysLeft) days").font(.caption).foregroundStyle(.orange)
+                        } else {
+                            Image(systemName: "checkmark.shield.fill").foregroundStyle(.green).font(.caption2)
+                            Text("Valid · \(daysLeft) days remaining").font(.caption).foregroundStyle(.green)
+                        }
+                        Spacer()
+                        if hasDoc {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(VehicleStudioTheme.success)
+                        }
+                    }
+                    .listRowSeparator(.hidden)
+                } header: {
+                    Label(docType.rawValue, systemImage: docTypeIcon(docType))
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    // MARK: - Driver Picker Sheet
+    private var driverPickerSheet: some View {
+        NavigationStack {
+            List {
+                Button {
+                    viewModel.assignedDriverID = nil
+                    showDriverPicker = false
+                } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle().fill(Color(UIColor.systemGray5)).frame(width: 36, height: 36)
+                            Image(systemName: "person.slash").font(.system(size: 14)).foregroundStyle(Color(UIColor.secondaryLabel))
+                        }
+                        Text("Unassigned").foregroundStyle(Color(UIColor.label))
+                        Spacer()
+                        if viewModel.assignedDriverID == nil {
+                            Image(systemName: "checkmark").foregroundStyle(VehicleStudioTheme.accent).font(.system(size: 14, weight: .semibold))
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+
+                ForEach(filteredDrivers) { driver in
+                    Button {
+                        viewModel.assignedDriverID = driver.id
+                        showDriverPicker = false
+                    } label: {
+                        HStack(spacing: 12) {
+                            AvatarView(name: driver.name, size: 36, customColor: VehicleStudioTheme.accent)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(driver.name).font(.subheadline.weight(.medium)).foregroundStyle(Color(UIColor.label))
+                                Text(driver.title).font(.caption).foregroundStyle(Color(UIColor.secondaryLabel))
+                            }
+                            Spacer()
+                            if viewModel.assignedDriverID == driver.id {
+                                Image(systemName: "checkmark").foregroundStyle(VehicleStudioTheme.accent).font(.system(size: 14, weight: .semibold))
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                }
+            }
+            .searchable(text: $driverSearchText, prompt: "Search drivers")
+            .navigationTitle("Assign Driver")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showDriverPicker = false }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private var filteredDrivers: [User] {
+        if driverSearchText.isEmpty { return viewModel.drivers }
+        return viewModel.drivers.filter {
+            $0.name.localizedCaseInsensitiveContains(driverSearchText) ||
+            $0.title.localizedCaseInsensitiveContains(driverSearchText)
+        }
+    }
+
+    // MARK: - Helpers
+    private func inlineField(_ label: String, placeholder: String, text: Binding<String>, keyboard: UIKeyboardType = .default, autocap: TextInputAutocapitalization = .words) -> some View {
+        HStack {
+            Text(label).foregroundStyle(Color(UIColor.label))
+            Spacer()
+            TextField(placeholder, text: text)
+                .multilineTextAlignment(.trailing)
+                .foregroundStyle(Color(UIColor.secondaryLabel))
+                .keyboardType(keyboard)
+                .textInputAutocapitalization(autocap)
+                .autocorrectionDisabled()
+        }
+    }
+
+    private func docTypeIcon(_ type: DocumentType) -> String {
+        switch type {
+        case .rc: return "car.fill"
+        case .insurance: return "shield.fill"
+        case .puc: return "leaf.fill"
+        case .permit: return "checkmark.seal.fill"
         }
     }
 
@@ -581,6 +688,7 @@ private struct VehicleFormSheet: View {
         }
     }
 }
+
 
 private struct NativeDetailCard<Content: View>: View {
     let padding: CGFloat
@@ -616,6 +724,7 @@ private struct VehicleDetailView: View {
 
     @State private var activeSheet: VehicleActionSheet?
     @State private var showEditSheet = false
+    @State private var selectedDocumentForPreview: VehicleDocument? = nil
 
     var body: some View {
         ZStack {
@@ -628,6 +737,7 @@ private struct VehicleDetailView: View {
                         heroCard(for: vehicle)
                         // metricStrip(for: vehicle)
                         actionStrip
+                        documentsSection(for: vehicle)
                         // insightsSection(for: vehicle)
                     }
                     .padding(.horizontal, 16)
@@ -664,6 +774,9 @@ private struct VehicleDetailView: View {
         }
         .sheet(isPresented: $viewModel.isPresentingDocumentSheet) {
             DocumentUploadSheet(viewModel: viewModel, vehicleID: vehicleID)
+        }
+        .sheet(item: $selectedDocumentForPreview) { document in
+            DocumentPreviewSheet(document: document, viewModel: viewModel)
         }
         .sheet(item: $activeSheet) { sheet in
             NavigationStack {
@@ -758,7 +871,7 @@ private struct VehicleDetailView: View {
                     detailInfoPill(
                         icon: "point.topleft.down.curvedto.point.bottomright.up.fill",
                         title: "Route Context",
-                        value: vehicleRouteText(for: vehicle)
+                        value: viewModel.routeText(for: vehicle)
                     )
                 }
 
@@ -918,7 +1031,6 @@ private struct VehicleDetailView: View {
         .padding(.vertical, 2)
     }
 
-    /*
     private func documentsSection(for vehicle: Vehicle) -> some View {
         NativeDetailCard {
             VStack(alignment: .leading, spacing: 14) {
@@ -928,7 +1040,7 @@ private struct VehicleDetailView: View {
                         .foregroundStyle(Color(.label))
                     Spacer()
                     Button("Upload") {
-                        viewModel.prepareForDocumentUpload()
+                        viewModel.prepareForDocumentUpload(for: vehicle.id)
                     }
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.blue)
@@ -941,44 +1053,42 @@ private struct VehicleDetailView: View {
                         .foregroundStyle(Color(.secondaryLabel))
                 } else {
                     ForEach(documents.prefix(4)) { document in
-                        HStack(spacing: 12) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(Color(UIColor.systemGray6))
-                                Image(systemName: "doc.text.fill")
-                                    .foregroundStyle(Color.blue)
-                            }
-                            .frame(width: 42, height: 42)
+                        Button {
+                            selectedDocumentForPreview = document
+                        } label: {
+                            HStack(spacing: 12) {
+                                DocumentMiniatureThumbnailView(document: document, viewModel: viewModel)
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(document.type.rawValue)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Color(.label))
-                                Text(document.documentNumber)
-                                    .font(.caption)
-                                    .foregroundStyle(Color(.secondaryLabel))
-                            }
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(document.type.rawValue)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(Color(.label))
+                                    Text(document.documentNumber)
+                                        .font(.caption)
+                                        .foregroundStyle(Color(.secondaryLabel))
+                                }
 
-                            Spacer()
+                                Spacer()
 
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text(document.expiryDate.formatted(.dateTime.month(.abbreviated).day()))
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Color(.label))
-                                VehicleStatusBadge(
-                                    title: document.isVerified ? "Verified" : "Pending",
-                                    tint: document.isVerified ? Color.green : Color.orange,
-                                    icon: document.isVerified ? "checkmark.seal.fill" : "clock.fill"
-                                )
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text(document.expiryDate.formatted(.dateTime.month(.abbreviated).day()))
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(Color(.label))
+                                    VehicleStatusBadge(
+                                        title: document.isVerified ? "Verified" : "Pending",
+                                        tint: document.isVerified ? Color.green : Color.orange,
+                                        icon: document.isVerified ? "checkmark.seal.fill" : "clock.fill"
+                                    )
+                                }
                             }
+                            .padding(.vertical, 2)
                         }
-                        .padding(.vertical, 2)
+                        .buttonStyle(.plain)
                     }
                 }
             }
         }
     }
-    */
 
     private func sheetIcon(for sheet: VehicleActionSheet) -> String {
         switch sheet {
@@ -1004,6 +1114,10 @@ private struct DocumentUploadSheet: View {
     @Bindable var viewModel: VehicleManagementViewModel
     let vehicleID: UUID
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
+    
+    @State private var isPresentingPhotoSource = false
+    @State private var isPresentingCamera = false
+    @State private var capturedImage: UIImage? = nil
 
     var body: some View {
         NavigationStack {
@@ -1061,10 +1175,31 @@ private struct DocumentUploadSheet: View {
                     if let data = try? await newItem?.loadTransferable(type: Data.self),
                        let image = UIImage(data: data),
                        let type = viewModel.activeDocumentTypeForPhoto {
-                        viewModel.documentImages[type] = image
+                        viewModel.uploadImage(image, for: type)
                     }
                     selectedPhotoItem = nil
                 }
+            }
+            .confirmationDialog(
+                "Select Photo Source",
+                isPresented: $isPresentingPhotoSource,
+                titleVisibility: .visible
+            ) {
+                Button("Take Photo (Camera)") {
+                    isPresentingCamera = true
+                }
+                Button("Choose from Library") {
+                    viewModel.isPresentingImagePicker = true
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+            .fullScreenCover(isPresented: $isPresentingCamera) {
+                CameraView(image: $capturedImage) { image in
+                    if let type = viewModel.activeDocumentTypeForPhoto {
+                        viewModel.uploadImage(image, for: type)
+                    }
+                }
+                .ignoresSafeArea()
             }
         }
     }
@@ -1134,20 +1269,17 @@ private struct DocumentUploadSheet: View {
                         .foregroundStyle(VehicleStudioTheme.secondary)
 
                     HStack(spacing: 12) {
-                        if let image = viewModel.documentImages[type] as? UIImage {
-                            Image(uiImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
+                        if viewModel.uploadingDocuments.contains(type) {
+                            ProgressView()
                                 .frame(width: 80, height: 80)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(VehicleStudioTheme.stroke.opacity(0.5), lineWidth: 1)
-                                )
+                                .background(RoundedRectangle(cornerRadius: 12).fill(VehicleStudioTheme.softFill))
+                        } else if viewModel.documentImages[type] != nil || viewModel.documentImageURLs[type] != nil {
+                            DocumentThumbnailView(type: type, viewModel: viewModel)
                             
                             Button(role: .destructive) {
                                 withAnimation {
                                     viewModel.documentImages[type] = nil
+                                    viewModel.documentImageURLs[type] = nil
                                 }
                             } label: {
                                 Label("Remove", systemImage: "trash")
@@ -1156,7 +1288,7 @@ private struct DocumentUploadSheet: View {
                         } else {
                             Button {
                                 viewModel.activeDocumentTypeForPhoto = type
-                                viewModel.isPresentingImagePicker = true
+                                isPresentingPhotoSource = true
                             } label: {
                                 VStack(spacing: 8) {
                                     Image(systemName: "camera.fill")
@@ -1642,19 +1774,6 @@ private func serviceTint(for days: Int) -> Color {
     return VehicleStudioTheme.success
 }
 
-private func vehicleRouteText(for vehicle: Vehicle) -> String {
-    switch vehicle.status {
-    case .active:
-        return "Mumbai to Pune"
-    case .inService:
-        return "Pune to Nashik"
-    case .idle:
-        return "Nagpur Yard"
-    case .outOfService:
-        return "Workshop Bay"
-    }
-}
-
 private func vehicleTags(for vehicle: Vehicle, in viewModel: VehicleManagementViewModel) -> [VehicleTag] {
     var tags: [VehicleTag] = []
 
@@ -1715,5 +1834,332 @@ private func vehiclePositiveInsights(for vehicle: Vehicle) -> [VehiclePositiveIn
 #Preview {
     NavigationStack {
         VehicleManagementView(service: MockDataService(), currentOrgID: UUID())
+    }
+}
+
+private struct DocumentPreviewSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let document: VehicleDocument
+    let viewModel: VehicleManagementViewModel
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                if let uiImage = loadLocalImage() {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding()
+                } else if let imageUrlString = document.imageUrl,
+                          !imageUrlString.hasPrefix("mock-local") && !imageUrlString.hasPrefix("file"),
+                          let url = URL(string: imageUrlString) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .padding()
+                        case .failure:
+                            VStack(spacing: 12) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 48))
+                                    .foregroundStyle(.red)
+                                Text("Failed to load document image")
+                                    .font(.headline)
+                            }
+                        case .empty:
+                            ProgressView()
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                } else {
+                    PremiumDocumentCardView(document: document)
+                }
+            }
+            .navigationTitle(document.type.rawValue)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Close") {
+                        dismiss()
+                    }
+                }
+            }
+            .background(Color(UIColor.systemGroupedBackground))
+        }
+    }
+
+    private func loadLocalImage() -> UIImage? {
+        if let localImage = viewModel.documentImages[document.type] as? UIImage {
+            return localImage
+        }
+        
+        guard let imageUrlString = document.imageUrl else { return nil }
+        
+        if imageUrlString.hasPrefix("file://") {
+            if let url = URL(string: imageUrlString),
+               let data = try? Data(contentsOf: url) {
+                return UIImage(data: data)
+            }
+        } else if imageUrlString.hasPrefix("mock-local://") {
+            let parts = imageUrlString.replacingOccurrences(of: "mock-local://", with: "").split(separator: "/")
+            if parts.count >= 3 {
+                let vehicleIDString = String(parts[1])
+                let typeString = String(parts[2])
+                let fileManager = FileManager.default
+                if let cachesDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first {
+                    let fileURL = cachesDir.appendingPathComponent("vehicle-documents/\(vehicleIDString)/\(typeString)")
+                    if let data = try? Data(contentsOf: fileURL) {
+                        return UIImage(data: data)
+                    }
+                }
+            }
+        } else {
+            // Check if direct path
+            let fileManager = FileManager.default
+            if fileManager.fileExists(atPath: imageUrlString) {
+                if let data = try? Data(contentsOf: URL(fileURLWithPath: imageUrlString)) {
+                    return UIImage(data: data)
+                }
+            }
+        }
+        return nil
+    }
+}
+
+private struct PremiumDocumentCardView: View {
+    let document: VehicleDocument
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // A beautiful badge card
+            VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    Image(systemName: "doc.text.fill")
+                        .font(.title)
+                        .foregroundStyle(.white)
+                    
+                    Spacer()
+                    
+                    Text("OFFICIAL DOCUMENT")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.white.opacity(0.2))
+                        .clipShape(Capsule())
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(document.type.rawValue)
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    
+                    Text("NUMBER: \(document.documentNumber)")
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+                
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("EXPIRY DATE")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.7))
+                        Text(document.expiryDate.formatted(.dateTime.year().month().day()))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                    
+                    Spacer()
+                    
+                    if document.isVerified {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.green)
+                            Text("Verified")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.2))
+                        .clipShape(Capsule())
+                    }
+                }
+            }
+            .padding(24)
+            .frame(width: 320, height: 200)
+            .background(
+                LinearGradient(
+                    colors: [Color.blue, Color.purple],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+            
+            Text("No photo has been uploaded for this document yet.")
+                .font(.subheadline)
+                .foregroundStyle(Color(.secondaryLabel))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+        }
+        .padding()
+    }
+}
+
+private struct DocumentThumbnailView: View {
+    let type: DocumentType
+    let viewModel: VehicleManagementViewModel
+    
+    var body: some View {
+        if let image = viewModel.documentImages[type] as? UIImage {
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 80, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(VehicleStudioTheme.stroke.opacity(0.5), lineWidth: 1)
+                )
+        } else if let urlString = viewModel.documentImageURLs[type] {
+            if let localImage = loadLocalImage(urlString: urlString) {
+                Image(uiImage: localImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 80, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(VehicleStudioTheme.stroke.opacity(0.5), lineWidth: 1)
+                    )
+            } else if !urlString.hasPrefix("mock-local") && !urlString.hasPrefix("file"), let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 80, height: 80)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    default:
+                        defaultPlaceholder
+                    }
+                }
+            } else {
+                defaultPlaceholder
+            }
+        } else {
+            defaultPlaceholder
+        }
+    }
+    
+    private var defaultPlaceholder: some View {
+        Image(systemName: "doc.text")
+            .frame(width: 80, height: 80)
+            .background(Color.red.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+    
+    private func loadLocalImage(urlString: String) -> UIImage? {
+        if urlString.hasPrefix("file://") {
+            if let url = URL(string: urlString),
+               let data = try? Data(contentsOf: url) {
+                return UIImage(data: data)
+            }
+        } else if urlString.hasPrefix("mock-local://") {
+            let parts = urlString.replacingOccurrences(of: "mock-local://", with: "").split(separator: "/")
+            if parts.count >= 3 {
+                let vehicleIDString = String(parts[1])
+                let typeString = String(parts[2])
+                let fileManager = FileManager.default
+                if let cachesDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first {
+                    let fileURL = cachesDir.appendingPathComponent("vehicle-documents/\(vehicleIDString)/\(typeString)")
+                    if let data = try? Data(contentsOf: fileURL) {
+                        return UIImage(data: data)
+                    }
+                }
+            }
+        }
+        return nil
+    }
+}
+
+private struct DocumentMiniatureThumbnailView: View {
+    let document: VehicleDocument
+    let viewModel: VehicleManagementViewModel
+    
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(UIColor.systemGray6))
+            
+            if let image = loadLocalImage() {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 42, height: 42)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            } else if let imageUrlString = document.imageUrl,
+                      !imageUrlString.hasPrefix("mock-local") && !imageUrlString.hasPrefix("file"),
+                      let url = URL(string: imageUrlString) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 42, height: 42)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    default:
+                        defaultIcon
+                    }
+                }
+            } else {
+                defaultIcon
+            }
+        }
+        .frame(width: 42, height: 42)
+    }
+    
+    private var defaultIcon: some View {
+        Image(systemName: "doc.text.fill")
+            .foregroundStyle(Color.blue)
+    }
+    
+    private func loadLocalImage() -> UIImage? {
+        if let localImage = viewModel.documentImages[document.type] as? UIImage {
+            return localImage
+        }
+        guard let imageUrlString = document.imageUrl else { return nil }
+        if imageUrlString.hasPrefix("file://") {
+            if let url = URL(string: imageUrlString),
+               let data = try? Data(contentsOf: url) {
+                return UIImage(data: data)
+            }
+        } else if imageUrlString.hasPrefix("mock-local://") {
+            let parts = imageUrlString.replacingOccurrences(of: "mock-local://", with: "").split(separator: "/")
+            if parts.count >= 3 {
+                let vehicleIDString = String(parts[1])
+                let typeString = String(parts[2])
+                let fileManager = FileManager.default
+                if let cachesDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first {
+                    let fileURL = cachesDir.appendingPathComponent("vehicle-documents/\(vehicleIDString)/\(typeString)")
+                    if let data = try? Data(contentsOf: fileURL) {
+                        return UIImage(data: data)
+                    }
+                }
+            }
+        }
+        return nil
     }
 }

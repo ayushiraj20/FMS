@@ -77,6 +77,7 @@ actor FuelService {
 
     // MARK: - Save Transaction
 
+    @MainActor
     func saveTransaction(_ tx: FuelTransaction) async throws {
         do {
             try await client

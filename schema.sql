@@ -755,4 +755,11 @@ drop policy if exists "Allow authenticated write sos_alerts" on sos_alerts;
 create policy "Allow authenticated write sos_alerts"
   on sos_alerts for all to authenticated using (true) with check (true);
 
+-- ── MIGRATION: COORDINATES FOR MAP ROUTING ───────────────────────────────────
+alter table trips
+  add column if not exists origin_lat double precision,
+  add column if not exists origin_lng double precision,
+  add column if not exists destination_lat double precision,
+  add column if not exists destination_lng double precision;
+
 

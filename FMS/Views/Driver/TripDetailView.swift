@@ -4,48 +4,77 @@ import MapKit
 struct TripDetailView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @Environment(\.dismiss) private var dismiss
-    let trip: Trip
+    private let initialTrip: Trip
+
+    private var trip: Trip {
+        appViewModel.service.trips.first(where: { $0.id == initialTrip.id }) ?? initialTrip
+    }
+
+    init(trip: Trip) {
+        self.initialTrip = trip
+    }
 
     private var currentUser: User? { appViewModel.currentUser }
     private var checkpoints: [TripCheckpoint] { appViewModel.service.checkpoints(for: trip.id) }
     private var driver: User? { appViewModel.service.user(for: trip.driverID) }
-
-    private let routeCoordinates: [CLLocationCoordinate2D] = [
-        CLLocationCoordinate2D(latitude: 19.0760, longitude: 72.8777), // Mumbai
-        CLLocationCoordinate2D(latitude: 19.0330, longitude: 73.0297), // Panvel
-        CLLocationCoordinate2D(latitude: 18.7557, longitude: 73.4091), // Lonavala
-        CLLocationCoordinate2D(latitude: 18.5204, longitude: 73.8567)  // Pune
-    ]
 
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var sheetHeight: PresentationDetent = .medium
     @State private var showPostTripInspectionSheet = false
     @State private var showBreakLogSheet = false
 
+    // Real route data
+    @State private var routeCoordinates: [CLLocationCoordinate2D] = []
+    @State private var routeDistanceKM: Double = 0
+    @State private var routeETAMinutes: Double = 0
+    @State private var isLoadingRoute: Bool = false
+
+    // Computed origin/destination coordinates
+    private var originCoordinate: CLLocationCoordinate2D? {
+        guard let lat = trip.originLat, let lng = trip.originLng else { return nil }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lng)
+    }
+    private var destinationCoordinate: CLLocationCoordinate2D? {
+        guard let lat = trip.destinationLat, let lng = trip.destinationLng else { return nil }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lng)
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             Map(position: $cameraPosition) {
-                MapPolyline(coordinates: routeCoordinates)
-                    .stroke(DriverTheme.accent.opacity(0.8), style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round))
-
-                Annotation("Start", coordinate: routeCoordinates.first ?? routeCoordinates[0]) {
-                    Circle()
-                        .fill(DriverTheme.successGreen)
-                        .frame(width: 16, height: 16)
-                        .overlay(Circle().stroke(.white, lineWidth: 3))
-                        .shadow(radius: 4)
+                // Route polyline
+                if !routeCoordinates.isEmpty {
+                    MapPolyline(coordinates: routeCoordinates)
+                        .stroke(DriverTheme.accent.opacity(0.8), style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round))
                 }
 
-                Annotation("End", coordinate: routeCoordinates.last ?? routeCoordinates[0]) {
-                    Circle()
-                        .fill(DriverTheme.criticalRed)
-                        .frame(width: 16, height: 16)
-                        .overlay(Circle().stroke(.white, lineWidth: 3))
-                        .shadow(radius: 4)
+                // Origin marker
+                if let coord = originCoordinate {
+                    Annotation(trip.origin, coordinate: coord) {
+                        Circle()
+                            .fill(DriverTheme.successGreen)
+                            .frame(width: 16, height: 16)
+                            .overlay(Circle().stroke(.white, lineWidth: 3))
+                            .shadow(radius: 4)
+                    }
                 }
 
-                if trip.status == .inProgress {
-                    Annotation("Current", coordinate: CLLocationCoordinate2D(latitude: 18.9, longitude: 73.25)) {
+                // Destination marker
+                if let coord = destinationCoordinate {
+                    Annotation(trip.destination, coordinate: coord) {
+                        Circle()
+                            .fill(DriverTheme.criticalRed)
+                            .frame(width: 16, height: 16)
+                            .overlay(Circle().stroke(.white, lineWidth: 3))
+                            .shadow(radius: 4)
+                    }
+                }
+
+                // Current position marker (when in progress)
+                if trip.status == .inProgress, !routeCoordinates.isEmpty {
+                    let midIndex = routeCoordinates.count / 3
+                    let currentCoord = routeCoordinates[min(midIndex, routeCoordinates.count - 1)]
+                    Annotation("Current", coordinate: currentCoord) {
                         ZStack {
                             Circle()
                                 .fill(DriverTheme.accent.opacity(0.3))
@@ -71,8 +100,7 @@ struct TripDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
         .onAppear {
-            let center = CLLocationCoordinate2D(latitude: 18.8, longitude: 73.15)
-            cameraPosition = .region(MKCoordinateRegion(center: center, span: MKCoordinateSpan(latitudeDelta: 1.0, longitudeDelta: 1.0)))
+            loadRoute()
         }
         .sheet(isPresented: .constant(true)) {
             sheetOverlaySection
@@ -82,7 +110,7 @@ struct TripDetailView: View {
                 .presentationCornerRadius(40)
                 .interactiveDismissDisabled()
                 .sheet(isPresented: $showPostTripInspectionSheet) {
-                    TripStartInspectionSheet(trip: trip, inspectionType: .postTrip) {
+                    TripEndInspectionSheet(trip: trip) {
                         dismiss()
                     }
                     .environment(appViewModel)
@@ -92,6 +120,66 @@ struct TripDetailView: View {
                         .environment(appViewModel)
                 }
         }
+    }
+
+    // MARK: - Load Route
+    private func loadRoute() {
+        guard let origin = originCoordinate, let dest = destinationCoordinate else {
+            // Fallback: if no coordinates, just center on India
+            cameraPosition = .region(MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 22.5, longitude: 79.0),
+                span: MKCoordinateSpan(latitudeDelta: 8.0, longitudeDelta: 8.0)
+            ))
+            return
+        }
+
+        isLoadingRoute = true
+        Task {
+            let request = MKDirections.Request()
+            request.source = MKMapItem(location: CLLocation(latitude: origin.latitude, longitude: origin.longitude), address: nil as MKAddress?)
+            request.destination = MKMapItem(location: CLLocation(latitude: dest.latitude, longitude: dest.longitude), address: nil as MKAddress?)
+            request.transportType = .automobile
+
+            do {
+                let directions = MKDirections(request: request)
+                let response = try await directions.calculate()
+                if let route = response.routes.first {
+                    let pointCount = route.polyline.pointCount
+                    let points = route.polyline.points()
+                    var coords: [CLLocationCoordinate2D] = []
+                    coords.reserveCapacity(pointCount)
+                    for i in 0..<pointCount {
+                        coords.append(points[i].coordinate)
+                    }
+                    routeCoordinates = coords
+                    routeDistanceKM = route.distance / 1000.0
+                    routeETAMinutes = route.expectedTravelTime / 60.0
+                }
+            } catch {
+                print("[TripDetail] Route calculation failed: \(error.localizedDescription)")
+            }
+
+            // Fit camera to show the route
+            let midLat = (origin.latitude + dest.latitude) / 2
+            let midLng = (origin.longitude + dest.longitude) / 2
+            let latDelta = abs(origin.latitude - dest.latitude) * 1.6 + 0.05
+            let lngDelta = abs(origin.longitude - dest.longitude) * 1.6 + 0.05
+            withAnimation(.easeInOut(duration: 0.6)) {
+                cameraPosition = .region(MKCoordinateRegion(
+                    center: CLLocationCoordinate2D(latitude: midLat, longitude: midLng),
+                    span: MKCoordinateSpan(latitudeDelta: max(latDelta, 0.1), longitudeDelta: max(lngDelta, 0.1))
+                ))
+            }
+            isLoadingRoute = false
+        }
+    }
+
+    // MARK: - Format ETA
+    private func formatETA(_ minutes: Double) -> String {
+        let total = Int(minutes)
+        if total < 60 { return "\(total) min" }
+        let h = total / 60, m = total % 60
+        return m > 0 ? "\(h)h \(m)m" : "\(h)h"
     }
 
     // MARK: - Sheet Overlay Section
@@ -144,11 +232,11 @@ struct TripDetailView: View {
     // MARK: - Metrics Bar
     private var metricsBarSection: some View {
         HStack {
-            metricItem(title: "Distance", value: "\(Int(trip.distanceKM))km")
+            metricItem(title: "Distance", value: routeDistanceKM > 0 ? "\(Int(routeDistanceKM)) km" : "\(Int(trip.distanceKM)) km")
             Divider().frame(height: 30)
-            metricItem(title: "ETA", value: "2:15 PM")
+            metricItem(title: "ETA", value: routeETAMinutes > 0 ? formatETA(routeETAMinutes) : "--")
             Divider().frame(height: 30)
-            metricItem(title: "Speed", value: "72 km/h")
+            metricItem(title: "Status", value: trip.status.rawValue)
         }
         .padding()
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))

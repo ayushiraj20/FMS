@@ -1,61 +1,66 @@
 import SwiftUI
-
 import Observation
 
+// MARK: - Team View (Crew Management)
 struct TeamView: View {
     @State private var viewModel: TeamViewModel
+    @Environment(AppViewModel.self) private var appViewModel
 
     init(service: MockDataService, currentOrgID: UUID?) {
         _viewModel = State(wrappedValue: TeamViewModel(service: service, currentOrgID: currentOrgID))
     }
 
     enum CrewSegment: String, CaseIterable {
-        case drivers = "Drivers"
+        case drivers = "Driver"
         case maintenance = "Maintenance Personnel"
     }
-    
+
     @State private var selectedSegment: CrewSegment = .drivers
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // MARK: - Custom Header
-                VStack(spacing: 16) {
-                    HStack(alignment: .firstTextBaseline) {
+                // MARK: - Header
+                VStack(spacing: 14) {
+                    HStack {
                         Text("Crew Management")
-                            .font(.system(size: 34, weight: .bold))
+                            .font(.system(size: 32, weight: .bold))
                             .foregroundStyle(AppTheme.textPrimary)
                         Spacer()
                     }
-                    
-                    // MARK: - Search Bar
-                    HStack {
+
+                    // Search Bar
+                    HStack(spacing: 10) {
                         Image(systemName: "magnifyingglass")
                             .foregroundStyle(AppTheme.textSecondary)
+                            .font(.system(size: 15))
                         TextField("Search crew members...", text: $viewModel.searchText)
                             .foregroundStyle(AppTheme.textPrimary)
+                            .font(.system(size: 15))
                     }
-                    .padding(12)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
                     .background(AppTheme.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    
-                    // MARK: - Segmented Control
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    // Segment Picker
                     Picker("Crew Segment", selection: $selectedSegment) {
-                        ForEach(CrewSegment.allCases, id: \.self) { segment in
-                            Text(segment.rawValue).tag(segment)
+                        ForEach(CrewSegment.allCases, id: \.self) { seg in
+                            Text(seg.rawValue).tag(seg)
                         }
                     }
                     .pickerStyle(.segmented)
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 10)
+                .padding(.top, 12)
                 .padding(.bottom, 16)
-                
-                // MARK: - Content Switcher
+                .background(AppTheme.background)
+
+                // MARK: - Content
                 TabView(selection: $selectedSegment) {
-                    DriverAssignmentManagementView(service: viewModel.service)
+                    DriversTabView(viewModel: viewModel)
                         .tag(CrewSegment.drivers)
-                    
+
                     MaintenanceTabContentView()
                         .tag(CrewSegment.maintenance)
                 }
@@ -63,15 +68,9 @@ struct TeamView: View {
             }
             .background(AppTheme.background)
             .toolbar(.hidden, for: .navigationBar)
-            
-            // MARK: - Floating Add Button
             .overlay(alignment: .bottomTrailing) {
                 Button {
-                    if selectedSegment == .drivers {
-                        viewModel.newRole = .driver
-                    } else {
-                        viewModel.newRole = .maintenance
-                    }
+                    viewModel.newRole = selectedSegment == .drivers ? .driver : .maintenance
                     viewModel.showAddMember = true
                 } label: {
                     Image(systemName: "plus")
@@ -80,7 +79,7 @@ struct TeamView: View {
                         .frame(width: 56, height: 56)
                         .background(AppTheme.brand)
                         .clipShape(Circle())
-                        .shadow(color: AppTheme.brand.opacity(0.4), radius: 10, y: 4)
+                        .shadow(color: AppTheme.brand.opacity(0.35), radius: 10, y: 4)
                 }
                 .padding(.trailing, 24)
                 .padding(.bottom, 24)
@@ -93,218 +92,386 @@ struct TeamView: View {
                 isPresented: $viewModel.isPresentingDeleteConfirmation,
                 titleVisibility: .visible
             ) {
-                Button("Delete", role: .destructive) {
-                    viewModel.deleteConfirmed()
-                }
-                Button("Cancel", role: .cancel) {
-                    viewModel.memberToDelete = nil
-                }
+                Button("Delete", role: .destructive) { viewModel.deleteConfirmed() }
+                Button("Cancel", role: .cancel) { viewModel.memberToDelete = nil }
             } message: {
-                if let member = viewModel.memberToDelete {
-                    Text("Are you sure you want to delete \(member.name)? This action cannot be undone.")
+                if let m = viewModel.memberToDelete {
+                    Text("Are you sure you want to delete \(m.name)? This cannot be undone.")
                 }
             }
         }
-    }
-
-    // MARK: - Filter Chips
-    private var filterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(TeamFilter.allCases, id: \.self) { filter in
-                    FilterChipView(
-                        title: filter.displayName,
-                        isSelected: viewModel.selectedFilter == filter
-                    ) {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            viewModel.selectedFilter = filter
-                        }
-                    }
-                }
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
-    // MARK: - Team Member Card
-    private func teamMemberCard(_ member: User) -> some View {
-        VStack(spacing: 16) {
-            HStack(alignment: .top, spacing: 12) {
-                // Profile Avatar
-                Image(systemName: "person.crop.circle.fill")
-                    .resizable()
-                    .frame(width: 50, height: 50)
-                    .foregroundStyle(AppTheme.textSecondary, AppTheme.surfaceSecondary)
-                    .clipShape(Circle())
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(member.name)
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(AppTheme.textPrimary)
-                    
-                    Text(member.role.rawValue.capitalized)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(AppTheme.brand)
-                        .clipShape(Capsule())
-                }
-                
-                Spacer()
-                
-                // Status
-                let statusInfo = memberStatus(member)
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(statusInfo.1)
-                        .frame(width: 6, height: 6)
-                    Text(statusInfo.0)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(statusInfo.1)
-                }
-            }
-            
-            HStack(alignment: .bottom) {
-                Text(getVehiclePlate(for: member))
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                
-                Spacer()
-                
-                // Actions
-                HStack(spacing: 12) {
-                    Button(action: {
-                        viewModel.confirmDelete(member)
-                    }) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(AppTheme.error)
-                            .frame(width: 36, height: 36)
-                            .background(AppTheme.surfaceSecondary)
-                            .clipShape(Circle())
-                    }
-                    Button(action: {}) {
-                        Image(systemName: "phone")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(AppTheme.textPrimary)
-                            .frame(width: 36, height: 36)
-                            .background(AppTheme.surfaceSecondary)
-                            .clipShape(Circle())
-                    }
-                }
-            }
-        }
-        .padding(16)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-    }
-    
-    private func assignedVehicle(for member: User) -> Vehicle? {
-        if member.role == .driver {
-            return viewModel.service.vehicles.first(where: { $0.assignedDriverID == member.id })
-        }
-        return nil
-    }
-
-    private func getVehiclePlate(for member: User) -> String {
-        if let vehicle = assignedVehicle(for: member) {
-            return vehicle.plateNumber
-        }
-        return "Unassigned"
-    }
-
-    // MARK: - Status Badge
-    private func statusBadge(for member: User) -> some View {
-        let (text, color) = memberStatus(member)
-        return StatusBadgeView(text: text, color: color)
-    }
-
-    // MARK: - Role Tags
-    @ViewBuilder
-    private func roleTags(for member: User) -> some View {
-        switch member.role {
-        case .driver:
-            TagView(text: "Driver", color: AppTheme.brand)
-            if assignedVehicle(for: member) != nil {
-                TagView(text: "Assigned", color: AppTheme.success)
-            }
-        case .maintenance:
-            TagView(text: "Technician", color: .purple)
-        case .fleetManager:
-            TagView(text: "Manager", color: AppTheme.brand)
-        }
-    }
-
-    // MARK: - Member Status Logic
-    private func memberStatus(_ member: User) -> (String, Color) {
-        if member.role == .driver {
-            if assignedVehicle(for: member) != nil {
-                return ("On Duty", AppTheme.success)
-            } else {
-                return ("Off Duty", Color(white: 0.5))
-            }
-        } else if member.role == .maintenance {
-            let hasActiveWork = viewModel.service.workOrders.contains {
-                $0.assignedMaintenanceID == member.id && $0.status != .completed
-            }
-            return hasActiveWork ? ("On Duty", AppTheme.success) : ("Off Duty", Color(white: 0.5))
-        }
-        return ("Active", AppTheme.success)
     }
 }
 
-// MARK: - Team Member Detail View
-private struct TeamMemberDetailView: View {
-    let member: User
-    let service: MockDataService
+// MARK: - Drivers Tab
+private struct DriversTabView: View {
+    let viewModel: TeamViewModel
+
+    private var drivers: [User] {
+        let all = viewModel.service.users.filter { $0.role == .driver }
+        guard !viewModel.searchText.isEmpty else { return all }
+        return all.filter {
+            $0.name.localizedCaseInsensitiveContains(viewModel.searchText) ||
+            $0.title.localizedCaseInsensitiveContains(viewModel.searchText) ||
+            $0.phone.localizedCaseInsensitiveContains(viewModel.searchText)
+        }
+    }
+
+    private var totalCount: Int { viewModel.service.users.filter { $0.role == .driver }.count }
+
+    private var availableCount: Int {
+        viewModel.service.users.filter { $0.role == .driver }.filter { driver in
+            !viewModel.service.vehicles.contains { $0.assignedDriverID == driver.id }
+        }.count
+    }
+
+    private var assignedCount: Int {
+        viewModel.service.users.filter { $0.role == .driver }.filter { driver in
+            viewModel.service.vehicles.contains { $0.assignedDriverID == driver.id }
+        }.count
+    }
 
     var body: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 20) {
+
+                // MARK: - Stat Cards
+                HStack(spacing: 12) {
+                    driverStatCard(title: "Total Drivers", value: "\(totalCount)", icon: "person.2.fill", tint: AppTheme.brand)
+                    driverStatCard(title: "Available", value: "\(availableCount)", icon: "checkmark.circle.fill", tint: AppTheme.success)
+                    driverStatCard(title: "Assigned", value: "\(assignedCount)", icon: "key.fill", tint: Color(hex: "#00a2ff"))
+                }
+                .padding(.horizontal, 20)
+
+                // MARK: - Driver List
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("All Drivers")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, 20)
+
+                    if drivers.isEmpty {
+                        EmptyStateView(
+                            icon: "person.slash",
+                            title: "No drivers found",
+                            message: viewModel.searchText.isEmpty
+                                ? "Add drivers using the + button"
+                                : "No results for \"\(viewModel.searchText)\""
+                        )
+                        .padding(.top, 40)
+                    } else {
+                        LazyVStack(spacing: 12) {
+                            ForEach(drivers) { driver in
+                                NavigationLink(destination: DriverDetailView(driver: driver, service: viewModel.service)) {
+                                    DriverRowCard(driver: driver, service: viewModel.service)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                }
+
+                Spacer().frame(height: 100)
+            }
+            .padding(.top, 4)
+        }
+        .background(AppTheme.background)
+        .refreshable {
+            await viewModel.service.syncWithDatabase()
+        }
+    }
+
+    private func driverStatCard(title: String, value: String, icon: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(tint)
+                Spacer()
+            }
+            Text(value)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(AppTheme.textPrimary)
+            Text(title)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(AppTheme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(AppTheme.border, lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Driver Row Card
+private struct DriverRowCard: View {
+    let driver: User
+    let service: MockDataService
+
+    private var assignedVehicle: Vehicle? {
+        service.vehicles.first { $0.assignedDriverID == driver.id }
+    }
+
+    private var hasActiveTrip: Bool {
+        service.trips.contains { $0.driverID == driver.id && $0.status == .inProgress }
+    }
+
+    private var dutyStatus: (String, Color) {
+        if assignedVehicle != nil {
+            return ("On Duty", AppTheme.success)
+        }
+        return ("Off Duty", Color(white: 0.55))
+    }
+
+    /// Driver activity status: only shown when On Duty
+    /// - Idle: assigned to a vehicle but no active trip
+    /// - Active: currently on an in-progress trip
+    private var driverActivityStatus: (String, Color)? {
+        guard assignedVehicle != nil else { return nil }
+        if hasActiveTrip {
+            return ("Active", AppTheme.success)
+        } else {
+            return ("Idle", AppTheme.warning)
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            // Avatar
+            ZStack {
+                Circle()
+                    .fill(AppTheme.brand.opacity(0.12))
+                    .frame(width: 48, height: 48)
+                Text(driver.name.prefix(1).uppercased())
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(AppTheme.brand)
+            }
+
+            // Info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(driver.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+            }
+
+            Spacer()
+
+            // Status pills
+            VStack(alignment: .trailing, spacing: 5) {
+                // On Duty / Off Duty
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(dutyStatus.1)
+                        .frame(width: 6, height: 6)
+                    Text(dutyStatus.0)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(dutyStatus.1)
+                }
+
+                // Idle / Active (driver activity, not vehicle status)
+                if let activity = driverActivityStatus {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(activity.1)
+                            .frame(width: 6, height: 6)
+                        Text(activity.0)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(activity.1)
+                    }
+                }
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+        }
+        .padding(14)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(AppTheme.border, lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Driver Detail View (read-only, no assign/unassign)
+private struct DriverDetailView: View {
+    let driver: User
+    let service: MockDataService
+
+    private var assignedVehicle: Vehicle? {
+        service.vehicles.first { $0.assignedDriverID == driver.id }
+    }
+
+    private var activeTrip: Trip? {
+        service.trips.first { $0.driverID == driver.id && $0.status == .inProgress }
+    }
+
+    private var tripHistory: [Trip] {
+        service.trips
+            .filter { $0.driverID == driver.id && $0.status != .inProgress }
+            .sorted { ($0.startDate) > ($1.startDate) }
+    }
+
+    private var isIdle: Bool {
+        assignedVehicle != nil && activeTrip == nil
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
+
                 // Profile Card
                 VStack(spacing: 12) {
-                    AvatarView(name: member.name, size: 80)
-
-                    Text(member.name)
+                    ZStack {
+                        Circle()
+                            .fill(AppTheme.brand.opacity(0.12))
+                            .frame(width: 80, height: 80)
+                        Text(driver.name.prefix(1).uppercased())
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundStyle(AppTheme.brand)
+                    }
+                    Text(driver.name)
                         .font(.title2.weight(.bold))
                         .foregroundStyle(AppTheme.textPrimary)
-
-                    Text(member.title)
+                    Text(driver.title)
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.textSecondary)
-
-                    RoleBadgeView(role: member.role)
+                    RoleBadgeView(role: driver.role)
                 }
                 .padding(.top, 8)
 
                 // Contact Info
                 GlassCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        contactRow(icon: "envelope.fill", label: "Email", value: member.email)
+                        infoRow(icon: "envelope.fill", label: "Email", value: driver.email)
                         Divider()
-                        contactRow(icon: "phone.fill", label: "Phone", value: member.phone)
+                        infoRow(icon: "phone.fill", label: "Phone", value: driver.phone)
                     }
                 }
 
-                // Assignment Info
-                if member.role == .driver {
-                    driverAssignmentSection
+                // Vehicle Assignment (read-only)
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Assigned Vehicle")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .textCase(.uppercase)
+
+                        if let vehicle = assignedVehicle {
+                            HStack(spacing: 12) {
+                                Image(systemName: "truck.box.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(AppTheme.brand)
+                                    .frame(width: 42, height: 42)
+                                    .background(AppTheme.brand.opacity(0.12))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(vehicle.displayName)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                    Text(vehicle.plateNumber)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                }
+                                Spacer()
+                                // Show driver activity status (not vehicle status)
+                                StatusBadgeView(
+                                    text: activeTrip != nil ? "Active" : "Idle",
+                                    color: activeTrip != nil ? AppTheme.success : AppTheme.warning
+                                )
+                            }
+                        } else {
+                            HStack(spacing: 8) {
+                                Image(systemName: "truck.box")
+                                    .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+                                Text("No vehicle assigned")
+                                    .font(.subheadline)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                        }
+                    }
                 }
 
-                if member.role == .maintenance {
-                    maintenanceAssignmentSection
+                // Active Trip
+                if let trip = activeTrip {
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Active Trip")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .textCase(.uppercase)
+                            HStack(spacing: 8) {
+                                Image(systemName: "location.fill")
+                                    .foregroundStyle(AppTheme.brand)
+                                Text(trip.origin)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                Image(systemName: "arrow.right")
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                    .font(.caption)
+                                Text(trip.destination)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                            }
+                            Text("\(Int(trip.distanceKM)) km")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                    }
+                }
+
+                // Trip History
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Trip History")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .textCase(.uppercase)
+
+                        if tripHistory.isEmpty {
+                            HStack(spacing: 8) {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+                                Text("No past trips")
+                                    .font(.subheadline)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            .padding(.vertical, 4)
+                        } else {
+                            VStack(spacing: 0) {
+                                ForEach(Array(tripHistory.enumerated()), id: \.element.id) { index, trip in
+                                    VStack(spacing: 0) {
+                                        if index > 0 {
+                                            Divider()
+                                                .padding(.vertical, 10)
+                                        }
+                                        tripHistoryRow(trip: trip)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 20)
+            .padding(.bottom, 40)
         }
         .background(AppTheme.background)
-        .navigationTitle("Member Details")
+        .navigationTitle("Driver Details")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func contactRow(icon: String, label: String, value: String) -> some View {
+    private func infoRow(icon: String, label: String, value: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .foregroundStyle(AppTheme.brand)
@@ -321,77 +488,46 @@ private struct TeamMemberDetailView: View {
         }
     }
 
-    private var driverAssignmentSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionTitle(title: "Current Assignment", subtitle: "Vehicle and trip details")
+    private func tripHistoryRow(trip: Trip) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Status dot
+            Circle()
+                .fill(tripStatusColor(trip.status))
+                .frame(width: 8, height: 8)
+                .padding(.top, 5)
 
-            if let vehicle = service.vehicles.first(where: { $0.assignedDriverID == member.id }) {
-                GlassCard {
-                    HStack(spacing: 12) {
-                        Image(systemName: "truck.box.fill")
-                            .font(.title3)
-                            .foregroundStyle(AppTheme.brand)
-                            .frame(width: 42, height: 42)
-                            .background(AppTheme.brand.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(vehicle.displayName)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text(vehicle.plateNumber)
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                        Spacer()
-                        StatusBadgeView(text: vehicle.status.rawValue, color: vehicle.status == .active ? AppTheme.success : AppTheme.warning)
-                    }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("\(trip.origin) → \(trip.destination)")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(trip.status.rawValue)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(tripStatusColor(trip.status))
                 }
-            } else {
-                GlassCard {
-                    HStack {
-                        Text("Unassigned")
-                            .font(.subheadline)
+                HStack(spacing: 8) {
+                    Text(trip.startDate, style: .date)
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.textSecondary)
+                    Text("·")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.textSecondary)
+                    Text("\(Int(trip.distanceKM)) km")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.textSecondary)
+                    if let score = trip.safetyScore {
+                        Text("·")
+                            .font(.caption)
                             .foregroundStyle(AppTheme.textSecondary)
-                        Spacer()
-                        Button("Assign Driver") {}
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Capsule().fill(AppTheme.brand))
-                    }
-                }
-            }
-        }
-    }
-
-    private var maintenanceAssignmentSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionTitle(title: "Active Work Orders", subtitle: "Currently assigned maintenance tasks")
-
-            let activeOrders = service.workOrders.filter {
-                $0.assignedMaintenanceID == member.id && $0.status != .completed
-            }
-
-            if activeOrders.isEmpty {
-                EmptyStateView(icon: "checkmark.circle", title: "No active orders", message: "All assigned work is complete.")
-            } else {
-                ForEach(activeOrders) { order in
-                    GlassCard {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text(order.title)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(AppTheme.textPrimary)
-                                Spacer()
-                                priorityBadge(order.priority)
-                            }
-                            Text(order.details)
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.textSecondary)
-                                .lineLimit(2)
-                            StatusBadgeView(text: order.status.rawValue, color: order.status == .inProgress ? AppTheme.brand : AppTheme.warning)
+                        HStack(spacing: 3) {
+                            Image(systemName: "shield.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(score >= 80 ? AppTheme.success : AppTheme.warning)
+                            Text("\(score)")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(score >= 80 ? AppTheme.success : AppTheme.warning)
                         }
                     }
                 }
@@ -399,23 +535,12 @@ private struct TeamMemberDetailView: View {
         }
     }
 
-    private func priorityBadge(_ priority: WorkOrderPriority) -> some View {
-        Text(priority.rawValue)
-            .font(.system(size: 10, weight: .bold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(
-                Capsule().fill(priorityColor(priority))
-            )
-    }
-
-    private func priorityColor(_ priority: WorkOrderPriority) -> Color {
-        switch priority {
-        case .low: return AppTheme.success
-        case .medium: return AppTheme.brand
-        case .high: return AppTheme.warning
-        case .critical: return AppTheme.error
+    private func tripStatusColor(_ status: TripStatus) -> Color {
+        switch status {
+        case .completed:  return AppTheme.success
+        case .cancelled:  return AppTheme.error
+        case .scheduled:  return Color(hex: "#00a2ff")
+        case .inProgress: return AppTheme.brand
         }
     }
 }
@@ -460,7 +585,7 @@ private struct AddTeamMemberSheet: View {
                 }
 
                 Section {
-                    Text("New accounts use the default password `demo123` for this academic demo.")
+                    Text("New accounts use the default password `demo123` for this demo.")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
@@ -484,20 +609,23 @@ private struct AddTeamMemberSheet: View {
                             Text("Add")
                         }
                     }
-                    .disabled(viewModel.newName.isEmpty || viewModel.newEmail.isEmpty || viewModel.newPhone.isEmpty || viewModel.newTitle.isEmpty || viewModel.isCreating)
+                    .disabled(
+                        viewModel.newName.isEmpty || viewModel.newEmail.isEmpty ||
+                        viewModel.newPhone.isEmpty || viewModel.newTitle.isEmpty ||
+                        viewModel.isCreating
+                    )
                 }
             }
         }
     }
 }
 
-// MARK: - Filter Enum
+// MARK: - Filter Enum (kept for compatibility)
 enum TeamFilter: String, CaseIterable {
     case all = "All"
     case managers = "Managers"
     case drivers = "Drivers"
     case maintenance = "Maintenance"
-
     var displayName: String { rawValue }
 }
 
@@ -521,39 +649,14 @@ final class TeamViewModel {
     var isCreating = false
     var errorMessage: String?
 
+    // Delete state
+    var memberToDelete: User? = nil
+    var isPresentingDeleteConfirmation = false
+
     init(service: MockDataService, currentOrgID: UUID?) {
         self.service = service
         self.currentOrgID = currentOrgID
     }
-
-    var filteredMembers: [User] {
-        var members = service.users
-
-        if !searchText.isEmpty {
-            members = members.filter {
-                $0.name.localizedCaseInsensitiveContains(searchText) ||
-                $0.email.localizedCaseInsensitiveContains(searchText) ||
-                $0.title.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-
-        switch selectedFilter {
-        case .all:
-            break
-        case .managers:
-            members = service.users.filter { $0.role == .fleetManager }
-        case .drivers:
-            members = members.filter { $0.role == .driver }
-        case .maintenance:
-            members = members.filter { $0.role == .maintenance }
-        }
-
-        return members
-    }
-
-    // Delete State
-    var memberToDelete: User? = nil
-    var isPresentingDeleteConfirmation = false
 
     func confirmDelete(_ member: User) {
         memberToDelete = member
@@ -566,15 +669,6 @@ final class TeamViewModel {
         }
         memberToDelete = nil
         isPresentingDeleteConfirmation = false
-    }
-
-    func prepareForEdit(_ member: User) {
-        newName = member.name
-        newRole = member.role
-        newEmail = member.email
-        newPhone = member.phone
-        newTitle = member.title
-        showAddMember = true
     }
 
     func createMember() async -> Bool {
@@ -619,24 +713,6 @@ final class TeamViewModel {
         newTitle = ""
         newRole = .driver
         errorMessage = nil
-    }
-
-    private func memberIsAvailable(_ user: User) -> Bool {
-        if user.role == .driver {
-            return !service.vehicles.contains { $0.assignedDriverID == user.id }
-        } else if user.role == .maintenance {
-            return !service.workOrders.contains { $0.assignedMaintenanceID == user.id && $0.status != .completed }
-        }
-        return true
-    }
-
-    private func memberIsOnShift(_ user: User) -> Bool {
-        if user.role == .driver {
-            return service.vehicles.contains { $0.assignedDriverID == user.id }
-        } else if user.role == .maintenance {
-            return service.workOrders.contains { $0.assignedMaintenanceID == user.id && $0.status != .completed }
-        }
-        return false
     }
 }
 
