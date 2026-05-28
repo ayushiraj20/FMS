@@ -393,11 +393,39 @@ struct MaintenanceWorkOrdersView: View {
         @State private var labourHours = "1"
         @State private var labourMinutes = "30"
         @State private var isShowingCompletion = false
+        @State private var selectedPartName: String? = nil
+        
+        let sparePartsOptions = [
+            "Heavy Duty Brake Pads",
+            "Oil Filter Kit",
+            "Tyre Valve Set",
+            "Hydraulic Filter Assembly",
+            "Engine Gasket Kit V8",
+            "Halogen Headlight Bulbs",
+            "Fuel Filter Assembly",
+            "Windshield Wiper Blades",
+            "Side Mirror Assembly",
+            "Workshop Parts Kit"
+        ]
         
         init(workOrder: WorkOrder) {
             _workOrder = State(initialValue: workOrder)
             _progress = State(initialValue: MaintenanceWorkOrderDetailView.initialProgress(for: workOrder.status))
-            _repairStartedAt = State(initialValue: workOrder.status == .completed ? nil : Date.now.addingTimeInterval(-5081))
+            
+            if workOrder.status == .inProgress {
+                _repairStartedAt = State(initialValue: Date.now.addingTimeInterval(-3600)) // 1 hr ago
+            } else {
+                _repairStartedAt = State(initialValue: nil)
+            }
+            
+            // Derive initial part name dynamically from title
+            let initialPart: String
+            if workOrder.title.localizedCaseInsensitiveContains("brake") { initialPart = "Heavy Duty Brake Pads" }
+            else if workOrder.title.localizedCaseInsensitiveContains("oil")   { initialPart = "Oil Filter Kit" }
+            else if workOrder.title.localizedCaseInsensitiveContains("tyre") ||
+               workOrder.title.localizedCaseInsensitiveContains("tire")  { initialPart = "Tyre Valve Set" }
+            else { initialPart = "Workshop Parts Kit" }
+            _selectedPartName = State(initialValue: initialPart)
         }
         
         private var vehicle: Vehicle? { appViewModel.service.vehicle(for: workOrder.vehicleID) }
@@ -449,7 +477,7 @@ struct MaintenanceWorkOrdersView: View {
                     workOrder: workOrder,
                     vehicle: vehicle,
                     labourHoursText: labourTotalText,
-                    partName: partName
+                    partName: selectedPartName ?? "Workshop Parts Kit"
                 )
                 .environment(appViewModel)
             }
@@ -674,8 +702,8 @@ struct MaintenanceWorkOrdersView: View {
                             Text(currentMechanicName)
                                 .font(.system(.subheadline, design: .rounded).weight(.bold))
                                 .foregroundStyle(.primary)
-                            Text("Mechanic ID: #552")
-                                .font(.system(.caption, design: .rounded))
+                            Text("ID: \(String(appViewModel.currentUser?.id.uuidString.prefix(8) ?? "N/A").uppercased())")
+                                .font(.system(.caption2, design: .monospaced).weight(.bold))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -701,55 +729,72 @@ struct MaintenanceWorkOrdersView: View {
                             .font(.system(.headline, design: .rounded).weight(.bold))
                             .foregroundStyle(.primary)
                         Spacer()
-                        Button {
+                        
+                        Menu {
+                            ForEach(sparePartsOptions, id: \.self) { option in
+                                Button(option) {
+                                    selectedPartName = option
+                                }
+                            }
                         } label: {
-                            Label("Add Part", systemImage: "plus.square")
+                            Label(selectedPartName == nil ? "Add Part" : "Change Part", systemImage: "plus.square")
                                 .font(.system(.caption, design: .rounded).weight(.bold))
                                 .foregroundStyle(accent)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
                                 .overlay(Capsule().stroke(accent, lineWidth: 1))
                         }
-                        .buttonStyle(.plain)
                     }
                     
-                    HStack(spacing: 12) {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(.title3, design: .rounded).weight(.bold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                Circle()
-                                    .fill(.ultraThinMaterial)
-                            )
-                            .glassEffect(.regular, in: .circle)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(partName)
-                                .font(.system(.subheadline, design: .rounded).weight(.bold))
-                                .foregroundStyle(.primary)
-                            Text("BP-402")
-                                .font(.system(.caption, design: .rounded))
+                    if let partName = selectedPartName {
+                        HStack(spacing: 12) {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(.title3, design: .rounded).weight(.bold))
                                 .foregroundStyle(.secondary)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle()
+                                        .fill(.ultraThinMaterial)
+                                )
+                                .glassEffect(.regular, in: .circle)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(partName)
+                                    .font(.system(.subheadline, design: .rounded).weight(.bold))
+                                    .foregroundStyle(.primary)
+                                Text(partNumber(for: partName))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Text("Qty: 1 set")
+                                .font(.system(.caption, design: .rounded).weight(.bold))
+                                .foregroundStyle(Color(hex: "#FF5A1F"))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(accent.opacity(0.14), in: Capsule())
                         }
-                        
-                        Spacer()
-                        
-                        Text("Qty: 1 set")
-                            .font(.system(.caption, design: .rounded).weight(.bold))
-                            .foregroundStyle(Color(hex: "#FF5A1F"))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(accent.opacity(0.14), in: Capsule())
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(.regularMaterial)
+                        )
+                        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+                    } else {
+                        Text("No spare parts added to this work order yet.")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 4)
                     }
-                    .padding(10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(.regularMaterial)
-                    )
-                    .glassEffect(.regular, in: .rect(cornerRadius: 14))
                 }
             }
+        }
+        
+        private var recentChatMessages: [ChatMessage] {
+            appViewModel.service.chatMessages(forWorkOrder: workOrder.id)
+                .suffix(2)
         }
         
         private var chatCard: some View {
@@ -760,13 +805,28 @@ struct MaintenanceWorkOrdersView: View {
                             .font(.system(.headline, design: .rounded).weight(.bold))
                             .foregroundStyle(.primary)
                         Spacer()
-                        Circle()
-                            .fill(accent)
-                            .frame(width: 6, height: 6)
+                        if !recentChatMessages.isEmpty {
+                            Circle()
+                                .fill(accent)
+                                .frame(width: 6, height: 6)
+                        }
                     }
                     
-                    DetailChatBubble(sender: "DISPATCH", message: "Parts are at the counter.", highlighted: false)
-                    DetailChatBubble(sender: currentMechanicName.uppercased(), message: "Picking them up now.", highlighted: true)
+                    if recentChatMessages.isEmpty {
+                        Text("No chat coordination messages yet. Tap below to start a thread with the fleet manager.")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 4)
+                    } else {
+                        ForEach(recentChatMessages) { msg in
+                            let senderName = appViewModel.service.users().first(where: { $0.id == msg.senderID })?.name ?? "Staff"
+                            DetailChatBubble(
+                                sender: senderName.uppercased(),
+                                message: msg.message,
+                                highlighted: msg.senderID == appViewModel.currentUser?.id
+                            )
+                        }
+                    }
                     
                     NavigationLink(destination: WorkOrderChatView(workOrderID: workOrder.id).environment(appViewModel)) {
                         Text("Open Coordination Chat")
@@ -807,12 +867,17 @@ struct MaintenanceWorkOrdersView: View {
             appViewModel.currentUser?.name ?? "Maintenance Staff"
         }
         
-        private var partName: String {
-            if workOrder.title.localizedCaseInsensitiveContains("brake") { return "Front Brake Pads" }
-            if workOrder.title.localizedCaseInsensitiveContains("oil")   { return "Oil Filter Kit" }
-            if workOrder.title.localizedCaseInsensitiveContains("tyre") ||
-               workOrder.title.localizedCaseInsensitiveContains("tire")  { return "Tyre Valve Set" }
-            return "Workshop Parts Kit"
+        private func partNumber(for name: String) -> String {
+            if name.contains("Brake") { return "BP-4402" }
+            if name.contains("Oil") { return "PN-1029" }
+            if name.contains("Tyre") || name.contains("Tire") { return "PN-5510" }
+            if name.contains("Hydraulic") { return "PN-8821" }
+            if name.contains("Gasket") { return "PN-9283" }
+            if name.contains("Headlight") || name.contains("Bulb") { return "PN-3115" }
+            if name.contains("Fuel") { return "PN-1205" }
+            if name.contains("Wiper") { return "PN-5510" }
+            if name.contains("Mirror") { return "PN-6678" }
+            return "BP-402"
         }
         
         private var labourTotalText: String {

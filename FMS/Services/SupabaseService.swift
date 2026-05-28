@@ -196,8 +196,7 @@ final class SupabaseService {
     
     func updateWorkOrder(_ order: WorkOrder) async throws {
         try await client.from("work_orders")
-            .update(order)
-            .eq("id", value: order.id)
+            .upsert(order)
             .execute()
     }
     
@@ -356,6 +355,57 @@ final class SupabaseService {
             .from("sos_alerts")
             .update(payload)
             .eq("id", value: alert.id)
+            .execute()
+    }
+
+    // MARK: - Spare Parts
+    func fetchSpareParts(organizationID: UUID) async throws -> [SparePart] {
+        let parts: [SparePart] = try await client
+            .from("spare_parts")
+            .select()
+            .eq("organization_id", value: organizationID)
+            .order("name")
+            .execute()
+            .value
+        return parts
+    }
+
+    func addSparePart(_ part: SparePart) async throws {
+        try await client
+            .from("spare_parts")
+            .insert(part)
+            .execute()
+    }
+
+    func updateSparePart(_ part: SparePart) async throws {
+        struct SparePartUpdate: Encodable {
+            let name: String
+            let part_number: String
+            let category: String
+            let quantity: Int
+            let minimum_required: Int
+            let icon: String
+        }
+        let payload = SparePartUpdate(
+            name: part.name,
+            part_number: part.partNumber,
+            category: part.category,
+            quantity: part.quantity,
+            minimum_required: part.minimumRequired,
+            icon: part.icon
+        )
+        try await client
+            .from("spare_parts")
+            .update(payload)
+            .eq("id", value: part.id)
+            .execute()
+    }
+
+    func deleteSparePart(_ part: SparePart) async throws {
+        try await client
+            .from("spare_parts")
+            .delete()
+            .eq("id", value: part.id)
             .execute()
     }
 }

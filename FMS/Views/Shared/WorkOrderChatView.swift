@@ -7,6 +7,7 @@ struct WorkOrderChatView: View {
     let workOrderID: UUID
     var onManage: (() -> Void)? = nil
     @State private var messageText = ""
+    @State private var pollTimer: Timer? = nil
     
     private var currentUser: User? {
         appViewModel.currentUser
@@ -146,6 +147,23 @@ struct WorkOrderChatView: View {
                     .foregroundStyle(AppTheme.brand)
                 }
             }
+        }
+        .onAppear {
+            // Initial sync on load
+            Task {
+                await appViewModel.service.syncChatMessages()
+            }
+            
+            // Poll for new coordination messages every 2.0 seconds while chat is active
+            pollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                Task {
+                    await appViewModel.service.syncChatMessages()
+                }
+            }
+        }
+        .onDisappear {
+            pollTimer?.invalidate()
+            pollTimer = nil
         }
     }
     

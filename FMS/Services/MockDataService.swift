@@ -180,6 +180,26 @@ final class MockDataService {
         if let notificationsList = try? await SupabaseService.shared.fetchNotifications() {
             self.notifications = notificationsList
         }
+        if let chatList = try? await SupabaseService.shared.fetchChatMessages() {
+            self.chatMessages = chatList
+        }
+    }
+
+    func syncChatMessages() async {
+        guard SupabaseConfig.isConfigured else { return }
+        if let chatList = try? await SupabaseService.shared.fetchChatMessages() {
+            // Merge remote messages into our local cache to prevent newly sent local
+            // messages from disappearing before their Supabase insert is finished!
+            var merged = self.chatMessages
+            for remoteMsg in chatList {
+                if let idx = merged.firstIndex(where: { $0.id == remoteMsg.id }) {
+                    merged[idx] = remoteMsg
+                } else {
+                    merged.append(remoteMsg)
+                }
+            }
+            self.chatMessages = merged.sorted { $0.timestamp < $1.timestamp }
+        }
     }
 
     /// Lightweight refresh: only pulls defect_reports + work_orders and replaces local.
@@ -402,7 +422,12 @@ final class MockDataService {
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addChatMessage(msg)
+                do {
+                    try await SupabaseService.shared.addChatMessage(msg)
+                    print("[Supabase Chat] Message \(msg.id) successfully saved.")
+                } catch {
+                    print("[Supabase Chat ERROR] Failed to save chat message: \(error)")
+                }
             }
         }
         
@@ -749,7 +774,12 @@ final class MockDataService {
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addWorkOrder(order)
+                do {
+                    try await SupabaseService.shared.addWorkOrder(order)
+                    print("[Supabase WorkOrder] WorkOrder \(order.id) successfully added ✅")
+                } catch {
+                    print("[Supabase WorkOrder ERROR] Failed to add WorkOrder to database: \(error.localizedDescription)\nFull Details: \(error)")
+                }
             }
         }
     }
@@ -901,7 +931,12 @@ final class MockDataService {
         if SupabaseConfig.isConfigured {
             let updatedDefect = defects[defectIndex]
             Task {
-                try? await SupabaseService.shared.updateDefect(updatedDefect)
+                do {
+                    try await SupabaseService.shared.updateDefect(updatedDefect)
+                    print("[Supabase Defect Approval] Defect \(updatedDefect.id) successfully updated to Approved status ✅")
+                } catch {
+                    print("[Supabase Defect Approval ERROR] Failed to update defect status: \(error.localizedDescription)\nFull Details: \(error)")
+                }
             }
         }
         
@@ -926,7 +961,12 @@ final class MockDataService {
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addWorkOrder(order)
+                do {
+                    try await SupabaseService.shared.addWorkOrder(order)
+                    print("[Supabase Defect Approval] WorkOrder \(order.id) successfully created and saved ✅")
+                } catch {
+                    print("[Supabase Defect Approval ERROR] Failed to save WorkOrder to database: \(error.localizedDescription)\nFull Details: \(error)")
+                }
             }
         }
         

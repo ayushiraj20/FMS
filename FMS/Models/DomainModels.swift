@@ -668,7 +668,7 @@ struct ChatMessage: Identifiable, Codable, Hashable {
         case senderID = "sender_id"
         case receiverID = "receiver_id"
         case message
-        case timestamp
+        case timestamp = "sent_at"
         case isRead = "is_read"
         case workOrderID = "work_order_id"
     }
@@ -831,3 +831,30 @@ struct InspectionItem2: Identifiable, Hashable {
     }
 }
 
+// MARK: - Spare Parts Inventory
+
+struct SparePart: Identifiable, Codable, Hashable {
+    let id: UUID
+    var organizationID: UUID
+    var name: String
+    var partNumber: String
+    var category: String
+    var quantity: Int
+    var minimumRequired: Int
+    var icon: String
+
+    var isOutOfStock: Bool { quantity == 0 }
+    var isLowStock: Bool { quantity > 0 && quantity <= minimumRequired }
+    var isCriticallyLow: Bool { quantity < 2 }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case organizationID = "organization_id"
+        case name
+        case partNumber = "part_number"
+        case category
+        case quantity
+        case minimumRequired = "minimum_required"
+        case icon
+    }
+}
