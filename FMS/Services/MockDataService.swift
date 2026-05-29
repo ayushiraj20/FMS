@@ -15,6 +15,7 @@ final class MockDataService {
     var workOrders: [WorkOrder]
     var maintenanceSchedules: [MaintenanceSchedule]
     var notifications: [AppNotification]
+    var partOrders: [PartOrder]
 
     // Driver-specific data
     var shifts: [ShiftInfo]
@@ -44,6 +45,7 @@ final class MockDataService {
             workOrders = []
             maintenanceSchedules = []
             notifications = []
+            partOrders = []
             shifts = []
             fuelReceipts = []
             chatMessages = []
@@ -62,6 +64,7 @@ final class MockDataService {
             workOrders = seed.workOrders
             maintenanceSchedules = seed.maintenanceSchedules
             notifications = seed.notifications
+            partOrders = []
             shifts = seed.shifts
             fuelReceipts = seed.fuelReceipts
             chatMessages = seed.chatMessages
@@ -183,6 +186,13 @@ final class MockDataService {
         if let chatList = try? await SupabaseService.shared.fetchChatMessages() {
             self.chatMessages = chatList
         }
+        // Sync part orders for the first available organization
+        if let orgID = organizations.first?.id {
+            if let orders = try? await SupabaseService.shared.fetchPartOrders(organizationID: orgID) {
+                self.partOrders = orders
+                print("[Sync] Loaded \(orders.count) part order(s)")
+            }
+        }
     }
 
     func syncChatMessages() async {
@@ -217,6 +227,25 @@ final class MockDataService {
             print("[DefectSync] Synced from Supabase: \(self.defects.count) defect(s), \(self.workOrders.count) work order(s)")
         } catch {
             print("[DefectSync] ERROR: \(error) — keeping \(self.defects.count) local defect(s)")
+        }
+    }
+
+    /// Lightweight refresh: pulls only maintenance-related tables.
+    /// Used by the Maintenance role views for targeted refreshes.
+    func syncMaintenanceData() async {
+        guard SupabaseConfig.isConfigured else { return }
+        do {
+            let remoteOrders = try await SupabaseService.shared.fetchWorkOrders()
+            self.workOrders = remoteOrders
+            let remoteSchedules = try await SupabaseService.shared.fetchSchedules()
+            self.maintenanceSchedules = remoteSchedules
+            if let orgID = organizations.first?.id {
+                let remotePartOrders = try await SupabaseService.shared.fetchPartOrders(organizationID: orgID)
+                self.partOrders = remotePartOrders
+            }
+            print("[MaintenanceSync] Synced: \(workOrders.count) WOs, \(maintenanceSchedules.count) schedules, \(partOrders.count) part orders")
+        } catch {
+            print("[MaintenanceSync] ERROR: \(error)")
         }
     }
 
@@ -940,6 +969,177 @@ final class MockDataService {
                     try await SupabaseService.shared.updateWorkOrder(workOrder)
                 } catch {
                     print("Supabase updateWorkOrder error: \(error)")
+                }
+            }
+        }
+    }
+
+    func deleteWorkOrder(_ workOrder: WorkOrder) {
+        workOrders.removeAll { $0.id == workOrder.id }
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.deleteWorkOrder(workOrder)
+                    print("[Supabase] Work order deleted: \(workOrder.id)")
+                } catch {
+                    print("[Supabase ERROR] deleteWorkOrder: \(error)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Part Order Mutations
+
+    func addPartOrder(_ order: PartOrder) {
+        partOrders.insert(order, at: 0)
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.addPartOrder(order)
+                    print("[Supabase] Part order added: \(order.partName)")
+                } catch {
+                    print("[Supabase ERROR] addPartOrder: \(error)")
+                }
+            }
+        }
+    }
+
+    func updatePartOrder(_ order: PartOrder) {
+        guard let index = partOrders.firstIndex(where: { $0.id == order.id }) else { return }
+        partOrders[index] = order
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.updatePartOrder(order)
+                    print("[Supabase] Part order updated: \(order.partName)")
+                } catch {
+                    print("[Supabase ERROR] updatePartOrder: \(error)")
+                }
+            }
+        }
+    }
+
+    func deletePartOrder(_ order: PartOrder) {
+        partOrders.removeAll { $0.id == order.id }
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.deletePartOrder(order)
+                    print("[Supabase] Part order deleted: \(order.partName)")
+                } catch {
+                    print("[Supabase ERROR] deletePartOrder: \(error)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Work Order Parts Mutations
+
+    func saveWorkOrderParts(_ parts: [WorkOrderPartUsage], workOrderID: UUID, decrementStock: Bool = false) {
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.saveWorkOrderParts(parts, workOrderID: workOrderID)
+                    print("[Supabase] Saved \(parts.count) part(s) for work order \(workOrderID)")
+
+                    // Post notification to reload inventory views in real time
+                    NotificationCenter.default.post(name: Notification.Name("inventoryNeedsRefresh"), object: nil)
+
+                    // Check each consumed part's updated quantity and alert fleet manager if low stock
+                    await checkLowStockAndNotify(for: parts)
+                } catch {
+                    print("[Supabase ERROR] saveWorkOrderParts: \(error)")
+                }
+            }
+        }
+    }
+
+    /// Fetches the current quantity of each part used in the work order and fires a
+    /// low-stock notification (to Fleet Managers and Maintenance Personnel) for any
+    /// part whose remaining quantity has dropped to 2 or below.
+    private func checkLowStockAndNotify(for parts: [WorkOrderPartUsage]) async {
+        guard let orgID = organizations.first?.id else { return }
+        do {
+            let allParts = try await SupabaseService.shared.fetchSpareParts(organizationID: orgID)
+            let consumedIDs = Set(parts.map { $0.sparePartID })
+            for part in allParts where consumedIDs.contains(part.id) {
+                guard part.quantity <= 2 else { continue }
+
+                let unitLabel = part.quantity == 1 ? "unit" : "units"
+                let stockStatus = part.quantity == 0 ? "OUT OF STOCK" : "only \(part.quantity) \(unitLabel) remaining"
+                let title = part.quantity == 0 ? "🚨 Part Out of Stock" : "⚠️ Low Stock Alert"
+                let message = "\(part.name) (\(part.partNumber)) is \(stockStatus). Please reorder soon."
+
+                // Notify Fleet Manager role
+                addNotification(
+                    userID: nil,
+                    roleTarget: .fleetManager,
+                    title: title,
+                    message: message,
+                    category: part.quantity == 0 ? .warning : .warning
+                )
+                // Notify Maintenance Personnel role
+                addNotification(
+                    userID: nil,
+                    roleTarget: .maintenance,
+                    title: title,
+                    message: message,
+                    category: .warning
+                )
+                print("[Low Stock] Notified: \(part.name) — qty \(part.quantity)")
+            }
+        } catch {
+            print("[Low Stock Check ERROR] \(error)")
+        }
+    }
+
+    // MARK: - Maintenance Schedule Mutations
+
+    func addMaintenanceSchedule(vehicleID: UUID, serviceType: String, dueDate: Date) {
+        let schedule = MaintenanceSchedule(
+            id: UUID(),
+            vehicleID: vehicleID,
+            serviceType: serviceType,
+            dueDate: dueDate,
+            status: .upcoming
+        )
+        maintenanceSchedules.insert(schedule, at: 0)
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.addMaintenanceSchedule(schedule)
+                    print("[Supabase] Maintenance schedule added: \(serviceType)")
+                } catch {
+                    print("[Supabase ERROR] addMaintenanceSchedule: \(error)")
+                }
+            }
+        }
+    }
+
+    func updateMaintenanceSchedule(_ schedule: MaintenanceSchedule) {
+        guard let index = maintenanceSchedules.firstIndex(where: { $0.id == schedule.id }) else { return }
+        maintenanceSchedules[index] = schedule
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.updateMaintenanceSchedule(schedule)
+                    print("[Supabase] Maintenance schedule updated: \(schedule.serviceType)")
+                } catch {
+                    print("[Supabase ERROR] updateMaintenanceSchedule: \(error)")
+                }
+            }
+        }
+    }
+
+    func deleteMaintenanceSchedule(_ schedule: MaintenanceSchedule) {
+        maintenanceSchedules.removeAll { $0.id == schedule.id }
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.deleteMaintenanceSchedule(schedule)
+                    print("[Supabase] Maintenance schedule deleted: \(schedule.serviceType)")
+                } catch {
+                    print("[Supabase ERROR] deleteMaintenanceSchedule: \(error)")
                 }
             }
         }
