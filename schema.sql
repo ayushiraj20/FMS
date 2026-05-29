@@ -98,6 +98,7 @@ create table if not exists profiles (
   phone text not null,
   title text not null,
   assigned_vehicle_id uuid null,
+  is_password_reset_required boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -157,6 +158,7 @@ create table if not exists trips (
   end_date timestamptz null,
   distance_km numeric(10,2) not null default 0 check (distance_km >= 0),
   status trip_status not null,
+  safety_score integer null,
   route_details text null,
   notes text null,
   created_at timestamptz not null default now(),
@@ -270,6 +272,62 @@ create table if not exists chat_messages (
 );
 
 create index if not exists idx_chat_messages_work_order_id on chat_messages(work_order_id);
+
+-- =========================
+-- BROADCAST MESSAGES
+-- =========================
+create table if not exists broadcast_messages (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  sender_id uuid not null references profiles(id) on delete cascade,
+  title text not null,
+  message text not null,
+  sent_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_broadcast_messages_organization_id on broadcast_messages(organization_id);
+
+-- =========================
+-- FUEL TRANSACTIONS
+-- =========================
+create table if not exists "fuelTransactions" (
+  "transactionID" uuid primary key default gen_random_uuid(),
+  "vehicleID" uuid references vehicles(id) on delete set null,
+  "driverID" uuid references profiles(id) on delete set null,
+  "tripID" uuid references trips(id) on delete set null,
+  "manualAmount" numeric(12,2) null,
+  "odometerReading" integer null,
+  "receiptImageUrl" text null,
+  "timestamp" timestamptz not null default now(),
+  "verificationStatus" text not null default 'Pending',
+  "rejectionReason" text null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_fuel_transactions_vehicle_id on "fuelTransactions"("vehicleID");
+create index if not exists idx_fuel_transactions_driver_id on "fuelTransactions"("driverID");
+
+-- =========================
+-- =========================
+-- SOS ALERTS
+-- =========================
+create table if not exists sos_alerts (
+  id uuid primary key default gen_random_uuid(),
+  driver_id uuid not null references profiles(id) on delete cascade,
+  driver_name text not null,
+  vehicle_id uuid not null references vehicles(id) on delete cascade,
+  vehicle_number text not null,
+  emergency_type text not null,
+  latitude numeric(9,6) not null,
+  longitude numeric(9,6) not null,
+  description text null,
+  status text not null default 'ACTIVE',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_sos_alerts_driver_id on sos_alerts(driver_id);
+create index if not exists idx_sos_alerts_vehicle_id on sos_alerts(vehicle_id);
 
 -- =========================
 -- INDEXES
@@ -422,6 +480,7 @@ begin
     phone,
     title,
     assigned_vehicle_id,
+    is_password_reset_required,
     created_at,
     updated_at
   )
@@ -434,6 +493,7 @@ begin
     p_phone,
     p_title,
     null,
+    true,
     now(),
     now()
   );
@@ -467,6 +527,65 @@ end $$;
 alter table defect_reports
   add column if not exists status defect_status not null default 'Pending';
 
+-- Migration 4: Add safety_score column to trips table (if not already present)
+alter table trips
+  add column if not exists safety_score integer null;
+
+-- Migration 5: Create broadcast_messages and fuelTransactions tables (if not already present)
+create table if not exists broadcast_messages (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  sender_id uuid not null references profiles(id) on delete cascade,
+  title text not null,
+  message text not null,
+  sent_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_broadcast_messages_organization_id on broadcast_messages(organization_id);
+
+create table if not exists "fuelTransactions" (
+  "transactionID" uuid primary key default gen_random_uuid(),
+  "vehicleID" uuid references vehicles(id) on delete set null,
+  "driverID" uuid references profiles(id) on delete set null,
+  "tripID" uuid references trips(id) on delete set null,
+  "manualAmount" numeric(12,2) null,
+  "odometerReading" integer null,
+  "receiptImageUrl" text null,
+  "timestamp" timestamptz not null default now(),
+  "verificationStatus" text not null default 'Pending',
+  "rejectionReason" text null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_fuel_transactions_vehicle_id on "fuelTransactions"("vehicleID");
+create index if not exists idx_fuel_transactions_driver_id on "fuelTransactions"("driverID");
+
+-- Migration 6: Add title and images columns to defect_reports table (if not already present)
+alter table defect_reports
+  add column if not exists title text null,
+  add column if not exists images text[] null;
+
+-- Migration 7: Add sos_alerts table and indexes (if not already present)
+create table if not exists sos_alerts (
+  id uuid primary key default gen_random_uuid(),
+  driver_id uuid not null references public.profiles(id) on delete cascade,
+  driver_name text not null,
+  vehicle_id uuid not null references public.vehicles(id) on delete cascade,
+  vehicle_number text not null,
+  emergency_type text not null,
+  latitude numeric(9,6) not null,
+  longitude numeric(9,6) not null,
+  description text null,
+  status text not null default 'ACTIVE',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_sos_alerts_driver_id on sos_alerts(driver_id);
+create index if not exists idx_sos_alerts_vehicle_id on sos_alerts(vehicle_id);
+
+alter table sos_alerts enable row level security;
+
 -- =========================
 -- ROW LEVEL SECURITY (RLS)
 -- CRITICAL: Without these policies the app cannot read/write any table.
@@ -487,6 +606,9 @@ alter table work_orders        enable row level security;
 alter table maintenance_schedules enable row level security;
 alter table notifications      enable row level security;
 alter table chat_messages      enable row level security;
+alter table broadcast_messages enable row level security;
+alter table "fuelTransactions" enable row level security;
+alter table sos_alerts         enable row level security;
 
 -- ── ORGANIZATIONS ──────────────────────────────────────────────────────────
 drop policy if exists "Allow authenticated read organizations" on organizations;
@@ -609,15 +731,88 @@ drop policy if exists "Allow authenticated write chat_messages" on chat_messages
 create policy "Allow authenticated write chat_messages"
   on chat_messages for all to authenticated using (true) with check (true);
 
--- ── BROADCAST MESSAGES (if table exists) ────────────────────────────────────
-do $$ begin
-  alter table broadcast_messages enable row level security;
-  drop policy if exists "Allow authenticated read broadcast_messages" on broadcast_messages;
-  create policy "Allow authenticated read broadcast_messages"
-    on broadcast_messages for select to authenticated using (true);
-  drop policy if exists "Allow authenticated write broadcast_messages" on broadcast_messages;
-  create policy "Allow authenticated write broadcast_messages"
-    on broadcast_messages for all to authenticated using (true) with check (true);
-exception when undefined_table then null;
-end $$;
+-- ── BROADCAST MESSAGES ───────────────────────────────────────────────────────
+drop policy if exists "Allow authenticated read broadcast_messages" on broadcast_messages;
+create policy "Allow authenticated read broadcast_messages"
+  on broadcast_messages for select to authenticated using (true);
 
+drop policy if exists "Allow authenticated write broadcast_messages" on broadcast_messages;
+create policy "Allow authenticated write broadcast_messages"
+  on broadcast_messages for all to authenticated using (true) with check (true);
+
+-- ── FUEL TRANSACTIONS ────────────────────────────────────────────────────────
+drop policy if exists "Allow authenticated read fuelTransactions" on "fuelTransactions";
+create policy "Allow authenticated read fuelTransactions"
+  on "fuelTransactions" for select to authenticated using (true);
+
+drop policy if exists "Allow authenticated write fuelTransactions" on "fuelTransactions";
+create policy "Allow authenticated write fuelTransactions"
+  on "fuelTransactions" for all to authenticated using (true) with check (true);
+
+-- ── SOS ALERTS ───────────────────────────────────────────────────────────────
+drop policy if exists "Allow authenticated read sos_alerts" on sos_alerts;
+create policy "Allow authenticated read sos_alerts"
+  on sos_alerts for select to authenticated using (true);
+
+drop policy if exists "Allow authenticated write sos_alerts" on sos_alerts;
+create policy "Allow authenticated write sos_alerts"
+  on sos_alerts for all to authenticated using (true) with check (true);
+
+-- ── MIGRATION: COORDINATES FOR MAP ROUTING ───────────────────────────────────
+alter table trips
+  add column if not exists origin_lat double precision,
+  add column if not exists origin_lng double precision,
+  add column if not exists destination_lat double precision,
+  add column if not exists destination_lng double precision;
+
+
+-- =========================
+-- SPARE PARTS INVENTORY
+-- =========================
+create table if not exists spare_parts (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  name text not null,
+  part_number text not null,
+  category text not null,
+  quantity integer not null default 0 check (quantity >= 0),
+  minimum_required integer not null default 2 check (minimum_required >= 0),
+  icon text not null default 'shippingbox',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_spare_parts_organization_id on spare_parts(organization_id);
+
+drop trigger if exists trg_spare_parts_updated_at on spare_parts;
+create trigger trg_spare_parts_updated_at
+before update on spare_parts
+for each row execute function set_updated_at();
+
+alter table spare_parts enable row level security;
+
+drop policy if exists "Allow authenticated read spare_parts" on spare_parts;
+create policy "Allow authenticated read spare_parts"
+  on spare_parts for select to authenticated using (true);
+
+drop policy if exists "Allow authenticated write spare_parts" on spare_parts;
+create policy "Allow authenticated write spare_parts"
+  on spare_parts for all to authenticated using (true) with check (true);
+
+-- Migration 8: Add spare_parts table (safe to re-run)
+create table if not exists spare_parts (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  name text not null,
+  part_number text not null,
+  category text not null,
+  quantity integer not null default 0 check (quantity >= 0),
+  minimum_required integer not null default 2 check (minimum_required >= 0),
+  icon text not null default 'shippingbox',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Migration 9: Add is_password_reset_required column to profiles (safe to re-run)
+alter table profiles
+  add column if not exists is_password_reset_required boolean not null default false;

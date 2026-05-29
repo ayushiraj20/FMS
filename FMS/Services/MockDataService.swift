@@ -25,27 +25,54 @@ final class MockDataService {
     var vehicleAlerts: [VehicleAlert]
     var breakLogs: [BreakLogEntry]
     var driverDutyStatus: [UUID: DutyStatus]
+    var geofenceAlertedVehicleIDs: Set<UUID>
 
     init() {
         let seed = DemoSeed.make()
-        organizations = seed.organizations
-        users = seed.users
-        vehicles = seed.vehicles
-        documents = seed.documents
-        trips = seed.trips
-        inspections = seed.inspections
-        defects = seed.defects
-        workOrders = seed.workOrders
-        maintenanceSchedules = seed.maintenanceSchedules
-        notifications = seed.notifications
-        shifts = seed.shifts
-        fuelReceipts = seed.fuelReceipts
+
+        // When Supabase is configured, start with empty operational data so only
+        // real database records are shown. Seed data is kept only when running
+        // fully offline (no Supabase credentials) for demo/testing purposes.
+        if SupabaseConfig.isConfigured {
+            organizations = []
+            users = []
+            vehicles = []
+            documents = []
+            trips = []
+            inspections = []
+            defects = []
+            workOrders = []
+            maintenanceSchedules = []
+            notifications = []
+            shifts = []
+            fuelReceipts = []
+            chatMessages = []
+            tripCheckpoints = []
+            vehicleAlerts = []
+            breakLogs = []
+            driverDutyStatus = [:]
+        } else {
+            organizations = seed.organizations
+            users = seed.users
+            vehicles = seed.vehicles
+            documents = seed.documents
+            trips = seed.trips
+            inspections = seed.inspections
+            defects = seed.defects
+            workOrders = seed.workOrders
+            maintenanceSchedules = seed.maintenanceSchedules
+            notifications = seed.notifications
+            shifts = seed.shifts
+            fuelReceipts = seed.fuelReceipts
+            chatMessages = seed.chatMessages
+            tripCheckpoints = seed.tripCheckpoints
+            vehicleAlerts = seed.vehicleAlerts
+            breakLogs = seed.breakLogs
+            driverDutyStatus = seed.dutyStatuses
+        }
+
         sosAlerts = []
-        chatMessages = seed.chatMessages
-        tripCheckpoints = seed.tripCheckpoints
-        vehicleAlerts = seed.vehicleAlerts
-        breakLogs = seed.breakLogs
-        driverDutyStatus = seed.dutyStatuses
+        geofenceAlertedVehicleIDs = []
         
         checkOverdueCriticalWorkOrders()
         
@@ -85,6 +112,22 @@ final class MockDataService {
         return result.sorted { $0.scheduledDate > $1.scheduledDate }
     }
 
+    /// Merge remote vehicles into local list.
+    /// Remote records update local ones; new remote records are inserted.
+    /// Local-only records (added offline) are kept.
+    /// This prevents a successful local assignment from being wiped by a stale sync.
+    private func mergeVehicles(local: [Vehicle], remote: [Vehicle]) -> [Vehicle] {
+        var result = local
+        for remoteItem in remote {
+            if let idx = result.firstIndex(where: { $0.id == remoteItem.id }) {
+                result[idx] = remoteItem
+            } else {
+                result.insert(remoteItem, at: 0)
+            }
+        }
+        return result.sorted { $0.displayName < $1.displayName }
+    }
+
     /// Asynchronously fetches all remote data from Supabase and MERGES into local arrays.
     /// Each table is fetched independently — a failure on one table does NOT affect the others.
     /// Local seed/offline data is NEVER wiped, even if Supabase returns an empty list.
@@ -98,7 +141,17 @@ final class MockDataService {
             self.users = usersList
         }
         if let vehiclesList = try? await SupabaseService.shared.fetchVehicles(), !vehiclesList.isEmpty {
-            self.vehicles = vehiclesList
+            self.vehicles = vehiclesList.sorted { $0.displayName < $1.displayName }
+        }
+        // Re-derive each driver's assignedVehicleID from the vehicles array.
+        // The RLS policy on 'profiles' only allows a user to update their OWN row,
+        // so a fleet manager cannot update another driver's assigned_vehicle_id via
+        // updateProfile. The source of truth for assignment is vehicles.assigned_driver_id,
+        // which fleet managers CAN update. We apply that here so UI stays correct after sync.
+        for index in users.indices where users[index].role == .driver {
+            let driverID = users[index].id
+            let assignedVehicle = vehicles.first { $0.assignedDriverID == driverID }
+            users[index].assignedVehicleID = assignedVehicle?.id
         }
         if let docs = try? await SupabaseService.shared.fetchDocuments() {
             self.documents = docs
@@ -109,16 +162,15 @@ final class MockDataService {
         if let inspectionsList = try? await SupabaseService.shared.fetchInspections() {
             self.inspections = inspectionsList
         }
-        // MERGE: remote defects update or extend local list — never replace/wipe it
         if let remoteDefects = try? await SupabaseService.shared.fetchDefects() {
-            self.defects = mergeDefects(local: self.defects, remote: remoteDefects)
-            print("[Sync] Merged \(remoteDefects.count) remote defect(s) → total \(self.defects.count)")
+            self.defects = remoteDefects
+            print("[Sync] Loaded \(remoteDefects.count) remote defect(s)")
         } else {
             print("[Sync] Defects fetch failed — keeping \(self.defects.count) local defect(s)")
         }
         if let remoteOrders = try? await SupabaseService.shared.fetchWorkOrders() {
-            self.workOrders = mergeWorkOrders(local: self.workOrders, remote: remoteOrders)
-            print("[Sync] Merged \(remoteOrders.count) remote work order(s) → total \(self.workOrders.count)")
+            self.workOrders = remoteOrders
+            print("[Sync] Loaded \(remoteOrders.count) remote work order(s)")
         } else {
             print("[Sync] Work orders fetch failed — keeping local data")
         }
@@ -128,9 +180,29 @@ final class MockDataService {
         if let notificationsList = try? await SupabaseService.shared.fetchNotifications() {
             self.notifications = notificationsList
         }
+        if let chatList = try? await SupabaseService.shared.fetchChatMessages() {
+            self.chatMessages = chatList
+        }
     }
 
-    /// Lightweight refresh: only pulls defect_reports + work_orders and MERGES into local.
+    func syncChatMessages() async {
+        guard SupabaseConfig.isConfigured else { return }
+        if let chatList = try? await SupabaseService.shared.fetchChatMessages() {
+            // Merge remote messages into our local cache to prevent newly sent local
+            // messages from disappearing before their Supabase insert is finished!
+            var merged = self.chatMessages
+            for remoteMsg in chatList {
+                if let idx = merged.firstIndex(where: { $0.id == remoteMsg.id }) {
+                    merged[idx] = remoteMsg
+                } else {
+                    merged.append(remoteMsg)
+                }
+            }
+            self.chatMessages = merged.sorted { $0.timestamp < $1.timestamp }
+        }
+    }
+
+    /// Lightweight refresh: only pulls defect_reports + work_orders and replaces local.
     /// Used by the Fleet Manager Defect Board. Local/seed data is always preserved.
     func syncDefectsAndWorkOrders() async {
         guard SupabaseConfig.isConfigured else {
@@ -140,9 +212,9 @@ final class MockDataService {
         do {
             let remoteDefects = try await SupabaseService.shared.fetchDefects()
             let remoteOrders  = try await SupabaseService.shared.fetchWorkOrders()
-            self.defects      = mergeDefects(local: self.defects, remote: remoteDefects)
-            self.workOrders   = mergeWorkOrders(local: self.workOrders, remote: remoteOrders)
-            print("[DefectSync] After merge: \(self.defects.count) defect(s), \(self.workOrders.count) work order(s)")
+            self.defects      = remoteDefects
+            self.workOrders   = remoteOrders
+            print("[DefectSync] Synced from Supabase: \(self.defects.count) defect(s), \(self.workOrders.count) work order(s)")
         } catch {
             print("[DefectSync] ERROR: \(error) — keeping \(self.defects.count) local defect(s)")
         }
@@ -288,17 +360,52 @@ final class MockDataService {
         fuelReceipts.insert(receipt, at: 0)
     }
 
-    func triggerSOS(driverID: UUID, vehicleID: UUID, latitude: Double, longitude: Double) {
+    func triggerSOS(
+        driverID: UUID,
+        vehicleID: UUID,
+        latitude: Double,
+        longitude: Double,
+        emergencyType: String = "SOS Alert",
+        description: String? = nil
+    ) {
+        let driver = users.first { $0.id == driverID }
+        let driverName = driver?.name ?? "Unknown Driver"
+        
+        let vehicle = vehicles.first { $0.id == vehicleID }
+        let vehicleNumber = vehicle?.plateNumber ?? "Unknown Vehicle"
+        
         let alert = SOSAlert(
             id: UUID(),
             driverID: driverID,
+            driverName: driverName,
             vehicleID: vehicleID,
+            vehicleNumber: vehicleNumber,
+            emergencyType: emergencyType,
             latitude: latitude,
             longitude: longitude,
-            timestamp: .now,
-            status: .triggered
+            description: description,
+            status: "ACTIVE",
+            createdAt: Date()
         )
         sosAlerts.insert(alert, at: 0)
+        
+        // Notify Fleet Managers
+        let managers = users.filter { $0.role == .fleetManager }
+        for mgr in managers {
+            addNotification(
+                userID: mgr.id,
+                roleTarget: nil,
+                title: "🚨 SOS Alert Active!",
+                message: "\(driverName) triggered an emergency SOS from \(vehicleNumber).",
+                category: .critical
+            )
+        }
+        
+        if SupabaseConfig.isConfigured {
+            Task {
+                try? await SupabaseService.shared.addSOSAlert(alert)
+            }
+        }
     }
 
     func sendChatMessage(senderID: UUID, receiverID: UUID?, message: String, workOrderID: UUID? = nil) {
@@ -315,7 +422,12 @@ final class MockDataService {
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addChatMessage(msg)
+                do {
+                    try await SupabaseService.shared.addChatMessage(msg)
+                    print("[Supabase Chat] Message \(msg.id) successfully saved.")
+                } catch {
+                    print("[Supabase Chat ERROR] Failed to save chat message: \(error)")
+                }
             }
         }
         
@@ -392,7 +504,8 @@ final class MockDataService {
             password: "demo123",
             phone: phone,
             title: title,
-            assignedVehicleID: nil
+            assignedVehicleID: nil,
+            isPasswordResetRequired: true
         )
         
         if SupabaseConfig.isConfigured {
@@ -433,7 +546,8 @@ final class MockDataService {
                         odometer: 105_000,
                         assignedDriverID: user.id,
                         nextServiceDate: .now.addingTimeInterval(86400 * 30),
-                        utilization: 75
+                        utilization: 75,
+                        fuelConsumption: 0.0
                     )
                     vehicles.insert(newVehicle, at: 0)
                     assignedVehicleID = newVehicleID
@@ -519,7 +633,12 @@ final class MockDataService {
             users[index] = user
             if SupabaseConfig.isConfigured {
                 Task {
-                    try? await SupabaseService.shared.updateProfile(user)
+                    do {
+                        try await SupabaseService.shared.updateProfile(user)
+                        print("[Sync] Profile updated in Supabase: \(user.name)")
+                    } catch {
+                        print("[Sync] updateProfile FAILED for \(user.name): \(error)")
+                    }
                 }
             }
         }
@@ -544,7 +663,12 @@ final class MockDataService {
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addVehicle(vehicle)
+                do {
+                    try await SupabaseService.shared.addVehicle(vehicle)
+                    print("[Supabase] Vehicle successfully inserted: \(vehicle.displayName) (\(vehicle.plateNumber))")
+                } catch {
+                    print("[Supabase ERROR] Failed to insert vehicle: \(error)")
+                }
             }
         }
     }
@@ -556,7 +680,12 @@ final class MockDataService {
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.updateVehicle(vehicle)
+                do {
+                    try await SupabaseService.shared.updateVehicle(vehicle)
+                    print("[Sync] Vehicle updated in Supabase: \(vehicle.displayName)")
+                } catch {
+                    print("[Sync] updateVehicle FAILED for \(vehicle.displayName): \(error)")
+                }
             }
         }
     }
@@ -585,20 +714,45 @@ final class MockDataService {
         }
     }
 
-    func addDocument(vehicleID: UUID, type: DocumentType, number: String, expiryDate: Date) {
-        let document = VehicleDocument(
-            id: UUID(),
-            vehicleID: vehicleID,
-            type: type,
-            documentNumber: number,
-            expiryDate: expiryDate,
-            isVerified: true
-        )
-        documents.insert(document, at: 0)
-        
-        if SupabaseConfig.isConfigured {
-            Task {
-                try? await SupabaseService.shared.addDocument(document)
+    func addDocument(vehicleID: UUID, type: DocumentType, number: String, expiryDate: Date, imageUrl: String? = nil) {
+        if let index = documents.firstIndex(where: { $0.vehicleID == vehicleID && $0.type == type }) {
+            documents[index].documentNumber = number
+            documents[index].expiryDate = expiryDate
+            if let imgUrl = imageUrl {
+                documents[index].imageUrl = imgUrl
+            }
+            let doc = documents[index]
+            if SupabaseConfig.isConfigured {
+                Task {
+                    do {
+                        try await SupabaseService.shared.updateDocument(doc)
+                        print("[Supabase] Document successfully updated: \(doc.type.rawValue) -> image_url: \(doc.imageUrl ?? "nil")")
+                    } catch {
+                        print("[Supabase ERROR] Failed to update document: \(error)")
+                    }
+                }
+            }
+        } else {
+            let document = VehicleDocument(
+                id: UUID(),
+                vehicleID: vehicleID,
+                type: type,
+                documentNumber: number,
+                expiryDate: expiryDate,
+                isVerified: true,
+                imageUrl: imageUrl
+            )
+            documents.insert(document, at: 0)
+            
+            if SupabaseConfig.isConfigured {
+                Task {
+                    do {
+                        try await SupabaseService.shared.addDocument(document)
+                        print("[Supabase] Document successfully inserted: \(document.type.rawValue) -> image_url: \(document.imageUrl ?? "nil")")
+                    } catch {
+                        print("[Supabase ERROR] Failed to insert document: \(error)")
+                    }
+                }
             }
         }
     }
@@ -621,7 +775,12 @@ final class MockDataService {
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addWorkOrder(order)
+                do {
+                    try await SupabaseService.shared.addWorkOrder(order)
+                    print("[Supabase WorkOrder] WorkOrder \(order.id) successfully added ✅")
+                } catch {
+                    print("[Supabase WorkOrder ERROR] Failed to add WorkOrder to database: \(error.localizedDescription)\nFull Details: \(error)")
+                }
             }
         }
     }
@@ -705,7 +864,12 @@ final class MockDataService {
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addInspection(record)
+                do {
+                    try await SupabaseService.shared.addInspection(record)
+                    print("[Supabase] Inspection record \(record.id) (\(type.rawValue)) inserted successfully.")
+                } catch {
+                    print("[Supabase ERROR] Failed to insert inspection: \(error)")
+                }
             }
         }
     }
@@ -743,7 +907,12 @@ final class MockDataService {
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addDefect(defect)
+                do {
+                    try await SupabaseService.shared.addDefect(defect)
+                    print("Defect report successfully saved to Supabase ✅")
+                } catch {
+                    print("🚨 Supabase addDefect Error: \(error.localizedDescription)\nFull Details: \(error)")
+                }
             }
         }
     }
@@ -763,7 +932,12 @@ final class MockDataService {
         if SupabaseConfig.isConfigured {
             let updatedDefect = defects[defectIndex]
             Task {
-                try? await SupabaseService.shared.updateDefect(updatedDefect)
+                do {
+                    try await SupabaseService.shared.updateDefect(updatedDefect)
+                    print("[Supabase Defect Approval] Defect \(updatedDefect.id) successfully updated to Approved status ✅")
+                } catch {
+                    print("[Supabase Defect Approval ERROR] Failed to update defect status: \(error.localizedDescription)\nFull Details: \(error)")
+                }
             }
         }
         
@@ -788,7 +962,12 @@ final class MockDataService {
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addWorkOrder(order)
+                do {
+                    try await SupabaseService.shared.addWorkOrder(order)
+                    print("[Supabase Defect Approval] WorkOrder \(order.id) successfully created and saved ✅")
+                } catch {
+                    print("[Supabase Defect Approval ERROR] Failed to save WorkOrder to database: \(error.localizedDescription)\nFull Details: \(error)")
+                }
             }
         }
         
@@ -851,9 +1030,30 @@ final class MockDataService {
         )
         trips.insert(trip, at: 0)
         
+        // Update vehicle status to Transit (In Service)
+        if let idx = vehicles.firstIndex(where: { $0.id == vehicleID }) {
+            vehicles[idx].status = .inService
+            let updatedVehicle = vehicles[idx]
+            if SupabaseConfig.isConfigured {
+                Task {
+                    do {
+                        try await SupabaseService.shared.updateVehicle(updatedVehicle)
+                        print("[Supabase] Vehicle \(updatedVehicle.id) status updated to .inService successfully.")
+                    } catch {
+                        print("[Supabase ERROR] Failed to update vehicle status for starting trip: \(error)")
+                    }
+                }
+            }
+        }
+        
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addTrip(trip)
+                do {
+                    try await SupabaseService.shared.addTrip(trip)
+                    print("[Supabase] Trip \(trip.id) started successfully.")
+                } catch {
+                    print("[Supabase ERROR] Failed to add started trip: \(error)")
+                }
             }
         }
     }
@@ -872,23 +1072,134 @@ final class MockDataService {
             }
         }
         
+        // Update vehicle status to Transit (In Service)
+        let vehicleID = trips[index].vehicleID
+        if let idx = vehicles.firstIndex(where: { $0.id == vehicleID }) {
+            vehicles[idx].status = .inService
+            let updatedVehicle = vehicles[idx]
+            if SupabaseConfig.isConfigured {
+                Task {
+                    do {
+                        try await SupabaseService.shared.updateVehicle(updatedVehicle)
+                        print("[Supabase] Vehicle \(updatedVehicle.id) status updated to .inService successfully (scheduled).")
+                    } catch {
+                        print("[Supabase ERROR] Failed to update vehicle status for scheduled trip start: \(error)")
+                    }
+                }
+            }
+        }
+        
         if SupabaseConfig.isConfigured {
             let updated = trips[index]
             Task {
-                try? await SupabaseService.shared.updateTrip(updated)
+                do {
+                    try await SupabaseService.shared.updateTrip(updated)
+                    print("[Supabase] Scheduled trip \(id) started successfully.")
+                } catch {
+                    print("[Supabase ERROR] Failed to start scheduled trip: \(error)")
+                }
             }
         }
     }
 
     func endTrip(_ trip: Trip) {
-        guard let index = trips.firstIndex(where: { $0.id == trip.id }) else { return }
+        guard let index = trips.firstIndex(where: { $0.id == trip.id }) else {
+            print("[MockDataService ERROR] endTrip could not find trip with ID: \(trip.id) in local array. Performing fallback DB update.")
+            
+            // Update vehicle status to Active and unassign driver
+            let vehicleID = trip.vehicleID
+            if let idx = vehicles.firstIndex(where: { $0.id == vehicleID }) {
+                vehicles[idx].status = .active
+                vehicles[idx].assignedDriverID = nil
+                let updatedVehicle = vehicles[idx]
+                if SupabaseConfig.isConfigured {
+                    Task {
+                        do {
+                            try await SupabaseService.shared.updateVehicle(updatedVehicle)
+                            print("[Supabase] Vehicle \(updatedVehicle.id) status reverted to .active & unassigned (fallback).")
+                        } catch {
+                            print("[Supabase ERROR] Failed to revert vehicle status: \(error)")
+                        }
+                    }
+                }
+            }
+            
+            if let userIdx = users.firstIndex(where: { $0.id == trip.driverID }) {
+                users[userIdx].assignedVehicleID = nil
+                let updatedUser = users[userIdx]
+                if SupabaseConfig.isConfigured {
+                    Task {
+                        do {
+                            try await SupabaseService.shared.updateProfile(updatedUser)
+                            print("[Supabase] Driver profile \(updatedUser.id) unassigned vehicle (fallback).")
+                        } catch {
+                            print("[Supabase ERROR] Failed to unassign profile vehicle (fallback): \(error)")
+                        }
+                    }
+                }
+            }
+            
+            if SupabaseConfig.isConfigured {
+                var updated = trip
+                updated.status = .completed
+                updated.endDate = .now
+                Task {
+                    do {
+                        try await SupabaseService.shared.updateTrip(updated)
+                        print("[Supabase] Trip \(updated.id) ended successfully (fallback update).")
+                    } catch {
+                        print("[Supabase ERROR] Failed to end trip (fallback update): \(error)")
+                    }
+                }
+            }
+            return
+        }
+        
         trips[index].status = .completed
         trips[index].endDate = .now
+        
+        // Update vehicle status to Active and unassign driver
+        let vehicleID = trip.vehicleID
+        if let idx = vehicles.firstIndex(where: { $0.id == vehicleID }) {
+            vehicles[idx].status = .active
+            vehicles[idx].assignedDriverID = nil
+            let updatedVehicle = vehicles[idx]
+            if SupabaseConfig.isConfigured {
+                Task {
+                    do {
+                        try await SupabaseService.shared.updateVehicle(updatedVehicle)
+                        print("[Supabase] Vehicle \(updatedVehicle.id) status reverted to .active & unassigned.")
+                    } catch {
+                        print("[Supabase ERROR] Failed to revert vehicle status: \(error)")
+                    }
+                }
+            }
+        }
+        
+        if let userIdx = users.firstIndex(where: { $0.id == trip.driverID }) {
+            users[userIdx].assignedVehicleID = nil
+            let updatedUser = users[userIdx]
+            if SupabaseConfig.isConfigured {
+                Task {
+                    do {
+                        try await SupabaseService.shared.updateProfile(updatedUser)
+                        print("[Supabase] Driver profile \(updatedUser.id) unassigned vehicle.")
+                    } catch {
+                        print("[Supabase ERROR] Failed to unassign profile vehicle: \(error)")
+                    }
+                }
+            }
+        }
         
         if SupabaseConfig.isConfigured {
             let updated = trips[index]
             Task {
-                try? await SupabaseService.shared.updateTrip(updated)
+                do {
+                    try await SupabaseService.shared.updateTrip(updated)
+                    print("[Supabase] Trip \(updated.id) ended successfully.")
+                } catch {
+                    print("[Supabase ERROR] Failed to end trip: \(error)")
+                }
             }
         }
     }
@@ -940,7 +1251,11 @@ final class MockDataService {
         notes: String?,
         startDate: Date,
         endDate: Date?,
-        distanceKM: Double
+        distanceKM: Double,
+        originLat: Double? = nil,
+        originLng: Double? = nil,
+        destinationLat: Double? = nil,
+        destinationLng: Double? = nil
     ) {
         // 1. Assign vehicle to driver
         var updatedVehicle = vehicle
@@ -960,13 +1275,22 @@ final class MockDataService {
             status: .scheduled,
             safetyScore: nil,
             routeDetails: routeDetails,
-            notes: notes
+            notes: notes,
+            originLat: originLat,
+            originLng: originLng,
+            destinationLat: destinationLat,
+            destinationLng: destinationLng
         )
         trips.insert(trip, at: 0)
         
         if SupabaseConfig.isConfigured {
             Task {
-                try? await SupabaseService.shared.addTrip(trip)
+                do {
+                    try await SupabaseService.shared.addTrip(trip)
+                    print("[Supabase] Assigned trip \(trip.id) inserted successfully.")
+                } catch {
+                    print("[Supabase ERROR] Failed to insert assigned trip: \(error)")
+                }
             }
         }
         
@@ -982,23 +1306,16 @@ final class MockDataService {
     }
 
     private func syncDriverAssignments(using vehicle: Vehicle) {
+        // Update local users array to mirror the vehicle's driver assignment.
+        // NOTE: We do NOT push these changes to Supabase profiles here because
+        // the RLS policy only allows a user to update their own profile row.
+        // assignedVehicleID on the profile is re-derived from vehicles on every
+        // full sync, so local state stays consistent without needing a profile write.
         for index in users.indices where users[index].role == .driver {
-            var updated = false
             if users[index].id == vehicle.assignedDriverID {
-                if users[index].assignedVehicleID != vehicle.id {
-                    users[index].assignedVehicleID = vehicle.id
-                    updated = true
-                }
+                users[index].assignedVehicleID = vehicle.id
             } else if users[index].assignedVehicleID == vehicle.id {
                 users[index].assignedVehicleID = nil
-                updated = true
-            }
-            
-            if updated && SupabaseConfig.isConfigured {
-                let userToSync = users[index]
-                Task {
-                    try? await SupabaseService.shared.updateProfile(userToSync)
-                }
             }
         }
     }
@@ -1110,10 +1427,10 @@ enum DemoSeed {
         ]
 
         let vehicles = [
-            Vehicle(id: vehicle1ID, organizationID: orgID, displayName: "Tata Ace", plateNumber: "TRK-2847", model: "2024 Light Truck", status: .active, fuelLevel: 74, odometer: 128_420, assignedDriverID: driver1ID, nextServiceDate: .now.addingTimeInterval(86400 * 8), utilization: 88),
-            Vehicle(id: vehicle2ID, organizationID: orgID, displayName: "Tata Prima 5530", plateNumber: "TX-14-LGT", model: "2023 Heavy Duty", status: .active, fuelLevel: 56, odometer: 96_870, assignedDriverID: driver2ID, nextServiceDate: .now.addingTimeInterval(86400 * 17), utilization: 81),
-            Vehicle(id: vehicle3ID, organizationID: orgID, displayName: "Ashok Leyland 4220", plateNumber: "NV-11-CRG", model: "2022 Container Carrier", status: .inService, fuelLevel: 23, odometer: 167_540, assignedDriverID: nil, nextServiceDate: .now.addingTimeInterval(86400 * 2), utilization: 67),
-            Vehicle(id: vehicle4ID, organizationID: orgID, displayName: "Eicher Pro 2110", plateNumber: "AZ-09-RTE", model: "2024 Urban Delivery", status: .idle, fuelLevel: 91, odometer: 41_120, assignedDriverID: nil, nextServiceDate: .now.addingTimeInterval(86400 * 24), utilization: 49)
+            Vehicle(id: vehicle1ID, organizationID: orgID, displayName: "Tata Ace", plateNumber: "TRK-2847", model: "2024 Light Truck", status: .active, fuelLevel: 74, odometer: 128_420, assignedDriverID: driver1ID, nextServiceDate: .now.addingTimeInterval(86400 * 8), utilization: 88, fuelConsumption: 8.5, vehicleType: "Van", fuelType: "CNG", manufacturer: "Tata Motors", vehicleYear: "2024", vinNumber: "MALA851HXNM111111"),
+            Vehicle(id: vehicle2ID, organizationID: orgID, displayName: "Tata Prima 5530", plateNumber: "TX-14-LGT", model: "2023 Heavy Duty", status: .active, fuelLevel: 56, odometer: 96_870, assignedDriverID: driver2ID, nextServiceDate: .now.addingTimeInterval(86400 * 17), utilization: 81, fuelConsumption: 28.2, vehicleType: "Truck", fuelType: "Diesel", manufacturer: "Tata Motors", vehicleYear: "2023", vinNumber: "MALA851HXNM222222"),
+            Vehicle(id: vehicle3ID, organizationID: orgID, displayName: "Ashok Leyland 4220", plateNumber: "NV-11-CRG", model: "2022 Container Carrier", status: .inService, fuelLevel: 23, odometer: 167_540, assignedDriverID: nil, nextServiceDate: .now.addingTimeInterval(86400 * 2), utilization: 67, fuelConsumption: 32.4, vehicleType: "Truck", fuelType: "Diesel", manufacturer: "Ashok Leyland", vehicleYear: "2022", vinNumber: "MALA851HXNM333333"),
+            Vehicle(id: vehicle4ID, organizationID: orgID, displayName: "Eicher Pro 2110", plateNumber: "AZ-09-RTE", model: "2024 Urban Delivery", status: .idle, fuelLevel: 91, odometer: 41_120, assignedDriverID: nil, nextServiceDate: .now.addingTimeInterval(86400 * 24), utilization: 49, fuelConsumption: 14.8, vehicleType: "Truck", fuelType: "Electric", manufacturer: "Eicher", vehicleYear: "2024", vinNumber: "MALA851HXNM444444")
         ]
 
         let documents: [VehicleDocument] = [

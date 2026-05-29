@@ -51,7 +51,7 @@ struct NotificationsView: View {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 8)
+                    .padding(.top, 4)
                     
                     Divider()
                 }
@@ -59,15 +59,20 @@ struct NotificationsView: View {
 
                 if filteredNotifications.isEmpty {
                     // Clean Native Empty State
-                    ContentUnavailableView {
-                        Label(
-                            selectedFilter == .all ? "No Notifications" : "No Unread Notifications",
-                            systemImage: selectedFilter == .all ? "bell.slash.fill" : "bell.badge.slash.fill"
-                        )
-                    } description: {
-                        Text("You're completely up to date. New duty alerts will appear here.")
+                    ScrollView(showsIndicators: false) {
+                        ContentUnavailableView {
+                            Label(
+                                selectedFilter == .all ? "No Notifications" : "No Unread Notifications",
+                                systemImage: selectedFilter == .all ? "bell.slash.fill" : "bell.badge.slash.fill"
+                            )
+                        } description: {
+                            Text("You're completely up to date. New duty alerts will appear here.")
+                        }
+                        .frame(minHeight: 400)
                     }
-                    .frame(maxHeight: .infinity)
+                    .refreshable {
+                        await appViewModel.loadNotifications()
+                    }
                 } else {
                     // Native List with clean swipe and tap behaviors
                     List {
@@ -88,34 +93,34 @@ struct NotificationsView: View {
                                     
                                     // Category Icon
                                     Image(systemName: iconName(for: notification.category))
-                                        .font(.system(size: 14, weight: .semibold))
+                                        .font(.system(size: 12, weight: .semibold))
                                         .foregroundStyle(.white)
-                                        .frame(width: 28, height: 28)
+                                        .frame(width: 24, height: 24)
                                         .background(color(for: notification.category), in: Circle())
                                         .padding(.top, 2)
 
                                     VStack(alignment: .leading, spacing: 4) {
                                         HStack(alignment: .top) {
                                             Text(notification.title)
-                                                .font(.system(size: 16, weight: notification.isRead ? .semibold : .bold))
+                                                .font(.system(size: 15, weight: notification.isRead ? .semibold : .bold))
                                                 .foregroundStyle(DriverTheme.textPrimary)
                                                 .lineLimit(1)
                                             
                                             Spacer()
                                             
                                             Text(notification.date.formatted(.dateTime.hour().minute()))
-                                                .font(.system(size: 12, weight: .regular))
+                                                .font(.system(size: 11, weight: .regular))
                                                 .foregroundStyle(DriverTheme.textSecondary.opacity(0.8))
                                         }
                                         
                                         Text(notification.message)
-                                            .font(.system(size: 14))
+                                            .font(.system(size: 13))
                                             .foregroundStyle(DriverTheme.textSecondary)
                                             .lineLimit(3)
                                             .multilineTextAlignment(.leading)
                                     }
                                 }
-                                .padding(.vertical, 4)
+                                .padding(.vertical, 2)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
@@ -125,6 +130,9 @@ struct NotificationsView: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    .refreshable {
+                        await appViewModel.loadNotifications()
+                    }
                 }
             }
         }

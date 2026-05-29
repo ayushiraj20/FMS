@@ -82,54 +82,84 @@ struct DriverVehicleTripDetailView: View {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(assignedVehicle?.plateNumber ?? "TRK-2847")
+                        Text(assignedVehicle?.plateNumber ?? "No Vehicle")
                             .font(.system(.largeTitle, design: .rounded).bold())
                             .foregroundStyle(DriverTheme.textPrimary)
-                        Text("Driver \(currentUser?.name ?? "Rajesh Kumar")")
+                        Text("Driver \(currentUser?.name ?? "No Driver")")
                             .font(.system(.headline, design: .rounded))
                             .foregroundStyle(DriverTheme.textSecondary)
                     }
                     Spacer()
-                    Label(assignedVehicle?.status.rawValue ?? "Active", systemImage: "bolt.fill")
-                        .font(.caption.bold())
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(assignedVehicle?.status == .active ? DriverTheme.successGreen.opacity(0.15) : DriverTheme.accent.opacity(0.15), in: Capsule())
-                        .foregroundStyle(assignedVehicle?.status == .active ? DriverTheme.successGreen : DriverTheme.accent)
-                }
-
-                VStack(spacing: 16) {
-                    HStack {
-                        Image(systemName: "clock.badge.exclamationmark").foregroundStyle(DriverTheme.accent)
-                        Text("ETA Delay:").font(.subheadline).foregroundStyle(DriverTheme.textSecondary)
-                        Text("45 min").font(.subheadline.bold()).foregroundStyle(DriverTheme.accent)
-                        Spacer()
-                    }
-                    HStack {
-                        Image(systemName: "arrow.triangle.turn.up.right.diamond").foregroundStyle(DriverTheme.accent)
-                        Text("Route Deviation Alert").font(.subheadline).foregroundStyle(DriverTheme.textSecondary)
-                        Spacer()
+                    if let vehicle = assignedVehicle {
+                        Label(vehicle.status.rawValue, systemImage: "bolt.fill")
+                            .font(.caption.bold())
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(vehicle.status == .active ? DriverTheme.successGreen.opacity(0.15) : DriverTheme.accent.opacity(0.15), in: Capsule())
+                            .foregroundStyle(vehicle.status == .active ? DriverTheme.successGreen : DriverTheme.accent)
+                    } else {
+                        Label("Unassigned", systemImage: "exclamationmark.circle")
+                            .font(.caption.bold())
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(DriverTheme.textSecondary.opacity(0.15), in: Capsule())
+                            .foregroundStyle(DriverTheme.textSecondary)
                     }
                 }
-                .padding()
-                .background(DriverTheme.background.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
 
-                VStack(alignment: .leading, spacing: 10) {
-                    let fuelLevel = assignedVehicle?.fuelLevel ?? 32
-                    HStack {
-                        Text("Fuel Level").font(.subheadline.bold()).foregroundStyle(DriverTheme.textSecondary)
-                        Spacer()
-                        Text("\(fuelLevel)%").font(.subheadline.bold()).foregroundStyle(fuelLevel < 35 ? DriverTheme.criticalRed : DriverTheme.textPrimary)
-                    }
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.quaternary).frame(height: 10)
-                            Capsule()
-                                .fill(fuelLevel < 35 ? DriverTheme.criticalRed : DriverTheme.accent)
-                                .frame(width: geometry.size.width * CGFloat(Double(fuelLevel) / 100.0), height: 10)
+                // Only show trip alerts when an active trip exists
+                if let trip = activeTrip {
+                    VStack(spacing: 16) {
+                        HStack {
+                            Image(systemName: "clock.badge.exclamationmark").foregroundStyle(DriverTheme.accent)
+                            Text("ETA:").font(.subheadline).foregroundStyle(DriverTheme.textSecondary)
+                            if let endDate = trip.endDate {
+                                Text(endDate.formatted(date: .omitted, time: .shortened)).font(.subheadline.bold()).foregroundStyle(DriverTheme.accent)
+                            } else {
+                                Text("On Schedule").font(.subheadline.bold()).foregroundStyle(DriverTheme.successGreen)
+                            }
+                            Spacer()
+                        }
+                        HStack {
+                            Image(systemName: "location.fill").foregroundStyle(DriverTheme.accent)
+                            Text("\(trip.origin) → \(trip.destination)").font(.subheadline).foregroundStyle(DriverTheme.textSecondary)
+                            Spacer()
                         }
                     }
-                    .frame(height: 10)
+                    .padding()
+                    .background(DriverTheme.background.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+                }
+
+                if let vehicle = assignedVehicle {
+                    VStack(alignment: .leading, spacing: 10) {
+                        let fuelLevel = vehicle.fuelLevel
+                        HStack {
+                            Text("Fuel Level").font(.subheadline.bold()).foregroundStyle(DriverTheme.textSecondary)
+                            Spacer()
+                            Text("\(fuelLevel)%").font(.subheadline.bold()).foregroundStyle(fuelLevel < 35 ? DriverTheme.criticalRed : DriverTheme.textPrimary)
+                        }
+                        GeometryReader { geometry in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(.quaternary).frame(height: 10)
+                                Capsule()
+                                    .fill(fuelLevel < 35 ? DriverTheme.criticalRed : DriverTheme.accent)
+                                    .frame(width: geometry.size.width * CGFloat(Double(fuelLevel) / 100.0), height: 10)
+                            }
+                        }
+                        .frame(height: 10)
+                    }
+                } else {
+                    HStack(spacing: 12) {
+                        Image(systemName: "fuelpump.slash")
+                            .font(.title3)
+                            .foregroundStyle(DriverTheme.textSecondary)
+                        Text("No vehicle assigned — fuel data unavailable")
+                            .font(.subheadline)
+                            .foregroundStyle(DriverTheme.textSecondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(DriverTheme.textSecondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
                 }
             }
             .padding(24)

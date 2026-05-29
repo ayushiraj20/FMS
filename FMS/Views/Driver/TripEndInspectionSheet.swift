@@ -332,9 +332,14 @@ struct TripEndInspectionSheet: View {
         isSubmitting = true
         submitError = nil
 
-        guard let user = appViewModel.currentUser,
-              let vehicle = appViewModel.assignedVehicle else {
-            submitError = "No user or vehicle found. Please try again."
+        guard let user = appViewModel.currentUser else {
+            submitError = "No user found. Please try again."
+            isSubmitting = false
+            return
+        }
+
+        guard let vehicleID = trip?.vehicleID ?? appViewModel.assignedVehicle?.id else {
+            submitError = "No vehicle associated with this trip."
             isSubmitting = false
             return
         }
@@ -356,7 +361,7 @@ struct TripEndInspectionSheet: View {
         // Save inspection to service + Supabase
         appViewModel.service.addInspection(
             driverID: user.id,
-            vehicleID: vehicle.id,
+            vehicleID: vehicleID,
             type: .postTrip,
             notes: combinedNotes,
             items: serviceItems
@@ -367,7 +372,7 @@ struct TripEndInspectionSheet: View {
             let desc = fi.failureNote.isEmpty ? "Inspection failed: \(fi.title)" : "\(fi.title) — \(fi.failureNote)"
             appViewModel.service.addDefect(
                 driverID: user.id,
-                vehicleID: vehicle.id,
+                vehicleID: vehicleID,
                 severity: criticalItems.contains(fi.title) ? .critical : .medium,
                 description: desc,
                 title: "Post-trip: \(fi.title)",

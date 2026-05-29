@@ -85,7 +85,7 @@ struct DriverDashboardView: View {
                     .environment(driverVM)
             }
             .sheet(isPresented: $driverVM.showBreakLogSheet) {
-                BreakLogSheet()
+                TripBreakLogSheet(trip: currentUser.flatMap { appViewModel.service.activeTrip(for: $0.id) })
                     .environment(appViewModel)
             }
             .sheet(item: $driverVM.showAlertDetail) { alert in
@@ -188,9 +188,11 @@ struct DriverDashboardView: View {
         HStack(spacing: 16) {
             // Vehicle Card
             NavigationLink {
-                DriverVehicleTripDetailView()
-                    .environment(appViewModel)
-                    .environment(driverVM)
+                if assignedVehicle != nil {
+                    DriverVehicleTripDetailView()
+                        .environment(appViewModel)
+                        .environment(driverVM)
+                }
             } label: {
                 VStack(alignment: .leading, spacing: 8) {
                     ZStack(alignment: .center) {
@@ -205,11 +207,13 @@ struct DriverDashboardView: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
-                            Text(assignedVehicle?.plateNumber ?? "TRK-2847")
+                            Text(assignedVehicle?.plateNumber ?? "No Vehicle")
                                 .font(.system(.headline, design: .rounded))
-                            Circle().fill(assignedVehicle?.status == .active ? DriverTheme.successGreen : .gray).frame(width: 8, height: 8)
+                            if let vehicle = assignedVehicle {
+                                Circle().fill(vehicle.status == .active ? DriverTheme.successGreen : .gray).frame(width: 8, height: 8)
+                            }
                         }
-                        Text(assignedVehicle?.displayName ?? "Tata Ace")
+                        Text(assignedVehicle?.displayName ?? "Requires Assignment")
                             .font(.caption)
                             .foregroundStyle(DriverTheme.textSecondary)
                     }
@@ -219,6 +223,7 @@ struct DriverDashboardView: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
             .buttonStyle(.plain)
+            .disabled(assignedVehicle == nil)
 
             // Shift Card
             NavigationLink {
@@ -232,15 +237,15 @@ struct DriverDashboardView: View {
                         .foregroundStyle(DriverTheme.textSecondary)
                     
                     let shift = currentUser.flatMap { appViewModel.service.currentShift(for: $0.id) }
-                    let shiftProgress = shift?.progress ?? 0.65
+                    let shiftProgress = shift?.progress ?? 0.0
                     
                     ZStack {
                         CircularProgressRing(progress: shiftProgress, size: 70, strokeWidth: 8)
-                        Text("\(Int(shiftProgress * 100))%")
+                        Text(shift != nil ? "\(Int(shiftProgress * 100))%" : "--")
                             .font(.system(.title3, design: .rounded).bold())
                     }
                     
-                    Text(shift != nil ? "\(String(format: "%.1f", shift!.remainingHours))h left" : "6.5h left")
+                    Text(shift != nil ? "\(String(format: "%.1f", shift!.remainingHours))h left" : "No active shift")
                         .font(.caption2)
                         .foregroundStyle(DriverTheme.textSecondary)
                 }
@@ -367,38 +372,6 @@ struct DriverDashboardView: View {
     // MARK: - Quick Actions
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            /*
-            Text("Actions")
-                .font(.system(.title2, design: .rounded).bold())
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    let inspDone = currentUser.flatMap { appViewModel.service.todayInspection(for: $0.id) } != nil
-                    
-                    NavigationLink(destination: inspDone ? AnyView(InspectionsView()) : AnyView(PreTripInspectionView())) {
-                        quickActionTile(icon: "clipboard.fill", label: "Inspection", color: .blue)
-                    }
-                    .buttonStyle(.plain)
-                    
-                    /*
-                    Button { driverVM.showBreakLogSheet = true } label: {
-                        quickActionTile(icon: "cup.and.saucer.fill", label: "Break Log", color: .orange)
-                    }
-                    .buttonStyle(.plain)
-                    */
-                    
-                    Button { driverVM.startSOSCountdown(service: appViewModel.service, user: currentUser) } label: {
-                        quickActionTile(icon: "light.beacon.max.fill", label: "SOS", color: DriverTheme.criticalRed)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .scrollTargetLayout()
-            }
-            .scrollTargetBehavior(.viewAligned)
-            .contentMargins(.horizontal, 20, for: .scrollContent)
-            .padding(.horizontal, -20)
-            */
-            
             Button { driverVM.startSOSCountdown(service: appViewModel.service, user: currentUser) } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "light.beacon.max.fill")
@@ -408,7 +381,7 @@ struct DriverDashboardView: View {
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 48)
+                .frame(height: 56)
                 .background(DriverTheme.criticalRed, in: Capsule())
             }
             .buttonStyle(.plain)
@@ -471,21 +444,30 @@ struct DriverDashboardView: View {
     }
 
     private var todayDistanceValue: Int {
-        guard let user = currentUser else { return 148 }
-        let trips = appViewModel.service.trips.filter { $0.driverID == user.id }
-        return Int(trips.reduce(0.0) { $0 + $1.distanceKM }) > 0 ? Int(trips.reduce(0.0) { $0 + $1.distanceKM }) : 148
+        guard let user = currentUser else { return 0 }
+        let today = Calendar.current.startOfDay(for: .now)
+        let trips = appViewModel.service.trips.filter {
+            $0.driverID == user.id && $0.startDate >= today
+        }
+        return Int(trips.reduce(0.0) { $0 + $1.distanceKM })
     }
 
     private var todayFuelAmountValue: Int {
-        guard let user = currentUser else { return 2400 }
-        let receipts = appViewModel.service.fuelReceipts(for: user.id)
-        return Int(receipts.reduce(0.0) { $0 + $1.amount }) > 0 ? Int(receipts.reduce(0.0) { $0 + $1.amount }) : 2400
+        guard let user = currentUser else { return 0 }
+        let today = Calendar.current.startOfDay(for: .now)
+        let receipts = appViewModel.service.fuelReceipts(for: user.id).filter {
+            $0.date >= today
+        }
+        return Int(receipts.reduce(0.0) { $0 + $1.amount })
     }
 
     private var todayTripsCountValue: Int {
-        guard let user = currentUser else { return 2 }
-        let trips = appViewModel.service.trips.filter { $0.driverID == user.id }
-        return trips.isEmpty ? 2 : trips.count
+        guard let user = currentUser else { return 0 }
+        let today = Calendar.current.startOfDay(for: .now)
+        let trips = appViewModel.service.trips.filter {
+            $0.driverID == user.id && $0.startDate >= today
+        }
+        return trips.count
     }
 
     // MARK: - Reported Defects Section

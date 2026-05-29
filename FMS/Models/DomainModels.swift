@@ -103,6 +103,7 @@ struct User: Identifiable, Codable, Hashable {
     var phone: String
     var title: String
     var assignedVehicleID: UUID?
+    var isPasswordResetRequired: Bool = false
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -113,9 +114,10 @@ struct User: Identifiable, Codable, Hashable {
         case phone
         case title
         case assignedVehicleID = "assigned_vehicle_id"
+        case isPasswordResetRequired = "is_password_reset_required"
     }
 
-    init(id: UUID, organizationID: UUID, name: String, role: UserRole, email: String, password: String = "demo123", phone: String, title: String, assignedVehicleID: UUID? = nil) {
+    init(id: UUID, organizationID: UUID, name: String, role: UserRole, email: String, password: String = "demo123", phone: String, title: String, assignedVehicleID: UUID? = nil, isPasswordResetRequired: Bool = false) {
         self.id = id
         self.organizationID = organizationID
         self.name = name
@@ -125,6 +127,7 @@ struct User: Identifiable, Codable, Hashable {
         self.phone = phone
         self.title = title
         self.assignedVehicleID = assignedVehicleID
+        self.isPasswordResetRequired = isPasswordResetRequired
     }
 
     init(from decoder: Decoder) throws {
@@ -138,6 +141,24 @@ struct User: Identifiable, Codable, Hashable {
         phone = try container.decode(String.self, forKey: .phone)
         title = try container.decode(String.self, forKey: .title)
         assignedVehicleID = try container.decodeIfPresent(UUID.self, forKey: .assignedVehicleID)
+        isPasswordResetRequired = try container.decodeIfPresent(Bool.self, forKey: .isPasswordResetRequired) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(organizationID, forKey: .organizationID)
+        try container.encode(name, forKey: .name)
+        try container.encode(role, forKey: .role)
+        try container.encode(email, forKey: .email)
+        try container.encode(phone, forKey: .phone)
+        try container.encode(title, forKey: .title)
+        if let assignedVehicleID = assignedVehicleID {
+            try container.encode(assignedVehicleID, forKey: .assignedVehicleID)
+        } else {
+            try container.encodeNil(forKey: .assignedVehicleID)
+        }
+        try container.encode(isPasswordResetRequired, forKey: .isPasswordResetRequired)
     }
 }
 
@@ -153,6 +174,12 @@ struct Vehicle: Identifiable, Codable, Hashable {
     var assignedDriverID: UUID?
     var nextServiceDate: Date
     var utilization: Int
+    var fuelConsumption: Double
+    var vehicleType: String
+    var fuelType: String
+    var manufacturer: String
+    var vehicleYear: String
+    var vinNumber: String
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -166,6 +193,78 @@ struct Vehicle: Identifiable, Codable, Hashable {
         case assignedDriverID = "assigned_driver_id"
         case nextServiceDate = "next_service_date"
         case utilization
+        case fuelConsumption = "fuel_consumption"
+        case vehicleType = "vehicle_type"
+        case fuelType = "fuel_type"
+        case manufacturer
+        case vehicleYear = "vehicle_year"
+        case vinNumber = "vin_number"
+    }
+
+    init(id: UUID, organizationID: UUID, displayName: String, plateNumber: String, model: String, status: VehicleStatus, fuelLevel: Int, odometer: Int, assignedDriverID: UUID?, nextServiceDate: Date, utilization: Int, fuelConsumption: Double = 0.0, vehicleType: String = "Truck", fuelType: String = "Diesel", manufacturer: String = "", vehicleYear: String = "", vinNumber: String = "") {
+        self.id = id
+        self.organizationID = organizationID
+        self.displayName = displayName
+        self.plateNumber = plateNumber
+        self.model = model
+        self.status = status
+        self.fuelLevel = fuelLevel
+        self.odometer = odometer
+        self.assignedDriverID = assignedDriverID
+        self.nextServiceDate = nextServiceDate
+        self.utilization = utilization
+        self.fuelConsumption = fuelConsumption
+        self.vehicleType = vehicleType
+        self.fuelType = fuelType
+        self.manufacturer = manufacturer
+        self.vehicleYear = vehicleYear
+        self.vinNumber = vinNumber
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        organizationID = try container.decode(UUID.self, forKey: .organizationID)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        plateNumber = try container.decode(String.self, forKey: .plateNumber)
+        model = try container.decode(String.self, forKey: .model)
+        status = try container.decode(VehicleStatus.self, forKey: .status)
+        fuelLevel = try container.decode(Int.self, forKey: .fuelLevel)
+        odometer = try container.decode(Int.self, forKey: .odometer)
+        assignedDriverID = try container.decodeIfPresent(UUID.self, forKey: .assignedDriverID)
+        nextServiceDate = (try? container.decode(Date.self, forKey: .nextServiceDate)) ?? Date()
+        utilization = try container.decode(Int.self, forKey: .utilization)
+        fuelConsumption = (try? container.decode(Double.self, forKey: .fuelConsumption)) ?? 0.0
+        vehicleType = (try? container.decode(String.self, forKey: .vehicleType)) ?? "Truck"
+        fuelType = (try? container.decode(String.self, forKey: .fuelType)) ?? "Diesel"
+        manufacturer = (try? container.decode(String.self, forKey: .manufacturer)) ?? ""
+        vehicleYear = (try? container.decode(String.self, forKey: .vehicleYear)) ?? ""
+        vinNumber = (try? container.decode(String.self, forKey: .vinNumber)) ?? ""
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(organizationID, forKey: .organizationID)
+        try container.encode(displayName, forKey: .displayName)
+        try container.encode(plateNumber, forKey: .plateNumber)
+        try container.encode(model, forKey: .model)
+        try container.encode(status, forKey: .status)
+        try container.encode(fuelLevel, forKey: .fuelLevel)
+        try container.encode(odometer, forKey: .odometer)
+        if let assignedDriverID = assignedDriverID {
+            try container.encode(assignedDriverID, forKey: .assignedDriverID)
+        } else {
+            try container.encodeNil(forKey: .assignedDriverID)
+        }
+        try container.encode(nextServiceDate, forKey: .nextServiceDate)
+        try container.encode(utilization, forKey: .utilization)
+        try container.encode(fuelConsumption, forKey: .fuelConsumption)
+        try container.encode(vehicleType, forKey: .vehicleType)
+        try container.encode(fuelType, forKey: .fuelType)
+        try container.encode(manufacturer, forKey: .manufacturer)
+        try container.encode(vehicleYear, forKey: .vehicleYear)
+        try container.encode(vinNumber, forKey: .vinNumber)
     }
 }
 
@@ -176,6 +275,7 @@ struct VehicleDocument: Identifiable, Codable, Hashable {
     var documentNumber: String
     var expiryDate: Date
     var isVerified: Bool
+    var imageUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -184,6 +284,28 @@ struct VehicleDocument: Identifiable, Codable, Hashable {
         case documentNumber = "document_number"
         case expiryDate = "expiry_date"
         case isVerified = "is_verified"
+        case imageUrl = "image_url"
+    }
+
+    init(id: UUID, vehicleID: UUID, type: DocumentType, documentNumber: String, expiryDate: Date, isVerified: Bool, imageUrl: String? = nil) {
+        self.id = id
+        self.vehicleID = vehicleID
+        self.type = type
+        self.documentNumber = documentNumber
+        self.expiryDate = expiryDate
+        self.isVerified = isVerified
+        self.imageUrl = imageUrl
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        vehicleID = try container.decode(UUID.self, forKey: .vehicleID)
+        type = try container.decode(DocumentType.self, forKey: .type)
+        documentNumber = try container.decode(String.self, forKey: .documentNumber)
+        expiryDate = try container.decode(Date.self, forKey: .expiryDate)
+        isVerified = try container.decode(Bool.self, forKey: .isVerified)
+        imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
     }
 }
 
@@ -200,6 +322,10 @@ struct Trip: Identifiable, Codable, Hashable {
     var safetyScore: Int? = nil
     var routeDetails: String? = nil
     var notes: String? = nil
+    var originLat: Double? = nil
+    var originLng: Double? = nil
+    var destinationLat: Double? = nil
+    var destinationLng: Double? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -214,6 +340,10 @@ struct Trip: Identifiable, Codable, Hashable {
         case safetyScore = "safety_score"
         case routeDetails = "route_details"
         case notes
+        case originLat = "origin_lat"
+        case originLng = "origin_lng"
+        case destinationLat = "destination_lat"
+        case destinationLng = "destination_lng"
     }
 }
 
@@ -273,6 +403,19 @@ struct InspectionRecord: Identifiable, Codable, Hashable {
         notes = try container.decode(String.self, forKey: .notes)
         passed = try container.decode(Bool.self, forKey: .passed)
         items = try container.decodeIfPresent([InspectionItem].self, forKey: .items) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(driverID, forKey: .driverID)
+        try container.encode(vehicleID, forKey: .vehicleID)
+        try container.encode(type, forKey: .type)
+        try container.encode(date, forKey: .date)
+        try container.encode(notes, forKey: .notes)
+        try container.encode(passed, forKey: .passed)
+        // Note: Do not encode 'items' since it belongs to a separate table (inspection_items)
+        // and does not exist in the inspection_records table.
     }
 }
 
@@ -488,30 +631,31 @@ struct FuelReceipt: Identifiable, Codable, Hashable {
     }
 }
 
-enum SOSStatus: String, Codable {
-    case triggered = "Triggered"
-    case confirmed = "Confirmed"
-    case resolved = "Resolved"
-    case cancelled = "Cancelled"
-}
-
 struct SOSAlert: Identifiable, Codable, Hashable {
     let id: UUID
     var driverID: UUID
+    var driverName: String
     var vehicleID: UUID
+    var vehicleNumber: String
+    var emergencyType: String
     var latitude: Double
     var longitude: Double
-    var timestamp: Date
-    var status: SOSStatus
+    var description: String?
+    var status: String
+    var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
         case id
         case driverID = "driver_id"
+        case driverName = "driver_name"
         case vehicleID = "vehicle_id"
+        case vehicleNumber = "vehicle_number"
+        case emergencyType = "emergency_type"
         case latitude
         case longitude
-        case timestamp
+        case description
         case status
+        case createdAt = "created_at"
     }
 }
 
@@ -529,7 +673,7 @@ struct ChatMessage: Identifiable, Codable, Hashable {
         case senderID = "sender_id"
         case receiverID = "receiver_id"
         case message
-        case timestamp
+        case timestamp = "sent_at"
         case isRead = "is_read"
         case workOrderID = "work_order_id"
     }
@@ -692,3 +836,30 @@ struct InspectionItem2: Identifiable, Hashable {
     }
 }
 
+// MARK: - Spare Parts Inventory
+
+struct SparePart: Identifiable, Codable, Hashable {
+    let id: UUID
+    var organizationID: UUID
+    var name: String
+    var partNumber: String
+    var category: String
+    var quantity: Int
+    var minimumRequired: Int
+    var icon: String
+
+    var isOutOfStock: Bool { quantity == 0 }
+    var isLowStock: Bool { quantity > 0 && quantity <= minimumRequired }
+    var isCriticallyLow: Bool { quantity < 2 }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case organizationID = "organization_id"
+        case name
+        case partNumber = "part_number"
+        case category
+        case quantity
+        case minimumRequired = "minimum_required"
+        case icon
+    }
+}

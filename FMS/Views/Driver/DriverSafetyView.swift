@@ -8,19 +8,35 @@ struct DriverSafetyView: View {
 
     private var currentUser: User? { appViewModel.currentUser }
 
-    private struct SafetyEvent: Identifiable {
-        let id = UUID()
-        let title: String
-        let time: String
-        let location: String
-        let severity: String
-        let coordinate: CLLocationCoordinate2D
+    // Computed from actual completed trips
+    private var completedTrips: [Trip] {
+        guard let user = currentUser else { return [] }
+        return appViewModel.service.trips(for: user.id).filter { $0.status == .completed }
     }
 
-    private let recentEvents = [
-        SafetyEvent(title: "Harsh Braking", time: "2:15 PM", location: "Industrial Area", severity: "Low", coordinate: CLLocationCoordinate2D(latitude: 19.0330, longitude: 73.0297)),
-        SafetyEvent(title: "Rapid Acceleration", time: "11:30 AM", location: "Main Street", severity: "Medium", coordinate: CLLocationCoordinate2D(latitude: 18.7557, longitude: 73.4091))
-    ]
+    private var averageSafetyScore: Int? {
+        let scored = completedTrips.compactMap(\.safetyScore)
+        guard !scored.isEmpty else { return nil }
+        return scored.reduce(0, +) / scored.count
+    }
+
+    private var currentShift: ShiftInfo? {
+        currentUser.flatMap { appViewModel.service.currentShift(for: $0.id) }
+    }
+
+    private var hoursDriven: Double {
+        currentShift?.elapsedHours ?? 0.0
+    }
+
+    private var fatigueLevel: (label: String, color: Color, bars: Int) {
+        switch hoursDriven {
+        case 0..<1:    return ("Inactive", DriverTheme.textSecondary, 0)
+        case 1..<4:    return ("Fully Alert", DriverTheme.successGreen, 1)
+        case 4..<6:    return ("Moderate", DriverTheme.warningAmber, 3)
+        case 6..<8:    return ("High", DriverTheme.criticalRed, 4)
+        default:       return ("Critical", DriverTheme.criticalRed, 5)
+        }
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -54,6 +70,9 @@ struct DriverSafetyView: View {
 
     private var drivingScoreSection: some View {
         VStack(spacing: 16) {
+            let score = averageSafetyScore
+            let scoreValue = Double(score ?? 0)
+            
             ZStack {
                 Circle()
                     .trim(from: 0.15, to: 0.85)
@@ -61,21 +80,23 @@ struct DriverSafetyView: View {
                     .frame(width: 200, height: 200)
                     .rotationEffect(.degrees(90))
 
-                Circle()
-                    .trim(from: 0.15, to: 0.15 + 0.7 * (92.0 / 100.0))
-                    .stroke(
-                        DriverTheme.accent,
-                        style: StrokeStyle(lineWidth: 24, lineCap: .round)
-                    )
-                    .frame(width: 200, height: 200)
-                    .rotationEffect(.degrees(90))
-                    .shadow(color: DriverTheme.accent.opacity(0.4), radius: 10, y: 5)
+                if score != nil {
+                    Circle()
+                        .trim(from: 0.15, to: 0.15 + 0.7 * (scoreValue / 100.0))
+                        .stroke(
+                            DriverTheme.accent,
+                            style: StrokeStyle(lineWidth: 24, lineCap: .round)
+                        )
+                        .frame(width: 200, height: 200)
+                        .rotationEffect(.degrees(90))
+                        .shadow(color: DriverTheme.accent.opacity(0.4), radius: 10, y: 5)
+                }
 
                 VStack(spacing: -4) {
-                    Text("92")
+                    Text(score != nil ? "\(score!)" : "--")
                         .font(.system(size: 64, weight: .heavy, design: .rounded))
                         .foregroundStyle(DriverTheme.textPrimary)
-                    Text("of 100")
+                    Text(score != nil ? "of 100" : "No data")
                         .font(.system(.subheadline, design: .rounded).bold())
                         .foregroundStyle(DriverTheme.textSecondary)
                 }
@@ -83,9 +104,19 @@ struct DriverSafetyView: View {
             .frame(height: 160)
             .padding(.top, 20)
 
-            Text("Excellent driving this week")
+            Text(scoreMessage)
                 .font(.system(.headline, design: .rounded))
                 .foregroundStyle(DriverTheme.textSecondary)
+        }
+    }
+
+    private var scoreMessage: String {
+        guard let score = averageSafetyScore else { return "Complete trips to build your score" }
+        switch score {
+        case 90...100: return "Excellent driving this week"
+        case 75..<90:  return "Good driving — keep it up!"
+        case 50..<75:  return "Room for improvement"
+        default:       return "Focus on safe driving practices"
         }
     }
 
@@ -96,18 +127,18 @@ struct DriverSafetyView: View {
                 HStack {
                     Image(systemName: "eye.fill")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(DriverTheme.successGreen)
+                        .foregroundStyle(fatigueLevel.color)
                         .frame(width: 28, height: 28)
-                        .background(DriverTheme.successGreen.opacity(0.12), in: Circle())
+                        .background(fatigueLevel.color.opacity(0.12), in: Circle())
                     
                     Spacer()
                     
-                    Text("Low")
+                    Text(hoursDriven > 0 ? (fatigueLevel.bars <= 2 ? "Low" : "High") : "N/A")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(DriverTheme.successGreen)
+                        .foregroundStyle(fatigueLevel.color)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(DriverTheme.successGreen.opacity(0.12), in: Capsule())
+                        .background(fatigueLevel.color.opacity(0.12), in: Capsule())
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -115,7 +146,7 @@ struct DriverSafetyView: View {
                         .font(.system(.caption2, design: .rounded).bold())
                         .foregroundStyle(DriverTheme.textSecondary)
                     
-                    Text("Fully Alert")
+                    Text(fatigueLevel.label)
                         .font(.system(.headline, design: .rounded).bold())
                         .foregroundStyle(DriverTheme.textPrimary)
                 }
@@ -123,7 +154,7 @@ struct DriverSafetyView: View {
                 HStack(spacing: 5) {
                     ForEach(0..<5, id: \.self) { idx in
                         Capsule()
-                            .fill(idx < 1 ? DriverTheme.successGreen : DriverTheme.textSecondary.opacity(0.15))
+                            .fill(idx < fatigueLevel.bars ? fatigueLevel.color : DriverTheme.textSecondary.opacity(0.15))
                             .frame(height: 6)
                     }
                 }
@@ -162,7 +193,7 @@ struct DriverSafetyView: View {
                         .foregroundStyle(DriverTheme.textSecondary)
                     
                     HStack(alignment: .lastTextBaseline, spacing: 2) {
-                        Text("4.5")
+                        Text(String(format: "%.1f", hoursDriven))
                             .font(.system(.title2, design: .rounded).bold())
                             .foregroundStyle(DriverTheme.textPrimary)
                         Text("hrs")
@@ -178,8 +209,8 @@ struct DriverSafetyView: View {
                             .fill(DriverTheme.textSecondary.opacity(0.15))
                             .frame(height: 6)
                         Capsule()
-                            .fill(DriverTheme.accent)
-                            .frame(width: geo.size.width * (4.5 / 8.0), height: 6)
+                            .fill(hoursDriven > 7 ? DriverTheme.criticalRed : DriverTheme.accent)
+                            .frame(width: geo.size.width * min(hoursDriven / 8.0, 1.0), height: 6)
                     }
                 }
                 .frame(height: 6)
@@ -248,51 +279,30 @@ struct DriverSafetyView: View {
                 .font(.system(.title3, design: .rounded).bold())
                 .foregroundStyle(DriverTheme.textPrimary)
 
-            LazyVStack(spacing: 12) {
-                ForEach(recentEvents) { event in
-                    HStack(spacing: 16) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text(event.title)
-                                    .font(.system(.headline, design: .rounded))
-                                    .foregroundStyle(DriverTheme.textPrimary)
-                                Spacer()
-                                Text(event.severity)
-                                    .font(.caption2.bold())
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(severityColor(event.severity).opacity(0.15), in: Capsule())
-                                    .foregroundStyle(severityColor(event.severity))
-                            }
-                            
-                            HStack {
-                                Image(systemName: "clock")
-                                Text(event.time)
-                                Spacer()
-                                Image(systemName: "mappin.and.ellipse")
-                                Text(event.location)
-                            }
-                            .font(.caption)
-                            .foregroundStyle(DriverTheme.textSecondary)
-                        }
-                        
-                        let region = MKCoordinateRegion(center: event.coordinate, span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
-                        Map(initialPosition: .region(region)) {
-                            Annotation("", coordinate: event.coordinate) {
-                                Circle()
-                                    .fill(DriverTheme.accent)
-                                    .frame(width: 12, height: 12)
-                                    .overlay(Circle().stroke(.white, lineWidth: 2))
-                                    .shadow(radius: 2)
-                            }
-                        }
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .disabled(true)
-                    }
-                    .padding(16)
-                    .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            if completedTrips.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "shield.checkered")
+                        .font(.system(size: 40))
+                        .foregroundStyle(DriverTheme.textSecondary.opacity(0.5))
+                    Text("No safety events recorded")
+                        .font(.headline)
+                        .foregroundStyle(DriverTheme.textSecondary)
+                    Text("Complete trips to see safety event data")
+                        .font(.caption)
+                        .foregroundStyle(DriverTheme.textSecondary.opacity(0.7))
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+                .background(DriverTheme.elevatedCard, in: RoundedRectangle(cornerRadius: 24))
+                .overlay(RoundedRectangle(cornerRadius: 24).stroke(DriverTheme.accent.opacity(0.1), lineWidth: 1))
+            } else {
+                Text("Safety monitoring active for \(completedTrips.count) trip(s)")
+                    .font(.subheadline)
+                    .foregroundStyle(DriverTheme.textSecondary)
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(DriverTheme.elevatedCard, in: RoundedRectangle(cornerRadius: 20))
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(DriverTheme.accent.opacity(0.1), lineWidth: 1))
             }
         }
     }
@@ -303,50 +313,59 @@ struct DriverSafetyView: View {
                 .font(.system(.title3, design: .rounded).bold())
                 .foregroundStyle(DriverTheme.textPrimary)
 
-            GeometryReader { geo in
-                let width = geo.size.width
-                let height = geo.size.height
-                let dataPoints: [CGFloat] = [88, 92, 85, 96, 92, 94, 92]
-                let stepX = width / CGFloat(max(1, dataPoints.count - 1))
+            let scored = completedTrips.compactMap(\.safetyScore).map { CGFloat($0) }
 
-                ZStack {
-                    Path { path in
-                        path.move(to: CGPoint(x: 0, y: height))
-                        for i in 0..<dataPoints.count {
-                            path.addLine(to: CGPoint(x: CGFloat(i) * stepX, y: height * (1.0 - (dataPoints[i] / 100.0))))
+            if scored.count >= 2 {
+                GeometryReader { geo in
+                    let width = geo.size.width
+                    let height = geo.size.height
+                    let dataPoints = Array(scored.suffix(7))
+                    let stepX = width / CGFloat(max(1, dataPoints.count - 1))
+
+                    ZStack {
+                        Path { path in
+                            path.move(to: CGPoint(x: 0, y: height))
+                            for i in 0..<dataPoints.count {
+                                path.addLine(to: CGPoint(x: CGFloat(i) * stepX, y: height * (1.0 - (dataPoints[i] / 100.0))))
+                            }
+                            path.addLine(to: CGPoint(x: width, y: height))
+                            path.closeSubpath()
                         }
-                        path.addLine(to: CGPoint(x: width, y: height))
-                        path.closeSubpath()
-                    }
-                    .fill(DriverTheme.accent.opacity(0.15))
+                        .fill(DriverTheme.accent.opacity(0.15))
 
-                    Path { path in
-                        path.move(to: CGPoint(x: 0, y: height * (1.0 - (dataPoints[0] / 100.0))))
-                        for i in 1..<dataPoints.count {
-                            path.addLine(to: CGPoint(x: CGFloat(i) * stepX, y: height * (1.0 - (dataPoints[i] / 100.0))))
+                        Path { path in
+                            path.move(to: CGPoint(x: 0, y: height * (1.0 - (dataPoints[0] / 100.0))))
+                            for i in 1..<dataPoints.count {
+                                path.addLine(to: CGPoint(x: CGFloat(i) * stepX, y: height * (1.0 - (dataPoints[i] / 100.0))))
+                            }
                         }
-                    }
-                    .stroke(DriverTheme.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                        .stroke(DriverTheme.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
 
-                    ForEach(0..<dataPoints.count, id: \.self) { idx in
-                        Circle()
-                            .fill(.white)
-                            .frame(width: 8, height: 8)
-                            .position(x: CGFloat(idx) * stepX, y: height * (1.0 - (dataPoints[idx] / 100.0)))
-                            .shadow(radius: 2)
+                        ForEach(0..<dataPoints.count, id: \.self) { idx in
+                            Circle()
+                                .fill(.white)
+                                .frame(width: 8, height: 8)
+                                .position(x: CGFloat(idx) * stepX, y: height * (1.0 - (dataPoints[idx] / 100.0)))
+                                .shadow(radius: 2)
+                        }
                     }
                 }
-            }
-            .frame(height: 100)
-            .padding(.top, 10)
-
-            HStack {
-                ForEach(["M", "T", "W", "T", "F", "S", "S"], id: \.self) { day in
-                    Text(day)
-                        .font(.caption.bold())
+                .frame(height: 100)
+                .padding(.top, 10)
+            } else {
+                VStack(spacing: 12) {
+                    Image(systemName: "chart.xyaxis.line")
+                        .font(.system(size: 36))
+                        .foregroundStyle(DriverTheme.textSecondary.opacity(0.4))
+                    Text("No trend data available")
+                        .font(.subheadline.bold())
                         .foregroundStyle(DriverTheme.textSecondary)
-                        .frame(maxWidth: .infinity)
+                    Text("Complete 2+ trips with safety scores to see trends")
+                        .font(.caption)
+                        .foregroundStyle(DriverTheme.textSecondary.opacity(0.7))
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 30)
             }
         }
         .padding(20)
@@ -474,14 +493,6 @@ struct DriverSafetyView: View {
             .shadow(color: DriverTheme.criticalRed.opacity(0.4), radius: 15, y: 5)
         }
         .padding(.vertical, 10)
-    }
-
-    private func severityColor(_ severity: String) -> Color {
-        switch severity {
-        case "Low": return DriverTheme.successGreen
-        case "Medium": return DriverTheme.warningAmber
-        default: return DriverTheme.criticalRed
-        }
     }
 }
 

@@ -102,6 +102,36 @@ final class SupabaseService {
         try await client.from("vehicle_documents").insert(document).execute()
     }
     
+    func updateDocument(_ document: VehicleDocument) async throws {
+        try await client.from("vehicle_documents")
+            .update(document)
+            .eq("id", value: document.id)
+            .execute()
+    }
+    
+    func uploadDocumentImage(
+        imageData: Data,
+        vehicleID: UUID,
+        documentType: String
+    ) async throws -> String {
+        let bucketName = "vehicle-documents"
+        let filePath = "\(vehicleID.uuidString)/\(documentType).jpg"
+        
+        try await client.storage
+            .from(bucketName)
+            .upload(
+                filePath,
+                data: imageData,
+                options: FileOptions(contentType: "image/jpeg", upsert: true)
+            )
+            
+        let signedURL = try await client.storage
+            .from(bucketName)
+            .createSignedURL(path: filePath, expiresIn: 315360000) // 10 years
+            
+        return signedURL.absoluteString
+    }
+    
     // Trips
     func fetchTrips() async throws -> [Trip] {
         let trips: [Trip] = try await client.from("trips").select().execute().value
@@ -166,8 +196,7 @@ final class SupabaseService {
     
     func updateWorkOrder(_ order: WorkOrder) async throws {
         try await client.from("work_orders")
-            .update(order)
-            .eq("id", value: order.id)
+            .upsert(order)
             .execute()
     }
     
@@ -188,7 +217,7 @@ final class SupabaseService {
             id,
             organization_id,
             sender_id,
-            sender_name,
+            profiles(name),
             title,
             message,
             sent_at
@@ -272,4 +301,112 @@ final class SupabaseService {
             .insert(message)
             .execute()
     }
+    
+    // MARK: - SOS Alerts
+    func fetchSOSAlerts() async throws -> [SOSAlert] {
+        let alerts: [SOSAlert] = try await client
+            .from("sos_alerts")
+            .select()
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+        return alerts
+    }
+
+    // Only send the fields the driver populates; let Supabase auto-generate id/created_at
+    struct SOSAlertInsert: Encodable {
+        let driver_id: UUID
+        let driver_name: String
+        let vehicle_id: UUID
+        let vehicle_number: String
+        let emergency_type: String
+        let latitude: Double
+        let longitude: Double
+        let description: String?
+        let status: String
+    }
+
+    func addSOSAlert(_ alert: SOSAlert) async throws {
+        let payload = SOSAlertInsert(
+            driver_id: alert.driverID,
+            driver_name: alert.driverName,
+            vehicle_id: alert.vehicleID,
+            vehicle_number: alert.vehicleNumber,
+            emergency_type: alert.emergencyType,
+            latitude: alert.latitude,
+            longitude: alert.longitude,
+            description: alert.description,
+            status: alert.status
+        )
+        try await client
+            .from("sos_alerts")
+            .insert(payload)
+            .execute()
+    }
+
+    // Only update the status field
+    struct SOSAlertStatusUpdate: Encodable {
+        let status: String
+    }
+
+    func updateSOSAlert(_ alert: SOSAlert) async throws {
+        let payload = SOSAlertStatusUpdate(status: alert.status)
+        try await client
+            .from("sos_alerts")
+            .update(payload)
+            .eq("id", value: alert.id)
+            .execute()
+    }
+
+    // MARK: - Spare Parts
+    func fetchSpareParts(organizationID: UUID) async throws -> [SparePart] {
+        let parts: [SparePart] = try await client
+            .from("spare_parts")
+            .select()
+            .eq("organization_id", value: organizationID)
+            .order("name")
+            .execute()
+            .value
+        return parts
+    }
+
+    func addSparePart(_ part: SparePart) async throws {
+        try await client
+            .from("spare_parts")
+            .insert(part)
+            .execute()
+    }
+
+    func updateSparePart(_ part: SparePart) async throws {
+        struct SparePartUpdate: Encodable {
+            let name: String
+            let part_number: String
+            let category: String
+            let quantity: Int
+            let minimum_required: Int
+            let icon: String
+        }
+        let payload = SparePartUpdate(
+            name: part.name,
+            part_number: part.partNumber,
+            category: part.category,
+            quantity: part.quantity,
+            minimum_required: part.minimumRequired,
+            icon: part.icon
+        )
+        try await client
+            .from("spare_parts")
+            .update(payload)
+            .eq("id", value: part.id)
+            .execute()
+    }
+
+    func deleteSparePart(_ part: SparePart) async throws {
+        try await client
+            .from("spare_parts")
+            .delete()
+            .eq("id", value: part.id)
+            .execute()
+    }
 }
+

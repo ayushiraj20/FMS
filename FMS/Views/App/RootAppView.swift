@@ -15,6 +15,8 @@ struct RootAppView: View {
                     LoginView()
                 case .demoRoleSelection:
                     DemoRoleSelectionView()
+                case .forcePasswordReset:
+                    PasswordResetView()
                 case .authenticated:
                     MainTabView()
                 }

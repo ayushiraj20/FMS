@@ -64,6 +64,9 @@ struct MaintenanceTabContentView: View {
                 .padding(.bottom, 100) // room for FAB
             }
             .background(AppTheme.background)
+            .refreshable {
+                await appViewModel.service.syncWithDatabase()
+            }
             .task {
                 await appViewModel.service.syncDefectsAndWorkOrders()
             }

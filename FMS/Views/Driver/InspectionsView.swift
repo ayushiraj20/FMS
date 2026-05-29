@@ -82,6 +82,9 @@ struct InspectionsView: View {
             }
             .padding(20)
         }
+        .refreshable {
+            await appViewModel.service.syncWithDatabase()
+        }
         .background(DriverScreenBackground())
         .navigationTitle("Inspections")
         .navigationBarTitleDisplayMode(.large)

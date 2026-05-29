@@ -10,10 +10,10 @@ struct MaintenanceDashboardView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 14) {
                 if isLoading {
                     LoadingStateView(title: "Loading workshop queue...")
-                        .frame(height: 320)
+                        .frame(height: 240)
                 } else {
                     metricsGrid
                     priorityQueue
@@ -21,10 +21,13 @@ struct MaintenanceDashboardView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 18)
-            .padding(.bottom, 28)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
         }
-        .background(AppTheme.background.ignoresSafeArea())
+        .refreshable {
+            await appViewModel.service.syncWithDatabase()
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("Dashboard")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -39,8 +42,15 @@ struct MaintenanceDashboardView: View {
                             .foregroundStyle(.white)
                     }
                 }
+                .buttonStyle(.plain)
                 .buttonBorderShape(.circle)
                 .accessibilityIdentifier("PROFILE_BUTTON")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: BroadcastInboxView()) {
+                    Image(systemName: "megaphone.fill")
+                }
+                .accessibilityIdentifier("BROADCAST_BUTTON")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: NotificationsView()) {
@@ -57,50 +67,6 @@ struct MaintenanceDashboardView: View {
         }
     }
 
-    private var topBar: some View {
-        HStack {
-            NavigationLink(destination: ProfileSettingsView()) {
-                ZStack {
-                    Circle()
-                        .fill(maintenanceAccent)
-                        .frame(width: 44, height: 44)
-                    Text(userInitials)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white)
-                }
-            }
-            .accessibilityIdentifier("PROFILE_BUTTON")
-
-            Spacer()
-
-            NavigationLink(destination: NotificationsView()) {
-                ZStack(alignment: .topTrailing) {
-                    Circle()
-                        .fill(AppTheme.surfaceSecondary)
-                        .frame(width: 44, height: 44)
-
-                    Image(systemName: "bell.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(maintenanceAccent)
-                        .frame(width: 44, height: 44)
-
-                    if appViewModel.unreadNotificationsCount > 0 {
-                        Circle()
-                            .fill(AppTheme.error)
-                            .frame(width: 18, height: 18)
-                            .overlay(
-                                Text("\(appViewModel.unreadNotificationsCount)")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white)
-                            )
-                            .offset(x: 2, y: -2)
-                    }
-                }
-            }
-            .accessibilityIdentifier("BELL_BUTTON")
-        }
-    }
-
     private var currentUser: User? { appViewModel.currentUser }
     private var userFirstName: String { currentUser?.name.components(separatedBy: " ").first ?? "User" }
     private var assignedOrders: [WorkOrder] { appViewModel.service.workOrders(for: currentUser?.id) }
@@ -114,64 +80,66 @@ struct MaintenanceDashboardView: View {
         }
     }
     private var assignedVehicleIDs: Set<UUID> { Set(assignedOrders.map(\.vehicleID)) }
-    private var waitingOnPartsCount: Int { assignedOrders.filter { $0.status == .waitingParts }.count }
     private var upcomingSchedules: [MaintenanceSchedule] {
         let schedules = appViewModel.service.schedules(for: assignedVehicleIDs.isEmpty ? nil : assignedVehicleIDs)
         return schedules.filter { $0.status != .completed }
     }
-
-    private var dashboardHeader: some View {
-        HStack(alignment: .center, spacing: 14) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Hey \(userFirstName)")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(warmPrimaryText)
-            }
-
-            Spacer()
-        }
+    private var criticalOrders: [WorkOrder] {
+        assignedOrders.filter { $0.priority == .critical && $0.status != .completed }
+    }
+    private var inProgressOrders: [WorkOrder] {
+        assignedOrders.filter { $0.status == .inProgress }
+    }
+    private var pendingVehicleCount: Int {
+        let allOrders = appViewModel.service.workOrders(for: nil)
+        let openOrWaiting = allOrders.filter { $0.status == .open || $0.status == .waitingParts }
+        return Set(openOrWaiting.map(\.vehicleID)).count
     }
 
     private var metricsGrid: some View {
         LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 16),
-            GridItem(.flexible(), spacing: 16)
-        ], spacing: 16) {
-            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .pending)) {
-                MaintenanceMetricCard(
-                    icon: "list.clipboard.fill",
-                    title: "Open Orders",
-                    value: "\(activeAssignedOrders.count)",
-                    tint: maintenanceAccent
-                )
-            }
-            .buttonStyle(.plain)
-            
+            GridItem(.flexible(), spacing: 10),
+            GridItem(.flexible(), spacing: 10)
+        ], spacing: 10) {
+            // 1st Card: Critical
             NavigationLink(destination: MaintenanceWorkOrdersView(showOnlyCritical: true)) {
                 MaintenanceMetricCard(
                     icon: "exclamationmark.triangle.fill",
                     title: "Critical",
-                    value: "\(assignedOrders.filter { $0.priority == .critical && $0.status != .completed }.count)",
+                    value: "\(criticalOrders.count)",
                     tint: maintenanceAccent
                 )
             }
             .buttonStyle(.plain)
             
-            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .inProgress)) {
+            // 2nd Card: Work In Progress
+            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .inProgress, isLockedFilter: true)) {
                 MaintenanceMetricCard(
                     icon: "wrench.and.screwdriver.fill",
                     title: "In Progress",
-                    value: "\(assignedOrders.filter { $0.status == .inProgress }.count)",
+                    value: "\(inProgressOrders.count)",
                     tint: maintenanceAccent
                 )
             }
             .buttonStyle(.plain)
             
-            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .waitingParts)) {
+            // 3rd Card: Pending Vehicles needing maintenance
+            NavigationLink(destination: PendingVehiclesView()) {
                 MaintenanceMetricCard(
-                    icon: "shippingbox.fill",
-                    title: "Waiting on Parts",
-                    value: "\(waitingOnPartsCount)",
+                    icon: "car.side.fill",
+                    title: "Pending Vehicles",
+                    value: "\(pendingVehicleCount)",
+                    tint: maintenanceAccent
+                )
+            }
+            .buttonStyle(.plain)
+            
+            // 4th Card: Past Part Orders (shortage parts ordered)
+            NavigationLink(destination: PastPartOrdersView()) {
+                MaintenanceMetricCard(
+                    icon: "clock.arrow.circlepath",
+                    title: "Past Orders",
+                    value: "\(PastPartOrdersView.shortageOrders.count)",
                     tint: maintenanceAccent
                 )
             }
@@ -180,7 +148,7 @@ struct MaintenanceDashboardView: View {
     }
 
     private var priorityQueue: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Today's Priority Queue")
                 .font(.headline)
                 .foregroundStyle(warmPrimaryText)
@@ -197,11 +165,11 @@ struct MaintenanceDashboardView: View {
                 }
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 4)
     }
 
     private var maintenanceScheduleStrip: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Scheduled Maintenance")
                 .font(.headline)
                 .foregroundStyle(warmPrimaryText)
@@ -210,7 +178,7 @@ struct MaintenanceDashboardView: View {
                 EmptyStateView(icon: "calendar.badge.checkmark", title: "No scheduled maintenance", message: "Upcoming service jobs will appear here.")
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
+                    HStack(spacing: 10) {
                         ForEach(upcomingSchedules.prefix(6)) { schedule in
                             MaintenanceSchedulePreviewCard(
                                 schedule: schedule,
@@ -222,64 +190,9 @@ struct MaintenanceDashboardView: View {
                 }
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 4)
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Workshop Command")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.textPrimary)
-            Text("Track assigned work, close repairs quickly, and keep preventive maintenance on schedule.")
-                .foregroundStyle(AppTheme.textSecondary)
-        }
-    }
-
-    private var activeOrders: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionTitle(title: "Assigned Work Orders", subtitle: "Your active workshop queue")
-            ForEach(appViewModel.service.workOrders(for: currentUser?.id).prefix(3)) { order in
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(order.title)
-                            .font(.headline)
-                            .foregroundStyle(AppTheme.textPrimary)
-                        Text(order.details)
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.textSecondary)
-                        Text(order.status.rawValue)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(order.status == .completed ? AppTheme.success : AppTheme.warning)
-                    }
-                }
-            }
-        }
-    }
-
-    private var schedulePreview: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionTitle(title: "Maintenance Schedule", subtitle: "Upcoming and overdue service")
-            ForEach(appViewModel.service.schedules().prefix(3)) { schedule in
-                let vehicle = appViewModel.service.vehicle(for: schedule.vehicleID)
-                GlassCard {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(schedule.serviceType)
-                                .font(.headline)
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text(vehicle?.displayName ?? "Vehicle")
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                        Spacer()
-                        Text(schedule.dueDate.formatted(date: .abbreviated, time: .omitted))
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(schedule.status == .overdue ? AppTheme.error : AppTheme.brand)
-                    }
-                }
-            }
-        }
-    }
 
     private var userInitials: String {
         guard let name = currentUser?.name else { return "MS" }
@@ -332,44 +245,34 @@ private struct MaintenanceMetricCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Image(systemName: icon)
-                .font(.title3.weight(.semibold))
+                .font(.callout.weight(.semibold))
                 .foregroundStyle(tint)
-                .frame(width: 24, height: 24, alignment: .leading)
+                .frame(width: 20, height: 20, alignment: .leading)
 
-            Spacer(minLength: 4)
-
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
 
                 if let subtitle {
                     Text(subtitle)
                         .font(.caption2)
-                        .foregroundStyle(Color.dynamic(light: "#8A7066", dark: "#BDA39A"))
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
 
                 Text(value)
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.dynamic(light: "#1F2024", dark: "#F2E8E4"))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(minHeight: 120)
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1D23").opacity(0.92))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 1)
-                )
-        )
+        .padding(12)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
@@ -379,36 +282,36 @@ private struct MaintenancePriorityOrderCard: View {
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 Text("WO #\(String(order.id.uuidString.prefix(8)))")
-                    .font(.caption.monospaced().weight(.semibold))
+                    .font(.caption2.monospaced().weight(.semibold))
                     .foregroundStyle(Color.dynamic(light: "#8A7066", dark: "#C8A99D"))
 
                 Spacer()
 
                 Text(order.priority.rawValue.uppercased())
                     .font(.caption2.weight(.bold))
-                    .tracking(0.8)
+                    .tracking(0.6)
                     .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
                     .background(tint.opacity(0.18), in: Capsule())
             }
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("\(vehicle?.displayName ?? "Assigned Vehicle") • \(vehicle?.plateNumber ?? "No plate")")
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
                     .lineLimit(2)
 
                 Text(order.title)
-                    .font(.headline.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color(hex: "#FF5A1F"))
                     .lineLimit(2)
 
                 Text(order.details)
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
                     .lineLimit(2)
             }
@@ -418,28 +321,28 @@ private struct MaintenancePriorityOrderCard: View {
 
             HStack(spacing: 8) {
                 Image(systemName: statusIcon)
-                    .font(.caption.weight(.bold))
+                    .font(.caption2.weight(.bold))
                 Text(order.status.rawValue)
-                    .font(.footnote.weight(.semibold))
+                    .font(.caption.weight(.semibold))
                 Spacer()
                 Text(order.scheduledDate.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption)
+                    .font(.caption2)
             }
             .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
         }
-        .padding(16)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.dynamic(light: "#FFFFFF", dark: "#24262E").opacity(0.95))
                 .overlay(alignment: .leading) {
                     Rectangle()
                         .fill(tint)
-                        .frame(width: 4)
+                        .frame(width: 3)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#373A45"), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#373A45"), lineWidth: 0.5)
                 )
         )
     }
@@ -459,40 +362,40 @@ private struct MaintenanceSchedulePreviewCard: View {
     let vehicle: Vehicle?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: "clock")
                 Text(schedule.dueDate.formatted(date: .abbreviated, time: .omitted))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
             }
-            .font(.caption.monospaced().weight(.semibold))
+            .font(.caption2.monospaced().weight(.semibold))
             .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
 
             Text(schedule.serviceType)
-                .font(.headline)
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
                 .lineLimit(2)
-                .frame(height: 44, alignment: .topLeading)
+                .frame(height: 36, alignment: .topLeading)
 
             Text(vehicle?.displayName ?? "Vehicle")
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
                 .lineLimit(1)
 
             Text(schedule.status.rawValue)
-                .font(.caption.weight(.bold))
+                .font(.caption2.weight(.bold))
                 .foregroundStyle(schedule.status == .overdue ? Color(hex: "#FF5A1F") : AppTheme.brand)
         }
-        .frame(width: 230, alignment: .leading)
-        .frame(minHeight: 138, alignment: .leading)
-        .padding(16)
+        .frame(width: 200, alignment: .leading)
+        .frame(minHeight: 110, alignment: .leading)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1D23").opacity(0.94))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 0.5)
                 )
         )
     }

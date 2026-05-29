@@ -83,4 +83,8 @@ final class UserManagementViewModel {
             return false
         }
     }
+
+    func refresh() async {
+        await service.syncWithDatabase()
+    }
 }

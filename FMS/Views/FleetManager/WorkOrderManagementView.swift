@@ -31,6 +31,9 @@ struct WorkOrderManagementView: View {
                     .padding(.bottom, 30)
             }
         }
+        .refreshable {
+            await appViewModel.service.syncWithDatabase()
+        }
         .background(AppTheme.background.ignoresSafeArea())
         .navigationTitle("Work Orders")
         .searchable(text: $viewModel.searchText)

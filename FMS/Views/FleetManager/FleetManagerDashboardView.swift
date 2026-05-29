@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 struct FleetManagerDashboardView: View {
@@ -6,6 +5,7 @@ struct FleetManagerDashboardView: View {
     @State private var viewModel = FleetManagerDashboardViewModel()
     @State private var selectedStat: KPIStat?
     @State private var showBroadcast = false
+    @State private var isFlashingSOS = false
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -15,6 +15,10 @@ struct FleetManagerDashboardView: View {
                         LoadingStateView(title: "Loading live fleet KPIs...")
                             .frame(height: 280)
                     } else {
+                        if let activeSOS = appViewModel.activeEmergencyAlert {
+                            emergencyAlertBanner(for: activeSOS)
+                        }
+                        
                         // MARK: - KPI Grid
                         kpiGrid
                         
@@ -84,7 +88,19 @@ struct FleetManagerDashboardView: View {
             }
         }
         .task {
+            await appViewModel.service.syncWithDatabase()
             await viewModel.load()
+            appViewModel.refreshSOSAlerts()
+        }
+        .onAppear {
+            appViewModel.refreshSOSAlerts()
+            Task {
+                await appViewModel.service.syncWithDatabase()
+            }
+        }
+        .refreshable {
+            await appViewModel.service.syncWithDatabase()
+            appViewModel.refreshSOSAlerts()
         }
         .sheet(
             isPresented:
@@ -147,7 +163,13 @@ struct FleetManagerDashboardView: View {
             )
 
         case "Fuel Spend":
-            FuelSpendDetailView()
+            FuelTransactionsListView(
+                repo: FuelRepository(
+                    service: FuelService(
+                        client: SupabaseService.shared.client
+                    )
+                )
+            )
 
         case "Open Work Orders":
             WorkOrderManagementView(
@@ -166,7 +188,11 @@ struct FleetManagerDashboardView: View {
     
     // MARK: - Priority Alerts
     private var alertsSection: some View {
-        GlassCard {
+        let sosCount = appViewModel.service.sosAlerts.filter { $0.status == "ACTIVE" }.count
+        let criticalCount = appViewModel.service.workOrders.filter { $0.priority == .critical && $0.status != .completed }.count
+        let maintenanceCount = appViewModel.service.maintenanceSchedules.filter { $0.status == .overdue }.count
+
+        return GlassCard {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     Text("Priority Alerts")
@@ -182,22 +208,22 @@ struct FleetManagerDashboardView: View {
                 }
                 
                 HStack {
-                    NavigationLink(destination: PriorityAlertDetailView(category: "SOS Alerts", count: 5)) {
-                        alertIconItem(icon: "exclamationmark.triangle.fill", categoryColor: Color(red: 1, green: 0.25, blue: 0.3), count: 5, label: "SOS Alerts")
+                    NavigationLink(destination: PriorityAlertDetailView(category: "SOS Alerts", count: sosCount)) {
+                        alertIconItem(icon: "exclamationmark.triangle.fill", categoryColor: Color(red: 1, green: 0.25, blue: 0.3), count: sosCount, label: "SOS Alerts")
                     }
                     .buttonStyle(.plain)
                     
                     Spacer()
                     
-                    NavigationLink(destination: PriorityAlertDetailView(category: "Critical", count: 3)) {
-                        alertIconItem(icon: "bell.badge.fill", categoryColor: Color(red: 1, green: 0.45, blue: 0.1), count: 3, label: "Critical")
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Critical", count: criticalCount)) {
+                        alertIconItem(icon: "bell.badge.fill", categoryColor: Color(red: 1, green: 0.45, blue: 0.1), count: criticalCount, label: "Critical")
                     }
                     .buttonStyle(.plain)
                     
                     Spacer()
                     
-                    NavigationLink(destination: PriorityAlertDetailView(category: "Maintenance", count: 2)) {
-                        alertIconItem(icon: "wrench.and.screwdriver.fill", categoryColor: Color(red: 0.35, green: 0.6, blue: 1), count: 2, label: "Maintenance")
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Maintenance", count: maintenanceCount)) {
+                        alertIconItem(icon: "wrench.and.screwdriver.fill", categoryColor: Color(red: 0.35, green: 0.6, blue: 1), count: maintenanceCount, label: "Maintenance")
                     }
                     .buttonStyle(.plain)
                 }
@@ -270,18 +296,23 @@ struct FleetManagerDashboardView: View {
     
     // MARK: - Fleet Utilization
     private var fleetUtilizationSection: some View {
-        GlassCard {
+        // Compute values here, outside @ViewBuilder, so all child views can see them
+        let total     = appViewModel.service.vehicles.count
+        let activeCount = appViewModel.service.vehicles.filter { $0.status == .active }.count
+        let idleCount   = appViewModel.service.vehicles.filter { $0.status == .idle }.count
+        let maintCount  = appViewModel.service.vehicles.filter { $0.status == .inService }.count
+        let activePct = total > 0 ? Int(Double(activeCount) / Double(total) * 100) : 0
+        let idlePct   = total > 0 ? Int(Double(idleCount)   / Double(total) * 100) : 0
+        let maintPct  = total > 0 ? Int(Double(maintCount)  / Double(total) * 100) : 0
+        let fillTo    = total > 0 ? 0.1 + 0.8 * Double(activePct) / 100.0 : 0.1
+
+        return GlassCard {
             VStack(alignment: .leading, spacing: 20) {
                 HStack {
                     Text("Fleet Utilization")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
                     Spacer()
-//                    Button { } label: {
-//                        Text("See All")
-//                            .font(.subheadline.weight(.medium))
-//                            .foregroundStyle(AppTheme.brand)
-//                    }
                     NavigationLink(destination: FleetUtilizationDetailView()) {
                         Text("See All")
                             .font(.subheadline.weight(.medium))
@@ -300,12 +331,12 @@ struct FleetManagerDashboardView: View {
                                 .frame(width: 90, height: 90)
                             
                             Circle()
-                                .trim(from: 0.1, to: 0.1 + (0.8 * 0.78))
+                                .trim(from: 0.1, to: fillTo)
                                 .stroke(AngularGradient(gradient: Gradient(colors: [.green, .orange]), center: .center, startAngle: .degrees(90), endAngle: .degrees(90 + 360)), style: StrokeStyle(lineWidth: 12, lineCap: .round))
                                 .rotationEffect(.degrees(90))
                                 .frame(width: 90, height: 90)
                             
-                            Text("78%")
+                            Text("\(activePct)%")
                                 .font(.title2.weight(.bold))
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
@@ -317,9 +348,9 @@ struct FleetManagerDashboardView: View {
                     
                     // Stats
                     VStack(spacing: 12) {
-                        utilizationRow(color: .green, label: "Active", value: 78)
-                        utilizationRow(color: .orange, label: "Idle", value: 15)
-                        utilizationRow(color: .red, label: "Maintenance", value: 7)
+                        utilizationRow(color: .green, label: "Active",      value: activePct)
+                        utilizationRow(color: .orange, label: "Idle",       value: idlePct)
+                        utilizationRow(color: .red,    label: "Maintenance", value: maintPct)
                     }
                 }
             }
@@ -358,16 +389,23 @@ struct FleetManagerDashboardView: View {
     
     // MARK: - Needs Attention
     private var needsAttentionSection: some View {
-        GlassCard {
+        let maintenanceDue = appViewModel.service.maintenanceSchedules
+            .filter { $0.status == .upcoming && $0.dueDate < Date().addingTimeInterval(86400 * 7) }.count
+        let overdueServices = appViewModel.service.maintenanceSchedules
+            .filter { $0.status == .overdue }.count
+        let lostGPS = appViewModel.service.vehicles
+            .filter { $0.status == .active }.count  // placeholder – replace with real GPS-loss logic
+        
+        return GlassCard {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Needs Attention")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 HStack(spacing: 12) {
-                    needsAttentionCard(count: 2, label: "Maintenance\nDue", color: Color("AccentColor"))
-                    needsAttentionCard(count: 3, label: "Overdue\nServices", color: Color("AccentColor"))
-                    needsAttentionCard(count: 4, label: "Lost\nGPS Feed", color: Color("AccentColor"))
+                    needsAttentionCard(count: maintenanceDue, label: "Maintenance\nDue", color: Color("AccentColor"))
+                    needsAttentionCard(count: overdueServices, label: "Overdue\nServices", color: Color("AccentColor"))
+                    needsAttentionCard(count: lostGPS, label: "Lost\nGPS Feed", color: Color("AccentColor"))
                 }
             }
         }
@@ -521,6 +559,112 @@ struct FleetManagerDashboardView: View {
             }
         }
         .frame(width: 44, height: 44)
+    }
+
+    // MARK: - Premium SOS Overlay Banner Helper
+    private func emergencyAlertBanner(for alert: SOSAlert) -> some View {
+        return GlassCard {
+            HStack(spacing: 16) {
+                // Pulsing red danger indicator
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 14, height: 14)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.red, lineWidth: 4)
+                            .scaleEffect(isFlashingSOS ? 2.0 : 1.0)
+                            .opacity(isFlashingSOS ? 0.0 : 1.0)
+                    )
+                    .onAppear {
+                        withAnimation(.easeOut(duration: 1.2).repeatForever(autoreverses: false)) {
+                            isFlashingSOS = true
+                        }
+                    }
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text("🚨 ACTIVE EMERGENCY")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.red, in: Capsule())
+                        
+                        Text(alert.emergencyType.uppercased())
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.red)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            Text("Driver:")
+                                .font(.caption.bold())
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Text(alert.driverName)
+                                .font(.subheadline.bold())
+                                .foregroundStyle(AppTheme.textPrimary)
+                        }
+                        
+                        HStack(spacing: 4) {
+                            Text("Vehicle:")
+                                .font(.caption.bold())
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Text(alert.vehicleNumber)
+                                .font(.subheadline.bold())
+                                .foregroundStyle(AppTheme.textPrimary)
+                        }
+                        
+                        HStack(spacing: 4) {
+                            Text("Location:")
+                                .font(.caption.bold())
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Text("Live GPS (\(alert.latitude), \(alert.longitude))")
+                                .font(.caption.bold())
+                                .foregroundStyle(AppTheme.brand)
+                        }
+                        
+                        HStack(spacing: 4) {
+                            Text("Time:")
+                                .font(.caption.bold())
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Text(alert.createdAt, style: .time)
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(spacing: 8) {
+                    NavigationLink(destination: PriorityAlertDetailView(category: "SOS Alerts", count: 1)) {
+                        Text("Show Location")
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.red, in: RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
+                        // Persist dismissal – this ID will never trigger the banner again,
+                        // even after app restart or re-login.
+                        appViewModel.dismissSOSAlert(alert.id)
+                    } label: {
+                        Text("Resolve")
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.green, in: RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 6)
+        }
+        .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity))
     }
 }
 

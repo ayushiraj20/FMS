@@ -61,7 +61,7 @@ struct SOSSheetView: View {
 
             Spacer()
 
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.shield.fill")
                         .font(.title2)
@@ -76,22 +76,37 @@ struct SOSSheetView: View {
                     .foregroundStyle(.white.opacity(0.85))
             }
 
+            // SELECT EMERGENCY TYPE SELECTOR
+            VStack(spacing: 8) {
+                Text("TAP TO CHANGE CATEGORY")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.4))
+                
+                HStack(spacing: 16) {
+                    emergencyTypeButton(title: "Accident", icon: "car.2.fill")
+                    emergencyTypeButton(title: "Medical", icon: "heart.text.square.fill")
+                    emergencyTypeButton(title: "Breakdown", icon: "wrench.adjustable.fill")
+                    emergencyTypeButton(title: "Security", icon: "shield.fill")
+                }
+            }
+            .padding(.horizontal, 20)
+
             // Countdown ring
             ZStack {
                 Circle()
                     .stroke(Color.white.opacity(0.1), lineWidth: 12)
-                    .frame(width: 200, height: 200)
+                    .frame(width: 180, height: 180)
 
                 Circle()
-                    .trim(from: 0, to: CGFloat(driverVM.sosCountdown) / 10.0)
+                    .trim(from: 0, to: CGFloat(driverVM.sosCountdown) / 5.0)
                     .stroke(DriverTheme.criticalRed, style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                    .frame(width: 200, height: 200)
+                    .frame(width: 180, height: 180)
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 1), value: driverVM.sosCountdown)
 
                 VStack(spacing: 4) {
                     Text("\(driverVM.sosCountdown)")
-                        .font(.system(size: 80, weight: .heavy, design: .rounded))
+                        .font(.system(size: 70, weight: .heavy, design: .rounded))
                         .foregroundStyle(.white)
                         .contentTransition(.numericText())
                 }
@@ -171,6 +186,29 @@ struct SOSSheetView: View {
             .padding(.horizontal, 40)
             .padding(.bottom, 40)
         }
+    }
+    
+    private func emergencyTypeButton(title: String, icon: String) -> some View {
+        let isSelected = driverVM.selectedEmergencyType == title
+        return Button {
+            withAnimation(.spring()) {
+                driverVM.selectedEmergencyType = title
+            }
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? .white : .white.opacity(0.6))
+                    .frame(width: 44, height: 44)
+                    .background(isSelected ? Color.red : Color.white.opacity(0.12), in: Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(isSelected ? 0.3 : 0.0), lineWidth: 1))
+                
+                Text(title)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(isSelected ? .white : .white.opacity(0.6))
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 

@@ -19,13 +19,20 @@ struct AssignDriverTripView: View {
     @State private var endDate: Date = Date().addingTimeInterval(3600 * 8)
     @State private var cargoType: CargoType = .generalGoods
 
-    // Map
+    // Map & Location Search
     @State private var cameraPosition: MapCameraPosition = .region(
         MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 19.076, longitude: 72.877),
-            span: MKCoordinateSpan(latitudeDelta: 4.0, longitudeDelta: 4.0)
+            center: CLLocationCoordinate2D(latitude: 22.5, longitude: 79.0),
+            span: MKCoordinateSpan(latitudeDelta: 12.0, longitudeDelta: 12.0)
         )
     )
+    @State private var locationService = LocationSearchService()
+    @State private var originCoordinate: CLLocationCoordinate2D?
+    @State private var destinationCoordinate: CLLocationCoordinate2D?
+    @State private var activeField: LocationField? = nil
+    @State private var routeCalculated: Bool = false
+
+    enum LocationField { case origin, destination }
 
     // Driver/Vehicle search & selection
     @State private var driverSearch: String = ""
@@ -100,39 +107,144 @@ struct AssignDriverTripView: View {
     }
 
     // ──────────────────────────────────────────────
-    // STEP 1: Add Trip (matches screenshot design)
+    // STEP 1: Add Trip — Map + Location Search
     // ──────────────────────────────────────────────
     private var addTripView: some View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
 
-                    // Map preview
-                    Map(position: $cameraPosition)
-                        .frame(height: 180)
+                    // Map preview with route
+                    ZStack(alignment: .topTrailing) {
+                        Map(position: $cameraPosition) {
+                            // Route polyline
+                            if !locationService.routeCoordinates.isEmpty {
+                                MapPolyline(coordinates: locationService.routeCoordinates)
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(hex: "#007AFF"), AppTheme.brand],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        ),
+                                        style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round)
+                                    )
+                            }
+
+                            // Origin marker
+                            if let coord = originCoordinate {
+                                Annotation("Pickup", coordinate: coord) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color(hex: "#007AFF"))
+                                            .frame(width: 28, height: 28)
+                                            .shadow(color: Color(hex: "#007AFF").opacity(0.4), radius: 6)
+                                        Image(systemName: "arrow.up.circle.fill")
+                                            .font(.system(size: 16))
+                                            .foregroundStyle(.white)
+                                    }
+                                }
+                            }
+
+                            // Destination marker
+                            if let coord = destinationCoordinate {
+                                Annotation("Drop-off", coordinate: coord) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color(hex: "#FF3B30"))
+                                            .frame(width: 28, height: 28)
+                                            .shadow(color: Color(hex: "#FF3B30").opacity(0.4), radius: 6)
+                                        Image(systemName: "mappin.circle.fill")
+                                            .font(.system(size: 16))
+                                            .foregroundStyle(.white)
+                                    }
+                                }
+                            }
+                        }
+                        .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
+                        .frame(height: 220)
                         .clipShape(Rectangle())
+
+                        // Route info overlay
+                        if routeCalculated && locationService.routeDistanceKM > 0 {
+                            HStack(spacing: 12) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "road.lanes")
+                                        .font(.system(size: 11, weight: .semibold))
+                                    Text("\(Int(locationService.routeDistanceKM)) km")
+                                        .font(.system(size: 12, weight: .bold))
+                                }
+                                Divider().frame(height: 14)
+                                HStack(spacing: 4) {
+                                    Image(systemName: "clock.fill")
+                                        .font(.system(size: 11, weight: .semibold))
+                                    Text(formatETAString(locationService.routeETAMinutes))
+                                        .font(.system(size: 12, weight: .bold))
+                                }
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.ultraThinMaterial.opacity(0.9))
+                            .background(AppTheme.brand.opacity(0.7))
+                            .clipShape(Capsule())
+                            .padding(12)
+                        }
+                    }
 
                     VStack(spacing: 16) {
 
-                        // ROUTE INFORMATION
+                        // ROUTE INFORMATION with search
                         formSection(icon: "map", iconColor: Color(hex: "#007AFF"), title: "ROUTE INFORMATION") {
                             VStack(spacing: 0) {
-                                routeField(
+                                // Pickup field
+                                locationSearchField(
                                     icon: "pin.fill",
                                     iconColor: Color(hex: "#007AFF"),
-                                    placeholder: "Enter pickup location (address, landmark...)",
+                                    placeholder: "Search pickup location...",
                                     text: $tripStartLocation,
-                                    showLocationButton: true
+                                    field: .origin
                                 )
+
+                                // Pickup suggestions
+                                if activeField == .origin && !locationService.suggestions.isEmpty {
+                                    suggestionsListView(for: .origin)
+                                }
+
                                 Divider().padding(.leading, 44)
-                                routeField(
+
+                                // Drop field
+                                locationSearchField(
                                     icon: "mappin",
                                     iconColor: Color(hex: "#FF3B30"),
-                                    placeholder: "Enter dropoff location (address, landmark...)",
+                                    placeholder: "Search drop-off location...",
                                     text: $tripDestination,
-                                    showLocationButton: false
+                                    field: .destination
                                 )
+
+                                // Drop suggestions
+                                if activeField == .destination && !locationService.suggestions.isEmpty {
+                                    suggestionsListView(for: .destination)
+                                }
                             }
+                        }
+
+                        // Route calculation status
+                        if locationService.isCalculatingRoute {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Calculating route...")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(AppTheme.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(AppTheme.border, lineWidth: 0.5)
+                            )
                         }
 
                         // CARGO DETAILS
@@ -212,8 +324,19 @@ struct AssignDriverTripView: View {
                             VStack(spacing: 0) {
                                 inlineTextField(placeholder: "Route details (e.g. via NH 275)", text: $routeDetails)
                                 Divider().padding(.leading, 16)
-                                inlineTextField(placeholder: "Distance in km (optional)", text: $distanceStr)
-                                    .keyboardType(.decimalPad)
+                                HStack {
+                                    TextField("Distance in km", text: $distanceStr)
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                        .keyboardType(.decimalPad)
+                                    if routeCalculated && locationService.routeDistanceKM > 0 {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(AppTheme.success)
+                                            .font(.system(size: 14))
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 13)
                                 Divider().padding(.leading, 16)
                                 inlineTextField(placeholder: "Notes / driver instructions", text: $notes)
                             }
@@ -225,21 +348,27 @@ struct AssignDriverTripView: View {
                 }
             }
 
-            // Calculate Route CTA
+            // Next Step CTA
             Button {
                 guard !tripStartLocation.isEmpty && !tripDestination.isEmpty else { return }
                 currentStep = .selectDriver
             } label: {
-                Text("Calculate Route")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        (tripStartLocation.isEmpty || tripDestination.isEmpty)
-                        ? Color(.systemGray4)
-                        : AppTheme.brand
-                    )
+                HStack(spacing: 8) {
+                    if routeCalculated {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 15))
+                    }
+                    Text(routeCalculated ? "Continue — \(Int(locationService.routeDistanceKM)) km route" : "Select Driver")
+                }
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    (tripStartLocation.isEmpty || tripDestination.isEmpty)
+                    ? Color(.systemGray4)
+                    : AppTheme.brand
+                )
             }
             .disabled(tripStartLocation.isEmpty || tripDestination.isEmpty)
         }
@@ -247,6 +376,186 @@ struct AssignDriverTripView: View {
         .navigationTitle("Add New Trip")
     }
 
+    // MARK: - Location Search Field
+    private func locationSearchField(
+        icon: String,
+        iconColor: Color,
+        placeholder: String,
+        text: Binding<String>,
+        field: LocationField
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15))
+                .foregroundStyle(iconColor)
+                .frame(width: 24)
+            TextField(placeholder, text: text, onEditingChanged: { isEditing in
+                if isEditing {
+                    activeField = field
+                } else {
+                    // Delay to allow tap on suggestion
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        if activeField == field {
+                            activeField = nil
+                            locationService.clearSuggestions()
+                        }
+                    }
+                }
+            })
+            .font(.system(size: 14))
+            .foregroundStyle(AppTheme.textPrimary)
+            .onChange(of: text.wrappedValue) { _, newValue in
+                if activeField == field {
+                    locationService.search(query: newValue)
+                }
+            }
+
+            // Clear button
+            if !text.wrappedValue.isEmpty {
+                Button {
+                    text.wrappedValue = ""
+                    switch field {
+                    case .origin:
+                        originCoordinate = nil
+                    case .destination:
+                        destinationCoordinate = nil
+                    }
+                    routeCalculated = false
+                    locationService.clearRoute()
+                    locationService.clearSuggestions()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            }
+
+            // Geocoded indicator
+            let hasCoord = field == .origin ? originCoordinate != nil : destinationCoordinate != nil
+            if hasCoord {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppTheme.success)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+    }
+
+    // MARK: - Suggestions List
+    private func suggestionsListView(for field: LocationField) -> some View {
+        VStack(spacing: 0) {
+            ForEach(locationService.suggestions.prefix(5), id: \.self) { suggestion in
+                Button {
+                    selectSuggestion(suggestion, for: field)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.system(size: 13))
+                            .foregroundStyle(field == .origin ? Color(hex: "#007AFF") : Color(hex: "#FF3B30"))
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(suggestion.title)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .lineLimit(1)
+                            if !suggestion.subtitle.isEmpty {
+                                Text(suggestion.subtitle)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        Spacer()
+                        Image(systemName: "arrow.up.left")
+                            .font(.system(size: 11))
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                }
+                if suggestion != locationService.suggestions.prefix(5).last {
+                    Divider().padding(.leading, 48)
+                }
+            }
+        }
+        .background(AppTheme.surfaceSecondary.opacity(0.5))
+    }
+
+    // MARK: - Select Suggestion
+    private func selectSuggestion(_ suggestion: MKLocalSearchCompletion, for field: LocationField) {
+        let displayText = suggestion.subtitle.isEmpty ? suggestion.title : "\(suggestion.title), \(suggestion.subtitle)"
+
+        switch field {
+        case .origin:
+            tripStartLocation = displayText
+        case .destination:
+            tripDestination = displayText
+        }
+
+        activeField = nil
+        locationService.clearSuggestions()
+
+        // Geocode the selected suggestion
+        Task {
+            if let coordinate = await locationService.geocode(suggestion) {
+                switch field {
+                case .origin:
+                    originCoordinate = coordinate
+                case .destination:
+                    destinationCoordinate = coordinate
+                }
+
+                // If both coordinates are set, calculate route
+                if let origin = originCoordinate, let dest = destinationCoordinate {
+                    await calculateAndDisplayRoute(from: origin, to: dest)
+                } else if let coord = (field == .origin ? originCoordinate : destinationCoordinate) {
+                    // Zoom to the single location
+                    withAnimation(.easeInOut(duration: 0.5)) {
+                        cameraPosition = .region(MKCoordinateRegion(
+                            center: coord,
+                            span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5)
+                        ))
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Calculate & Display Route
+    private func calculateAndDisplayRoute(from origin: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) async {
+        await locationService.calculateRoute(from: origin, to: dest)
+
+        if locationService.routeDistanceKM > 0 {
+            routeCalculated = true
+            distanceStr = String(format: "%.1f", locationService.routeDistanceKM)
+
+            // Fit map to show the entire route
+            withAnimation(.easeInOut(duration: 0.8)) {
+                let midLat = (origin.latitude + dest.latitude) / 2
+                let midLng = (origin.longitude + dest.longitude) / 2
+                let latDelta = abs(origin.latitude - dest.latitude) * 1.5 + 0.1
+                let lngDelta = abs(origin.longitude - dest.longitude) * 1.5 + 0.1
+                cameraPosition = .region(MKCoordinateRegion(
+                    center: CLLocationCoordinate2D(latitude: midLat, longitude: midLng),
+                    span: MKCoordinateSpan(latitudeDelta: max(latDelta, 0.1), longitudeDelta: max(lngDelta, 0.1))
+                ))
+            }
+        }
+    }
+
+    // MARK: - Format ETA
+    private func formatETAString(_ minutes: Double) -> String {
+        let totalMinutes = Int(minutes)
+        if totalMinutes < 60 {
+            return "\(totalMinutes) min"
+        }
+        let hours = totalMinutes / 60
+        let mins = totalMinutes % 60
+        return mins > 0 ? "\(hours)h \(mins)m" : "\(hours)h"
+    }
+
+    // MARK: - Reusable Form Components
     private func formSection<Content: View>(
         icon: String,
         iconColor: Color,
@@ -276,31 +585,6 @@ struct AssignDriverTripView: View {
                     .stroke(AppTheme.border, lineWidth: 0.5)
             )
         }
-    }
-
-    private func routeField(
-        icon: String,
-        iconColor: Color,
-        placeholder: String,
-        text: Binding<String>,
-        showLocationButton: Bool
-    ) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 15))
-                .foregroundStyle(iconColor)
-                .frame(width: 24)
-            TextField(placeholder, text: text)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textPrimary)
-            if showLocationButton {
-                Image(systemName: "location.fill")
-                    .font(.system(size: 15))
-                    .foregroundStyle(Color(hex: "#007AFF"))
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 13)
     }
 
     private func inlineTextField(placeholder: String, text: Binding<String>) -> some View {
@@ -528,6 +812,36 @@ struct AssignDriverTripView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
 
+                // Route map preview
+                if !locationService.routeCoordinates.isEmpty {
+                    Map(position: .constant(cameraPosition)) {
+                        MapPolyline(coordinates: locationService.routeCoordinates)
+                            .stroke(AppTheme.brand, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+
+                        if let coord = originCoordinate {
+                            Annotation("", coordinate: coord) {
+                                Circle()
+                                    .fill(Color(hex: "#007AFF"))
+                                    .frame(width: 14, height: 14)
+                                    .overlay(Circle().stroke(.white, lineWidth: 2))
+                            }
+                        }
+                        if let coord = destinationCoordinate {
+                            Annotation("", coordinate: coord) {
+                                Circle()
+                                    .fill(Color(hex: "#FF3B30"))
+                                    .frame(width: 14, height: 14)
+                                    .overlay(Circle().stroke(.white, lineWidth: 2))
+                            }
+                        }
+                    }
+                    .mapStyle(.standard(pointsOfInterest: .excludingAll))
+                    .frame(height: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.border, lineWidth: 0.5))
+                    .allowsHitTesting(false)
+                }
+
                 // Route summary card
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(spacing: 6) {
@@ -548,11 +862,11 @@ struct AssignDriverTripView: View {
                         }
                         VStack(alignment: .leading, spacing: 10) {
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(tripStartLocation).font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.textPrimary)
+                                Text(tripStartLocation).font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.textPrimary).lineLimit(2)
                                 Text("Pickup").font(.caption).foregroundStyle(AppTheme.textSecondary)
                             }
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(tripDestination).font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.textPrimary)
+                                Text(tripDestination).font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.textPrimary).lineLimit(2)
                                 Text("Drop-off").font(.caption).foregroundStyle(AppTheme.textSecondary)
                             }
                         }
@@ -562,6 +876,14 @@ struct AssignDriverTripView: View {
                         Label(cargoType.rawValue, systemImage: "shippingbox")
                             .font(.caption)
                             .foregroundStyle(AppTheme.textSecondary)
+                        if routeCalculated {
+                            Label("\(Int(locationService.routeDistanceKM)) km", systemImage: "road.lanes")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Label(formatETAString(locationService.routeETAMinutes), systemImage: "clock")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
                         Label(startDate.formatted(date: .abbreviated, time: .shortened), systemImage: "calendar")
                             .font(.caption)
                             .foregroundStyle(AppTheme.textSecondary)
@@ -690,7 +1012,11 @@ struct AssignDriverTripView: View {
             notes: notes.isEmpty ? nil : notes,
             startDate: startDate,
             endDate: endDate,
-            distanceKM: dist
+            distanceKM: dist,
+            originLat: originCoordinate?.latitude,
+            originLng: originCoordinate?.longitude,
+            destinationLat: destinationCoordinate?.latitude,
+            destinationLng: destinationCoordinate?.longitude
         )
 
         successMessage = "Assigned \(vehicle.displayName) to \(driver.name)"
