@@ -408,5 +408,199 @@ final class SupabaseService {
             .eq("id", value: part.id)
             .execute()
     }
+
+    // MARK: - Part Orders
+    func fetchPartOrders(organizationID: UUID) async throws -> [PartOrder] {
+        let orders: [PartOrder] = try await client
+            .from("part_orders")
+            .select()
+            .eq("organization_id", value: organizationID)
+            .order("order_date", ascending: false)
+            .execute()
+            .value
+        return orders
+    }
+
+    func addPartOrder(_ order: PartOrder) async throws {
+        try await client
+            .from("part_orders")
+            .insert(order)
+            .execute()
+    }
+
+    func updatePartOrder(_ order: PartOrder) async throws {
+        struct PartOrderUpdate: Encodable {
+            let status: String
+            let estimated_delivery: Date?
+            let notes: String
+        }
+        let payload = PartOrderUpdate(
+            status: order.status.rawValue,
+            estimated_delivery: order.estimatedDelivery,
+            notes: order.notes
+        )
+        try await client
+            .from("part_orders")
+            .update(payload)
+            .eq("id", value: order.id)
+            .execute()
+    }
+
+    func deletePartOrder(_ order: PartOrder) async throws {
+        try await client
+            .from("part_orders")
+            .delete()
+            .eq("id", value: order.id)
+            .execute()
+    }
+
+    // MARK: - Work Order Parts
+    func fetchWorkOrderParts(workOrderID: UUID) async throws -> [WorkOrderPartUsage] {
+        let parts: [WorkOrderPartUsage] = try await client
+            .from("work_order_parts")
+            .select()
+            .eq("work_order_id", value: workOrderID)
+            .execute()
+            .value
+        return parts
+    }
+
+    func saveWorkOrderParts(_ parts: [WorkOrderPartUsage], workOrderID: UUID) async throws {
+        // 1. Fetch existing parts for this work order to calculate deltas
+        let existingParts: [WorkOrderPartUsage]
+        do {
+            existingParts = try await fetchWorkOrderParts(workOrderID: workOrderID)
+        } catch {
+            existingParts = []
+        }
+
+        // 2. Delete existing parts for this work order, then insert fresh
+        try await client
+            .from("work_order_parts")
+            .delete()
+            .eq("work_order_id", value: workOrderID)
+            .execute()
+
+        if !parts.isEmpty {
+            try await client
+                .from("work_order_parts")
+                .insert(parts)
+                .execute()
+        }
+
+        // 3. Process deltas to adjust spare parts stock in the database
+        // Create a map of existing parts by sparePartID
+        var existingQuantities: [UUID: Int] = [:]
+        for ep in existingParts {
+            existingQuantities[ep.sparePartID] = (existingQuantities[ep.sparePartID] ?? 0) + ep.quantityUsed
+        }
+
+        // Create a map of new parts by sparePartID
+        var newQuantities: [UUID: Int] = [:]
+        for np in parts {
+            newQuantities[np.sparePartID] = (newQuantities[np.sparePartID] ?? 0) + np.quantityUsed
+        }
+
+        // Combine all unique keys
+        let allPartIDs = Set(existingQuantities.keys).union(newQuantities.keys)
+
+        for partID in allPartIDs {
+            let oldQty = existingQuantities[partID] ?? 0
+            let newQty = newQuantities[partID] ?? 0
+            let delta = newQty - oldQty
+
+            if delta > 0 {
+                // Decrement stock by delta
+                try await decrementSparePartQuantity(partID: partID, byAmount: delta)
+            } else if delta < 0 {
+                // Increment stock by abs(delta) (parts returned to inventory)
+                try await incrementSparePartQuantity(partID: partID, byAmount: abs(delta))
+            }
+        }
+    }
+
+    // MARK: - Work Order Delete
+    func deleteWorkOrder(_ order: WorkOrder) async throws {
+        try await client
+            .from("work_orders")
+            .delete()
+            .eq("id", value: order.id)
+            .execute()
+    }
+
+    // MARK: - Maintenance Schedules (CUD)
+    func addMaintenanceSchedule(_ schedule: MaintenanceSchedule) async throws {
+        try await client
+            .from("maintenance_schedules")
+            .insert(schedule)
+            .execute()
+    }
+
+    func updateMaintenanceSchedule(_ schedule: MaintenanceSchedule) async throws {
+        struct ScheduleUpdate: Encodable {
+            let service_type: String
+            let due_date: Date
+            let status: String
+        }
+        let payload = ScheduleUpdate(
+            service_type: schedule.serviceType,
+            due_date: schedule.dueDate,
+            status: schedule.status.rawValue
+        )
+        try await client
+            .from("maintenance_schedules")
+            .update(payload)
+            .eq("id", value: schedule.id)
+            .execute()
+    }
+
+    func deleteMaintenanceSchedule(_ schedule: MaintenanceSchedule) async throws {
+        try await client
+            .from("maintenance_schedules")
+            .delete()
+            .eq("id", value: schedule.id)
+            .execute()
+    }
+
+    // MARK: - Spare Parts Stock Adjustment
+    func decrementSparePartQuantity(partID: UUID, byAmount: Int) async throws {
+        // Fetch current quantity, then update
+        let parts: [SparePart] = try await client
+            .from("spare_parts")
+            .select()
+            .eq("id", value: partID)
+            .execute()
+            .value
+        guard let part = parts.first else { return }
+        let newQuantity = max(0, part.quantity - byAmount)
+        struct QuantityUpdate: Encodable {
+            let quantity: Int
+        }
+        try await client
+            .from("spare_parts")
+            .update(QuantityUpdate(quantity: newQuantity))
+            .eq("id", value: partID)
+            .execute()
+    }
+
+    func incrementSparePartQuantity(partID: UUID, byAmount: Int) async throws {
+        // Fetch current quantity, then update
+        let parts: [SparePart] = try await client
+            .from("spare_parts")
+            .select()
+            .eq("id", value: partID)
+            .execute()
+            .value
+        guard let part = parts.first else { return }
+        let newQuantity = part.quantity + byAmount
+        struct QuantityUpdate: Encodable {
+            let quantity: Int
+        }
+        try await client
+            .from("spare_parts")
+            .update(QuantityUpdate(quantity: newQuantity))
+            .eq("id", value: partID)
+            .execute()
+    }
 }
 
