@@ -67,6 +67,13 @@ private struct FleetManagerTabView: View {
             .tabItem {
                 Label("Crew", systemImage: "person.2.fill")
             }
+
+            NavigationStack {
+                FleetReportsAnalyticsView()
+            }
+            .tabItem {
+                Label("Reports", systemImage: "doc.text.fill")
+            }
         }
         .tint(Color("AccentColor"))
     }
@@ -183,6 +190,18 @@ private struct MaintenanceTabView: View {
                 )
             }
             .tag(2)
+
+            NavigationStack {
+                MaintenanceReportsView()
+            }
+            .tabItem {
+                Label(
+                    "Reports",
+                    systemImage:
+                    "doc.text.fill"
+                )
+            }
+            .tag(3)
         }
 
         .onReceive(

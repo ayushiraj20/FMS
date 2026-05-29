@@ -463,6 +463,10 @@ struct FleetManagerDashboardView: View {
             NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
                 quickLink(title: "Defect Reports", subtitle: "Review & approve driver defect reports", icon: "exclamationmark.triangle.fill")
             }
+
+            NavigationLink(destination: FleetReportsAnalyticsView()) {
+                quickLink(title: "Reports & Analytics", subtitle: "Generate maintenance, fuel, inventory, compliance, and routing reports", icon: "doc.text.fill")
+            }
         }
     }
     
