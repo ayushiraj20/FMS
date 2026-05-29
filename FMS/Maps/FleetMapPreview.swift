@@ -12,15 +12,15 @@ struct FleetMapPreview: View {
         Map(initialPosition: .region(initialRegion), interactionModes: []) {
             if let geofence {
                 MapCircle(center: geofence.center, radius: geofence.radiusMeters)
-                    .foregroundStyle(Color.orange.opacity(0.3))
+                    .foregroundStyle(Color.orange.opacity(0.22))
 
                 MapCircle(center: geofence.center, radius: geofence.radiusMeters)
-                    .stroke(Color.accentColor.opacity(0.85), lineWidth: 2)
+                    .stroke(Color.orange.opacity(0.8), lineWidth: 2)
 
                 Annotation(geofence.centerName, coordinate: geofence.center) {
                     Image(systemName: "building.2.crop.circle.fill")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Color.orange)
                         .padding(6)
                         .background(.background, in: Circle())
                 }

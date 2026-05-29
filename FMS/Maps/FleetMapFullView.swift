@@ -21,15 +21,15 @@ struct FleetMapFullView: View {
         ZStack(alignment: .top) {
             Map(position: $mapPosition) {
                 MapCircle(center: geofence.center, radius: geofence.radiusMeters)
-                    .foregroundStyle(Color.orange.opacity(0.3))
+                    .foregroundStyle(Color.orange.opacity(0.22))
 
                 MapCircle(center: geofence.center, radius: geofence.radiusMeters)
-                    .stroke(Color.orange.opacity(0.85), lineWidth: 2)
+                    .stroke(Color.orange.opacity(0.8), lineWidth: 2)
 
                 Annotation(geofence.centerName, coordinate: geofence.center) {
                     Image(systemName: "building.2.crop.circle.fill")
                         .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Color.orange)
                         .padding(7)
                         .background(.background, in: Circle())
                 }
@@ -70,6 +70,9 @@ struct FleetMapFullView: View {
         .sheet(item: $selectedLocation) { location in
             FleetVehicleDetailSheet(location: location)
                 .presentationDetents([.medium, .large])
+        }
+        .task(id: breaches.map(\.id).map(\.uuidString).joined(separator: ",")) {
+            service.sendGeofenceBreachAlerts(breaches, manager: manager)
         }
     }
 

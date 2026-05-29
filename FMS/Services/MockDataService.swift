@@ -272,6 +272,43 @@ final class MockDataService {
         .sorted { $0.date > $1.date }
     }
 
+    func isDriver(_ driver: User, compatibleWith vehicle: Vehicle) -> Bool {
+        guard driver.role == .driver else { return false }
+        let license = driverLicenseCategory(for: driver)
+        let requirement = licenseRequirement(for: vehicle)
+
+        switch requirement {
+        case .twoWheeler:
+            return true
+        case .light:
+            return license == .light || license == .heavy
+        case .heavy:
+            return license == .heavy
+        }
+    }
+
+    func driverLicenseSummary(for driver: User) -> String {
+        switch driverLicenseCategory(for: driver) {
+        case .twoWheeler:
+            return "2-wheeler licence"
+        case .light:
+            return "Light vehicle licence"
+        case .heavy:
+            return "Heavy vehicle licence"
+        }
+    }
+
+    func requiredLicenseSummary(for vehicle: Vehicle) -> String {
+        switch licenseRequirement(for: vehicle) {
+        case .twoWheeler:
+            return "2-wheeler"
+        case .light:
+            return "Light vehicle"
+        case .heavy:
+            return "Heavy vehicle"
+        }
+    }
+
 
     func vehicle(for id: UUID?) -> Vehicle? {
         guard let id else { return nil }
@@ -281,6 +318,65 @@ final class MockDataService {
     func user(for id: UUID?) -> User? {
         guard let id else { return nil }
         return users.first { $0.id == id }
+    }
+
+    private enum DriverLicenseCategory {
+        case twoWheeler
+        case light
+        case heavy
+    }
+
+    private func driverLicenseCategory(for driver: User) -> DriverLicenseCategory {
+        let profileText = "\(driver.title) \(driver.email)".lowercased()
+
+        if profileText.contains("2 wheeler") ||
+            profileText.contains("two wheeler") ||
+            profileText.contains("bike") ||
+            profileText.contains("motorcycle") ||
+            profileText.contains("scooter") {
+            return .twoWheeler
+        }
+
+        if profileText.contains("hmv") ||
+            profileText.contains("heavy") ||
+            profileText.contains("truck") ||
+            profileText.contains("linehaul") ||
+            profileText.contains("transport") {
+            return .heavy
+        }
+
+        if profileText.contains("lmv") ||
+            profileText.contains("light") ||
+            profileText.contains("car") ||
+            profileText.contains("van") {
+            return .light
+        }
+
+        // Existing data has generic titles such as "Senior Driver"; treat them as
+        // transport-capable drivers unless a narrower licence is explicitly recorded.
+        return .heavy
+    }
+
+    private func licenseRequirement(for vehicle: Vehicle) -> DriverLicenseCategory {
+        let vehicleText = "\(vehicle.vehicleType) \(vehicle.model) \(vehicle.displayName)".lowercased()
+
+        if vehicleText.contains("2 wheeler") ||
+            vehicleText.contains("two wheeler") ||
+            vehicleText.contains("bike") ||
+            vehicleText.contains("motorcycle") ||
+            vehicleText.contains("scooter") {
+            return .twoWheeler
+        }
+
+        if vehicleText.contains("truck") ||
+            vehicleText.contains("heavy") ||
+            vehicleText.contains("container") ||
+            vehicleText.contains("bus") ||
+            vehicleText.contains("trailer") {
+            return .heavy
+        }
+
+        return .light
     }
 
     // MARK: - Driver-Specific Queries
@@ -1257,6 +1353,28 @@ final class MockDataService {
         destinationLat: Double? = nil,
         destinationLng: Double? = nil
     ) {
+        guard startDate >= Date().addingTimeInterval(3600) else {
+            addNotification(
+                userID: nil,
+                roleTarget: .fleetManager,
+                title: "Trip Assignment Blocked",
+                message: "Trips must be assigned at least 1 hour before the start time.",
+                category: .warning
+            )
+            return
+        }
+
+        guard isDriver(driver, compatibleWith: vehicle) else {
+            addNotification(
+                userID: nil,
+                roleTarget: .fleetManager,
+                title: "Trip Assignment Blocked",
+                message: "\(driver.name) does not have the required licence for \(vehicle.displayName) (\(vehicle.plateNumber)).",
+                category: .warning
+            )
+            return
+        }
+
         // 1. Assign vehicle to driver
         var updatedVehicle = vehicle
         updatedVehicle.assignedDriverID = driver.id
@@ -1295,7 +1413,7 @@ final class MockDataService {
         }
         
         // 3. Create notification for assigned driver
-        let notificationMsg = "You have been assigned vehicle \(vehicle.plateNumber) for \(origin) → \(destination) route."
+        let notificationMsg = "You have been assigned vehicle \(vehicle.plateNumber) for \(origin) to \(destination). Start: \(startDate.formatted(date: .abbreviated, time: .shortened))."
         addNotification(
             userID: driver.id,
             roleTarget: nil,

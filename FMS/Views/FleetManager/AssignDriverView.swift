@@ -40,7 +40,7 @@ struct AssignDriverView: View {
                         .padding(.horizontal)
 
                         // Smart Match Card
-                        let possibleMatches = min(viewModel.unassignedVehicles.count, viewModel.unassignedDrivers.count)
+                        let possibleMatches = viewModel.smartMatchCount
                         if possibleMatches > 0 {
                             smartMatchBanner(possibleMatches: possibleMatches)
                         }
@@ -68,16 +68,19 @@ struct AssignDriverView: View {
 
                         // Select Driver Section
                         VStack(alignment: .leading, spacing: 12) {
-                            SectionTitle(title: "Step 2: Select Available Driver", subtitle: "\(viewModel.unassignedDrivers.count) drivers unassigned")
+                            SectionTitle(title: "Step 2: Select Available Driver", subtitle: driverSectionSubtitle)
                                 .padding(.horizontal)
 
-                            if viewModel.unassignedDrivers.isEmpty {
-                                EmptyStateView(icon: "person.2.fill", title: "No Drivers Available", message: "All drivers are currently assigned to vehicles.")
+                            if viewModel.selectedVehicle == nil {
+                                EmptyStateView(icon: "truck.box", title: "Select a Vehicle First", message: "Smart Assign will show only drivers licensed for the chosen vehicle.")
+                                    .padding(.horizontal)
+                            } else if viewModel.compatibleDriversForSelectedVehicle.isEmpty {
+                                EmptyStateView(icon: "person.crop.circle.badge.exclamationmark", title: "No Compatible Drivers", message: "No available driver has the required licence for this vehicle.")
                                     .padding(.horizontal)
                             } else {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 16) {
-                                        ForEach(viewModel.unassignedDrivers) { driver in
+                                        ForEach(viewModel.compatibleDriversForSelectedVehicle) { driver in
                                             driverSelectionCard(driver: driver)
                                         }
                                     }
@@ -115,9 +118,6 @@ struct AssignDriverView: View {
 
     // Banner for Auto Smart Matching
     private func smartMatchBanner(possibleMatches: Int) -> some View {
-        let vehicleSuffix = possibleMatches > 1 ? "s" : ""
-        let driverSuffix = possibleMatches > 1 ? "s" : ""
-        
         return GlassCard {
             HStack(spacing: 16) {
                 // Gradient Icon Badge
@@ -134,7 +134,7 @@ struct AssignDriverView: View {
                     Text("Smart Match Available")
                         .font(.headline)
                         .foregroundStyle(AppTheme.textPrimary)
-                    Text("Instantly pair \(possibleMatches) vehicle\(vehicleSuffix) & driver\(driverSuffix).")
+                    Text("Assign the selected vehicle to a licensed available driver.")
                         .font(.caption)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
@@ -146,7 +146,7 @@ struct AssignDriverView: View {
                         viewModel.smartMatchAll()
                     }
                 } label: {
-                    Text("Auto-Match")
+                    Text("Smart Assign")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
@@ -159,6 +159,14 @@ struct AssignDriverView: View {
             }
         }
         .padding(.horizontal)
+    }
+
+    private var driverSectionSubtitle: String {
+        guard let vehicle = viewModel.selectedVehicle else {
+            return "Select a vehicle to filter licensed drivers"
+        }
+
+        return "\(viewModel.compatibleDriversForSelectedVehicle.count) drivers eligible for \(viewModel.service.requiredLicenseSummary(for: vehicle))"
     }
 
     // Selection card for Vehicles
@@ -206,9 +214,13 @@ struct AssignDriverView: View {
                         .font(.caption.weight(.medium))
                         .foregroundStyle(isSelected ? .white.opacity(0.9) : AppTheme.textSecondary)
                 }
+
+                Text("Requires \(viewModel.service.requiredLicenseSummary(for: vehicle))")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(isSelected ? .white.opacity(0.85) : AppTheme.textSecondary)
             }
             .padding(16)
-            .frame(width: 200, height: 160)
+            .frame(width: 210, height: 178)
             .background(isSelected ? AppTheme.brand : AppTheme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
@@ -256,9 +268,15 @@ struct AssignDriverView: View {
                     .padding(.vertical, 4)
                     .background(isSelected ? .white.opacity(0.2) : AppTheme.success.opacity(0.12))
                     .clipShape(Capsule())
+
+                Text(viewModel.service.driverLicenseSummary(for: driver))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(isSelected ? .white.opacity(0.75) : AppTheme.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .padding(16)
-            .frame(width: 160, height: 180)
+            .frame(width: 170, height: 198)
             .background(isSelected ? AppTheme.brand : AppTheme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(

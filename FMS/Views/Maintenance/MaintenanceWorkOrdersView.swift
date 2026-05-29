@@ -202,17 +202,19 @@ struct MaintenanceWorkOrdersView: View {
         case all
         case open
         case inProgress
-        case waitingParts
         case done
+
+        static var allCases: [MaintenanceOrderProgressFilter] {
+            [.all, .open, .inProgress, .done]
+        }
         
         var id: String { rawValue }
         
         var title: String {
             switch self {
             case .all:          "All"
-            case .open:         "Open"
+            case .open:         "To Start"
             case .inProgress:   "In Progress"
-            case .waitingParts: "Waiting Parts"
             case .done:         "Done"
             }
         }
@@ -220,9 +222,8 @@ struct MaintenanceWorkOrdersView: View {
         var emptyMessage: String {
             switch self {
             case .all:          "No work orders found."
-            case .open:         "No open work orders right now."
+            case .open:         "No newly assigned work orders right now."
             case .inProgress:   "No work orders are currently in progress."
-            case .waitingParts: "No work orders are waiting on parts."
             case .done:         "Completed work will appear here after you mark it done."
             }
         }
@@ -230,9 +231,8 @@ struct MaintenanceWorkOrdersView: View {
         func matches(_ status: WorkOrderStatus) -> Bool {
             switch self {
             case .all:          true
-            case .open:         status == .open
+            case .open:         status == .open || status == .waitingParts
             case .inProgress:   status == .inProgress
-            case .waitingParts: status == .waitingParts
             case .done:         status == .completed
             }
         }
@@ -391,44 +391,19 @@ struct MaintenanceWorkOrdersView: View {
         @Environment(\.dismiss) private var dismiss
         @Environment(AppViewModel.self) private var appViewModel
         @State private var workOrder: WorkOrder
-        @State private var progress: Int
-        @State private var repairStartedAt: Date?
-        @State private var labourHours = "1"
-        @State private var labourMinutes = "30"
-        @State private var isShowingCompletion = false
-        @State private var selectedPartName: String? = nil
-        
-        let sparePartsOptions = [
-            "Heavy Duty Brake Pads",
-            "Oil Filter Kit",
-            "Tyre Valve Set",
-            "Hydraulic Filter Assembly",
-            "Engine Gasket Kit V8",
-            "Halogen Headlight Bulbs",
-            "Fuel Filter Assembly",
-            "Windshield Wiper Blades",
-            "Side Mirror Assembly",
-            "Workshop Parts Kit"
-        ]
+        @State private var selectedStatus: WorkOrderStatus
+        @State private var labourHours = "0"
+        @State private var labourMinutes = "0"
+        @State private var isShowingLabourSheet = false
+        @State private var isShowingPartsSheet = false
+        @State private var inventoryParts: [SparePart] = []
+        @State private var partsLoadError: String?
+        @State private var isLoadingParts = false
+        @State private var selectedParts: [WorkOrderPartSelection] = []
         
         init(workOrder: WorkOrder) {
             _workOrder = State(initialValue: workOrder)
-            _progress = State(initialValue: MaintenanceWorkOrderDetailView.initialProgress(for: workOrder.status))
-            
-            if workOrder.status == .inProgress {
-                _repairStartedAt = State(initialValue: Date.now.addingTimeInterval(-3600)) // 1 hr ago
-            } else {
-                _repairStartedAt = State(initialValue: nil)
-            }
-            
-            // Derive initial part name dynamically from title
-            let initialPart: String
-            if workOrder.title.localizedCaseInsensitiveContains("brake") { initialPart = "Heavy Duty Brake Pads" }
-            else if workOrder.title.localizedCaseInsensitiveContains("oil")   { initialPart = "Oil Filter Kit" }
-            else if workOrder.title.localizedCaseInsensitiveContains("tyre") ||
-               workOrder.title.localizedCaseInsensitiveContains("tire")  { initialPart = "Tyre Valve Set" }
-            else { initialPart = "Workshop Parts Kit" }
-            _selectedPartName = State(initialValue: initialPart)
+            _selectedStatus = State(initialValue: workOrder.status == .waitingParts ? .open : workOrder.status)
         }
         
         private var vehicle: Vehicle? { appViewModel.service.vehicle(for: workOrder.vehicleID) }
@@ -439,7 +414,7 @@ struct MaintenanceWorkOrdersView: View {
         private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
         
         private var statusColor: Color {
-            switch workOrder.status {
+            switch selectedStatus {
             case .open:         return Color.secondary
             case .inProgress:   return Color(hex: "#2EA7FF")
             case .waitingParts: return AppTheme.warning
@@ -451,14 +426,13 @@ struct MaintenanceWorkOrdersView: View {
             ScrollView {
                 VStack(spacing: 18) {
                     heroCard
-                    timerCard
-                    actionRow
                     progressCard
                     scheduleCard
                     descriptionCard
                     labourCard
                     partsCard
                     chatCard
+                    updateButton
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 14)
@@ -475,14 +449,24 @@ struct MaintenanceWorkOrdersView: View {
                         .foregroundStyle(detailText)
                 }
             }
-            .navigationDestination(isPresented: $isShowingCompletion) {
-                CompleteWorkOrderView(
-                    workOrder: workOrder,
-                    vehicle: vehicle,
-                    labourHoursText: labourTotalText,
-                    partName: selectedPartName ?? "Workshop Parts Kit"
+            .sheet(isPresented: $isShowingLabourSheet) {
+                LabourEntrySheet(hours: $labourHours, minutes: $labourMinutes)
+                    .presentationDetents([.height(300), .medium])
+                    .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $isShowingPartsSheet) {
+                SparePartSelectionSheet(
+                    parts: inventoryParts,
+                    selectedParts: selectedParts,
+                    isLoading: isLoadingParts,
+                    loadError: partsLoadError,
+                    onAdd: mergeSelectedParts
                 )
-                .environment(appViewModel)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            }
+            .task {
+                await loadInventoryParts()
             }
         }
         
@@ -509,9 +493,9 @@ struct MaintenanceWorkOrdersView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(Color.red, in: Capsule())
+                            .background(Color.red, in: Capsule())
                     } else {
-                        Text(workOrder.status.rawValue.uppercased())
+                        Text(selectedStatus.displayTitle.uppercased())
                             .font(.system(.caption2, design: .rounded).monospaced().weight(.bold))
                             .foregroundStyle(statusColor)
                             .padding(.horizontal, 10)
@@ -544,103 +528,53 @@ struct MaintenanceWorkOrdersView: View {
             .overlay(alignment: .topTrailing) {
                 Image(systemName: workOrder.isOverdue
                       ? "exclamationmark.clock.fill"
-                      : "exclamationmark.triangle.fill")
+                      : selectedStatus.detailIcon)
                     .font(.system(size: 52))
-                    .foregroundStyle(.tertiary.opacity(0.5))
+                    .foregroundStyle(statusColor.opacity(0.18))
                     .padding(.trailing, 12)
                     .padding(.top, 10)
             }
-        }
-        
-        private var timerCard: some View {
-            DetailSectionCard {
-                VStack(spacing: 14) {
-                    Text("ACTIVE REPAIR TIMER")
-                        .font(.system(.caption2, design: .monospaced).weight(.bold))
-                        .tracking(2)
-                        .foregroundStyle(.secondary)
-                    
-                    if let repairStartedAt {
-                        TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                            Text(Self.formattedDuration(from: repairStartedAt, to: timeline.date))
-                                .font(.system(size: 34, weight: .bold, design: .monospaced))
-                                .foregroundStyle(accent)
-                        }
-                    } else {
-                        Text("00:00:00")
-                            .font(.system(size: 34, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    Button {
-                        repairStartedAt = repairStartedAt == nil ? .now : nil
-                    } label: {
-                        Label(repairStartedAt == nil ? "Start Timer" : "Stop Timer",
-                              systemImage: repairStartedAt == nil ? "play.circle" : "stop.circle")
-                            .font(.system(.headline, design: .rounded))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 46)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .tint(repairStartedAt == nil ? dangerAccent : .secondary)
-                }
-            }
-        }
-        
-        private var actionRow: some View {
-            Button {
-                updateProgress(to: max(progress, 75))
-            } label: {
-                Text("Update Progress")
-                    .font(.system(.headline, design: .rounded).weight(.bold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-            }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
-            .tint(accent)
         }
         
         private var progressCard: some View {
             DetailSectionCard {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
-                        Text("Task Progress")
+                        Text("Update Progress")
                             .font(.system(.headline, design: .rounded).weight(.bold))
                             .foregroundStyle(.primary)
                         Spacer()
-                        Text("\(progress)%")
+                        Text("\(progressValue)%")
                             .font(.system(.headline, design: .rounded).weight(.bold))
                             .foregroundStyle(accent)
                     }
                     
-                    ProgressView(value: Double(progress), total: 100)
+                    ProgressView(value: Double(progressValue), total: 100)
                         .tint(accent)
                         .background(Color(uiColor: .tertiarySystemGroupedBackground))
                         .clipShape(Capsule())
                     
                     HStack(spacing: 8) {
-                        ForEach([25, 50, 75, 100], id: \.self) { value in
+                        ForEach(Self.progressStatuses, id: \.self) { status in
                             Button {
-                                updateProgress(to: value)
+                                selectedStatus = status
                             } label: {
-                                Text("\(value)%")
+                                Text(status.displayTitle)
                                     .font(.system(.caption, design: .rounded).weight(.bold))
-                                    .foregroundStyle(progress == value ? Color.white : .secondary)
+                                    .foregroundStyle(selectedStatus == status ? Color.white : .secondary)
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 34)
                                     .background(
                                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .fill(progress == value ? AnyShapeStyle(accent) : AnyShapeStyle(.ultraThinMaterial))
+                                            .fill(selectedStatus == status ? AnyShapeStyle(accent) : AnyShapeStyle(.ultraThinMaterial))
                                     )
-                                    .glassEffect(progress == value ? .identity : .regular.interactive(), in: .rect(cornerRadius: 8))
+                                    .glassEffect(selectedStatus == status ? .identity : .regular.interactive(), in: .rect(cornerRadius: 8))
                             }
                             .buttonStyle(.plain)
                         }
                     }
                     
-                    Label("Actual Start Time: \(actualStartText)", systemImage: "alarm")
+                    Label("Scheduled: \(workOrder.scheduledDate.formatted(date: .abbreviated, time: .shortened))", systemImage: "calendar.badge.clock")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(accent)
                 }
@@ -684,6 +618,7 @@ struct MaintenanceWorkOrdersView: View {
                             .foregroundStyle(.primary)
                         Spacer()
                         Button {
+                            isShowingLabourSheet = true
                         } label: {
                             Label("Add Hours", systemImage: "plus")
                                 .font(.system(.subheadline, design: .rounded).weight(.bold))
@@ -733,66 +668,85 @@ struct MaintenanceWorkOrdersView: View {
                             .foregroundStyle(.primary)
                         Spacer()
                         
-                        Menu {
-                            ForEach(sparePartsOptions, id: \.self) { option in
-                                Button(option) {
-                                    selectedPartName = option
-                                }
-                            }
+                        Button {
+                            isShowingPartsSheet = true
                         } label: {
-                            Label(selectedPartName == nil ? "Add Part" : "Change Part", systemImage: "plus.square")
+                            Label(selectedParts.isEmpty ? "Add Part" : "Change Part", systemImage: "plus.square")
                                 .font(.system(.caption, design: .rounded).weight(.bold))
                                 .foregroundStyle(accent)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
                                 .overlay(Capsule().stroke(accent, lineWidth: 1))
                         }
+                        .buttonStyle(.plain)
                     }
                     
-                    if let partName = selectedPartName {
-                        HStack(spacing: 12) {
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.system(.title3, design: .rounded).weight(.bold))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 44, height: 44)
-                                .background(
-                                    Circle()
-                                        .fill(.ultraThinMaterial)
-                                )
-                                .glassEffect(.regular, in: .circle)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(partName)
-                                    .font(.system(.subheadline, design: .rounded).weight(.bold))
-                                    .foregroundStyle(.primary)
-                                Text(partNumber(for: partName))
-                                    .font(.system(.caption, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            Text("Qty: 1 set")
-                                .font(.system(.caption, design: .rounded).weight(.bold))
-                                .foregroundStyle(Color(hex: "#FF5A1F"))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(accent.opacity(0.14), in: Capsule())
-                        }
-                        .padding(10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(.regularMaterial)
-                        )
-                        .glassEffect(.regular, in: .rect(cornerRadius: 14))
-                    } else {
+                    if selectedParts.isEmpty {
                         Text("No spare parts added to this work order yet.")
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(.secondary)
                             .padding(.vertical, 4)
+                    } else {
+                        VStack(spacing: 10) {
+                            ForEach(selectedParts) { part in
+                                sparePartRow(part)
+                            }
+                        }
                     }
                 }
             }
+        }
+
+        private func sparePartRow(_ part: WorkOrderPartSelection) -> some View {
+            HStack(spacing: 12) {
+                Image(systemName: part.icon)
+                    .font(.system(.title3, design: .rounded).weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(.ultraThinMaterial))
+                    .glassEffect(.regular, in: .circle)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(part.name)
+                        .font(.system(.subheadline, design: .rounded).weight(.bold))
+                        .foregroundStyle(.primary)
+                    Text("\(part.partNumber) • \(part.category)")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                HStack(spacing: 8) {
+                    Button {
+                        adjustPartQuantity(part.id, by: -1)
+                    } label: {
+                        Image(systemName: "minus")
+                            .font(.caption.weight(.bold))
+                            .frame(width: 28, height: 28)
+                    }
+
+                    Text("\(part.quantity)")
+                        .font(.system(.subheadline, design: .rounded).weight(.bold))
+                        .frame(minWidth: 20)
+
+                    Button {
+                        adjustPartQuantity(part.id, by: 1)
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.caption.weight(.bold))
+                            .frame(width: 28, height: 28)
+                    }
+                }
+                .foregroundStyle(accent)
+                .background(accent.opacity(0.12), in: Capsule())
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(.regularMaterial)
+            )
+            .glassEffect(.regular, in: .rect(cornerRadius: 14))
         }
         
         private var recentChatMessages: [ChatMessage] {
@@ -848,8 +802,18 @@ struct MaintenanceWorkOrdersView: View {
             }
         }
         
-        private var actualStartText: String {
-            (repairStartedAt ?? workOrder.scheduledDate).formatted(date: .omitted, time: .shortened)
+        private var updateButton: some View {
+            Button {
+                saveTechnicianUpdate()
+            } label: {
+                Label("Update Progress", systemImage: "checkmark.circle.fill")
+                    .font(.system(.headline, design: .rounded).weight(.bold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(accent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(.plain)
         }
         
         private var bayNumber: String {
@@ -870,63 +834,95 @@ struct MaintenanceWorkOrdersView: View {
             appViewModel.currentUser?.name ?? "Maintenance Staff"
         }
         
-        private func partNumber(for name: String) -> String {
-            if name.contains("Brake") { return "BP-4402" }
-            if name.contains("Oil") { return "PN-1029" }
-            if name.contains("Tyre") || name.contains("Tire") { return "PN-5510" }
-            if name.contains("Hydraulic") { return "PN-8821" }
-            if name.contains("Gasket") { return "PN-9283" }
-            if name.contains("Headlight") || name.contains("Bulb") { return "PN-3115" }
-            if name.contains("Fuel") { return "PN-1205" }
-            if name.contains("Wiper") { return "PN-5510" }
-            if name.contains("Mirror") { return "PN-6678" }
-            return "BP-402"
-        }
-        
         private var labourTotalText: String {
             let hours   = Double(labourHours)   ?? 0
             let minutes = Double(labourMinutes) ?? 0
             return String(format: "%.1f", hours + (minutes / 60))
         }
         
-        private func updateProgress(to value: Int) {
-            progress = value
-            if value >= 100 {
-                isShowingCompletion = true
+        private var progressValue: Int {
+            switch selectedStatus {
+            case .open, .waitingParts: 0
+            case .inProgress: 50
+            case .completed: 100
+            }
+        }
+        
+        private static let progressStatuses: [WorkOrderStatus] = [.open, .inProgress, .completed]
+
+        private func adjustPartQuantity(_ id: UUID, by delta: Int) {
+            guard let index = selectedParts.firstIndex(where: { $0.id == id }) else { return }
+            let updatedQuantity = selectedParts[index].quantity + delta
+            if updatedQuantity <= 0 {
+                selectedParts.remove(at: index)
+            } else {
+                selectedParts[index].quantity = updatedQuantity
+            }
+        }
+
+        private func mergeSelectedParts(_ parts: [WorkOrderPartSelection]) {
+            for part in parts {
+                if let index = selectedParts.firstIndex(where: { $0.id == part.id }) {
+                    selectedParts[index].quantity += part.quantity
+                } else {
+                    selectedParts.append(part)
+                }
+            }
+            selectedParts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
+
+        private func saveTechnicianUpdate() {
+            var updatedOrder = workOrder
+            updatedOrder.status = selectedStatus
+            updatedOrder.completedDate = selectedStatus == .completed ? (updatedOrder.completedDate ?? .now) : nil
+            updatedOrder.repairSummary = repairSummaryText
+
+            appViewModel.service.updateWorkOrder(updatedOrder)
+            workOrder = updatedOrder
+            NotificationCenter.default.post(name: .maintenanceOrdersRequested, object: nil)
+            dismiss()
+        }
+
+        private var repairSummaryText: String {
+            var lines = workOrder.repairSummary
+                .split(separator: "\n", omittingEmptySubsequences: false)
+                .map(String.init)
+                .filter {
+                    !$0.hasPrefix("Technician update:") &&
+                    !$0.hasPrefix("Labour logged:") &&
+                    !$0.hasPrefix("Parts used:")
+                }
+                .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+            lines.append("Technician update: \(selectedStatus.displayTitle)")
+            lines.append("Labour logged: \(labourHours)h \(labourMinutes)m")
+            if selectedParts.isEmpty {
+                lines.append("Parts used: None")
+            } else {
+                lines.append("Parts used: \(selectedParts.map { "\($0.name) x\($0.quantity)" }.joined(separator: ", "))")
+            }
+            return lines.joined(separator: "\n")
+        }
+
+        private func loadInventoryParts() async {
+            guard inventoryParts.isEmpty, !isLoadingParts else { return }
+            guard SupabaseConfig.isConfigured else {
+                partsLoadError = "Inventory is not connected."
                 return
             }
-            if workOrder.status == .open {
-                workOrder.status = .inProgress
+            guard let orgID = appViewModel.currentOrganization?.id else {
+                partsLoadError = "No organization selected."
+                return
             }
-            appViewModel.service.updateWorkOrder(workOrder)
-        }
-        
-        private func markComplete() {
-            progress = 100
-            workOrder.status = .completed
-            workOrder.completedDate = .now
-            repairStartedAt = nil
-            if workOrder.repairSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                workOrder.repairSummary = "Marked complete from work order detail."
+
+            isLoadingParts = true
+            partsLoadError = nil
+            do {
+                inventoryParts = try await SupabaseService.shared.fetchSpareParts(organizationID: orgID)
+            } catch {
+                partsLoadError = "Could not load spare parts."
             }
-            appViewModel.service.updateWorkOrder(workOrder)
-        }
-        
-        private static func initialProgress(for status: WorkOrderStatus) -> Int {
-            switch status {
-            case .open:         25
-            case .inProgress:   75
-            case .waitingParts: 50
-            case .completed:    100
-            }
-        }
-        
-        private static func formattedDuration(from start: Date, to end: Date) -> String {
-            let seconds = max(0, Int(end.timeIntervalSince(start)))
-            let hours   = seconds / 3600
-            let minutes = (seconds % 3600) / 60
-            let remaining = seconds % 60
-            return String(format: "%02d:%02d:%02d", hours, minutes, remaining)
+            isLoadingParts = false
         }
     }
     
@@ -998,6 +994,237 @@ struct MaintenanceWorkOrdersView: View {
             }
         }
     }
+
+    private struct WorkOrderPartSelection: Identifiable, Hashable {
+        let id: UUID
+        var name: String
+        var partNumber: String
+        var category: String
+        var icon: String
+        var quantity: Int
+
+        init(part: SparePart, quantity: Int = 1) {
+            id = part.id
+            name = part.name
+            partNumber = part.partNumber
+            category = part.category
+            icon = part.icon
+            self.quantity = quantity
+        }
+    }
+
+    private struct LabourEntrySheet: View {
+        @Environment(\.dismiss) private var dismiss
+        @Binding var hours: String
+        @Binding var minutes: String
+        @State private var draftHours = 0
+        @State private var draftMinutes = 0
+
+        var body: some View {
+            NavigationStack {
+                Form {
+                    Section("Labour Time") {
+                        Stepper(value: $draftHours, in: 0...72) {
+                            HStack {
+                                Text("Hours")
+                                Spacer()
+                                Text("\(draftHours)")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        Stepper(value: $draftMinutes, in: 0...55, step: 5) {
+                            HStack {
+                                Text("Minutes")
+                                Spacer()
+                                Text("\(draftMinutes)")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                .navigationTitle("Add Labour")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Apply") {
+                            hours = "\(draftHours)"
+                            minutes = "\(draftMinutes)"
+                            dismiss()
+                        }
+                    }
+                }
+                .onAppear {
+                    draftHours = Int(hours) ?? 0
+                    draftMinutes = Int(minutes) ?? 0
+                }
+            }
+        }
+    }
+
+    private struct SparePartSelectionSheet: View {
+        @Environment(\.dismiss) private var dismiss
+
+        let parts: [SparePart]
+        let selectedParts: [WorkOrderPartSelection]
+        let isLoading: Bool
+        let loadError: String?
+        let onAdd: ([WorkOrderPartSelection]) -> Void
+
+        @State private var searchText = ""
+        @State private var selectedCategory = "All"
+        @State private var showInStockOnly = true
+        @State private var draftQuantities: [UUID: Int] = [:]
+
+        private var accent: Color { Color(hex: "#FF5A1F") }
+
+        private var categories: [String] {
+            ["All"] + Array(Set(parts.map(\.category))).sorted()
+        }
+
+        private var visibleParts: [SparePart] {
+            let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            return parts.filter { part in
+                let matchesSearch = query.isEmpty ||
+                    part.name.localizedCaseInsensitiveContains(query) ||
+                    part.partNumber.localizedCaseInsensitiveContains(query) ||
+                    part.category.localizedCaseInsensitiveContains(query)
+                let matchesCategory = selectedCategory == "All" || part.category == selectedCategory
+                let matchesStock = !showInStockOnly || part.quantity > 0
+                return matchesSearch && matchesCategory && matchesStock
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
+
+        private var selectedDraftParts: [WorkOrderPartSelection] {
+            draftQuantities.compactMap { id, quantity in
+                guard quantity > 0, let part = parts.first(where: { $0.id == id }) else { return nil }
+                return WorkOrderPartSelection(part: part, quantity: quantity)
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
+
+        var body: some View {
+            NavigationStack {
+                Group {
+                    if isLoading {
+                        ProgressView("Loading spare parts...")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let loadError {
+                        EmptyStateView(icon: "shippingbox", title: "Parts unavailable", message: loadError)
+                    } else if parts.isEmpty {
+                        EmptyStateView(icon: "shippingbox", title: "No inventory found", message: "Add spare parts in Inventory first.")
+                    } else {
+                        List {
+                            Section {
+                                filterControls
+                            }
+                            .listRowBackground(Color.clear)
+
+                            Section("Parts") {
+                                ForEach(visibleParts) { part in
+                                    partPickerRow(part)
+                                }
+                            }
+                        }
+                        .listStyle(.insetGrouped)
+                    }
+                }
+                .navigationTitle("Change Parts")
+                .navigationBarTitleDisplayMode(.inline)
+                .searchable(text: $searchText, prompt: "Search parts")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Add") {
+                            onAdd(selectedDraftParts)
+                            dismiss()
+                        }
+                        .disabled(selectedDraftParts.isEmpty)
+                    }
+                }
+                .onAppear {
+                    guard draftQuantities.isEmpty else { return }
+                    draftQuantities = Dictionary(uniqueKeysWithValues: selectedParts.map { ($0.id, $0.quantity) })
+                }
+            }
+        }
+
+        private var filterControls: some View {
+            VStack(alignment: .leading, spacing: 10) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(categories, id: \.self) { category in
+                            Button {
+                                selectedCategory = category
+                            } label: {
+                                Text(category)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(selectedCategory == category ? .white : .primary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(selectedCategory == category ? accent : Color(uiColor: .secondarySystemGroupedBackground), in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                Toggle("In stock only", isOn: $showInStockOnly)
+                    .tint(accent)
+            }
+            .padding(.vertical, 4)
+        }
+
+        private func partPickerRow(_ part: SparePart) -> some View {
+            let quantity = draftQuantities[part.id, default: 0]
+
+            return HStack(spacing: 12) {
+                Image(systemName: part.icon)
+                    .foregroundStyle(accent)
+                    .frame(width: 30, height: 30)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(part.name)
+                        .font(.subheadline.weight(.semibold))
+                    Text("\(part.partNumber) • \(part.category) • Stock \(part.quantity)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                HStack(spacing: 8) {
+                    Button {
+                        draftQuantities[part.id] = max(0, quantity - 1)
+                    } label: {
+                        Image(systemName: "minus")
+                            .frame(width: 28, height: 28)
+                    }
+                    .disabled(quantity == 0)
+
+                    Text("\(quantity)")
+                        .font(.subheadline.weight(.bold))
+                        .frame(minWidth: 20)
+
+                    Button {
+                        draftQuantities[part.id] = min(part.quantity, quantity + 1)
+                    } label: {
+                        Image(systemName: "plus")
+                            .frame(width: 28, height: 28)
+                    }
+                    .disabled(quantity >= part.quantity)
+                }
+                .font(.caption.weight(.bold))
+                .foregroundStyle(accent)
+            }
+        }
+    }
     
     private struct DetailChatBubble: View {
         let sender: String
@@ -1066,6 +1293,26 @@ struct MaintenanceWorkOrdersView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+private extension WorkOrderStatus {
+    var displayTitle: String {
+        switch self {
+        case .open: "To Be Started"
+        case .inProgress: "In Progress"
+        case .waitingParts: "To Be Started"
+        case .completed: "Done"
+        }
+    }
+
+    var detailIcon: String {
+        switch self {
+        case .open: "clock.badge"
+        case .inProgress: "wrench.and.screwdriver.fill"
+        case .waitingParts: "shippingbox.fill"
+        case .completed: "checkmark.circle.fill"
         }
     }
 }
