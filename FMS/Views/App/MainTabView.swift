@@ -194,6 +194,15 @@ private struct MaintenanceTabView: View {
 
             selectedTab = 0
         }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for:
+                .maintenanceOrdersRequested
+            )
+        ) { _ in
+
+            selectedTab = 1
+        }
 
         .tint(
             Color(hex: "#FF5A1F")
@@ -206,6 +215,11 @@ extension Notification.Name {
     static let maintenanceDashboardRequested =
     Notification.Name(
         "maintenanceDashboardRequested"
+    )
+
+    static let maintenanceOrdersRequested =
+    Notification.Name(
+        "maintenanceOrdersRequested"
     )
 }
 

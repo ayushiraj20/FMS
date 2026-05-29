@@ -72,12 +72,25 @@ struct MaintenanceDashboardView: View {
     private var assignedOrders: [WorkOrder] { appViewModel.service.workOrders(for: currentUser?.id) }
     private var activeAssignedOrders: [WorkOrder] { assignedOrders.filter { $0.status != .completed } }
     private var priorityOrders: [WorkOrder] {
-        activeAssignedOrders.sorted {
+        activeAssignedOrders.filter {
+            Calendar.current.isDate($0.scheduledDate, inSameDayAs: .now)
+        }
+        .sorted {
             if priorityRank($0.priority) == priorityRank($1.priority) {
                 return $0.scheduledDate < $1.scheduledDate
             }
             return priorityRank($0.priority) > priorityRank($1.priority)
         }
+    }
+    private var scheduledAssignedOrders: [WorkOrder] {
+        activeAssignedOrders
+            .filter { !Calendar.current.isDate($0.scheduledDate, inSameDayAs: .now) }
+            .sorted {
+                if $0.scheduledDate == $1.scheduledDate {
+                    return priorityRank($0.priority) > priorityRank($1.priority)
+                }
+                return $0.scheduledDate < $1.scheduledDate
+            }
     }
     private var assignedVehicleIDs: Set<UUID> { Set(assignedOrders.map(\.vehicleID)) }
     private var upcomingSchedules: [MaintenanceSchedule] {
@@ -154,7 +167,7 @@ struct MaintenanceDashboardView: View {
                 .foregroundStyle(warmPrimaryText)
 
             if priorityOrders.isEmpty {
-                EmptyStateView(icon: "checkmark.circle.fill", title: "No active assignments", message: "New admin-assigned work orders will appear here.")
+                EmptyStateView(icon: "checkmark.circle.fill", title: "No tasks due today", message: "Work assigned for today will appear here in priority order.")
             } else {
                 ForEach(priorityOrders.prefix(4)) { order in
                     MaintenancePriorityOrderCard(
@@ -174,15 +187,15 @@ struct MaintenanceDashboardView: View {
                 .font(.headline)
                 .foregroundStyle(warmPrimaryText)
 
-            if upcomingSchedules.isEmpty {
-                EmptyStateView(icon: "calendar.badge.checkmark", title: "No scheduled maintenance", message: "Upcoming service jobs will appear here.")
+            if scheduledAssignedOrders.isEmpty {
+                EmptyStateView(icon: "calendar.badge.checkmark", title: "No new assignments", message: "New fleet-manager assigned tasks will appear here.")
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
-                        ForEach(upcomingSchedules.prefix(6)) { schedule in
-                            MaintenanceSchedulePreviewCard(
-                                schedule: schedule,
-                                vehicle: appViewModel.service.vehicle(for: schedule.vehicleID)
+                        ForEach(scheduledAssignedOrders.prefix(4)) { order in
+                            MaintenanceAssignedOrderPreviewCard(
+                                order: order,
+                                vehicle: appViewModel.service.vehicle(for: order.vehicleID)
                             )
                         }
                     }
@@ -398,6 +411,64 @@ private struct MaintenanceSchedulePreviewCard: View {
                         .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 0.5)
                 )
         )
+    }
+}
+
+private struct MaintenanceAssignedOrderPreviewCard: View {
+    let order: WorkOrder
+    let vehicle: Vehicle?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar.badge.clock")
+                Text(order.scheduledDate.formatted(date: .abbreviated, time: .shortened))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+            .font(.caption2.monospaced().weight(.semibold))
+            .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+
+            Text(order.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
+                .lineLimit(2)
+                .frame(height: 36, alignment: .topLeading)
+
+            Text(vehicle?.displayName ?? "Assigned Vehicle")
+                .font(.caption)
+                .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+                .lineLimit(1)
+
+            HStack(spacing: 6) {
+                Text(order.priority.rawValue)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(priorityColor)
+                Text(order.status.rawValue)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+            }
+        }
+        .frame(width: 210, alignment: .leading)
+        .frame(minHeight: 118, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1D23").opacity(0.94))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 0.5)
+                )
+        )
+    }
+
+    private var priorityColor: Color {
+        switch order.priority {
+        case .low: AppTheme.success
+        case .medium: AppTheme.brand
+        case .high: Color(hex: "#FF5A1F")
+        case .critical: Color.dynamic(light: "#BA1A1A", dark: "#FF8989")
+        }
     }
 }
 

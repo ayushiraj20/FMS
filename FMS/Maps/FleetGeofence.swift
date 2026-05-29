@@ -39,7 +39,7 @@ struct FleetGeofenceBreach: Identifiable {
 
 extension MockDataService {
     static let standardFleetGeofenceRadiusMeters: CLLocationDistance = 100_000
-    static let primaryFleetHubCoordinate = CLLocationCoordinate2D(latitude: 19.0760, longitude: 72.8777)
+    static let primaryFleetHubCoordinate = CLLocationCoordinate2D(latitude: 17.3850, longitude: 78.4867)
 
     func fleetGeofence(for manager: User?) -> FleetGeofence {
         FleetGeofence(
@@ -47,7 +47,7 @@ extension MockDataService {
             managerID: manager?.id,
             organizationID: manager?.organizationID,
             center: Self.primaryFleetHubCoordinate,
-            centerName: "Mumbai Fleet Hub",
+            centerName: "Hyderabad Fleet Hub",
             radiusMeters: Self.standardFleetGeofenceRadiusMeters
         )
     }

@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 // MARK: - Defects Board (Fleet Manager)
 
@@ -31,6 +32,16 @@ struct DefectReportsListView: View {
         }
     }
 
+    private var issueSummaries: [DefectIssueSummary] {
+        DefectIssueType.allCases.enumerated().map { index, issueType in
+            DefectIssueSummary(
+                issueType: issueType,
+                count: appViewModel.service.defects.filter { defectIssueType(for: $0) == issueType }.count,
+                color: chartColor(at: index)
+            )
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Pull-to-refresh status indicator
@@ -47,44 +58,21 @@ struct DefectReportsListView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            // Segmented filter
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(FilterOption.allCases) { option in
-                        let count = defectCount(for: option)
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                filterTab = option
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(option.rawValue)
-                                    .font(.subheadline.weight(.semibold))
-                                if count > 0 {
-                                    Text("\(count)")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(
-                                            filterTab == option
-                                            ? Color.white.opacity(0.25)
-                                            : AppTheme.brand.opacity(0.15)
-                                        )
-                                        .clipShape(Capsule())
-                                }
-                            }
-                            .foregroundStyle(filterTab == option ? .white : AppTheme.textSecondary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(filterTab == option ? AppTheme.brand : AppTheme.surfaceSecondary)
-                            )
-                        }
-                    }
+            Picker("Filter defect reports", selection: $filterTab) {
+                ForEach(FilterOption.allCases) { option in
+                    Text("\(option.rawValue) \(defectCount(for: option))")
+                        .tag(option)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .tint(AppTheme.brand)
+
+            if !appViewModel.service.defects.isEmpty {
+                defectIssueChart
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 10)
             }
 
             Divider()
@@ -165,6 +153,80 @@ struct DefectReportsListView: View {
         case .completed: return all.filter { $0.status == .completed }.count
         }
     }
+
+    private var defectIssueChart: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Issues by Part")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.textPrimary)
+
+                Chart(issueSummaries) { summary in
+                    BarMark(
+                        x: .value("Vehicle Part", summary.issueType.rawValue),
+                        y: .value("Reports", summary.count)
+                    )
+                    .foregroundStyle(summary.color)
+                    .annotation(position: .top) {
+                        if summary.count > 0 {
+                            Text("\(summary.count)")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                    }
+                }
+                .chartXAxisLabel("Vehicle part")
+                .chartYAxisLabel("Reports")
+                .chartYAxis {
+                    AxisMarks(position: .leading, values: .automatic(desiredCount: 4))
+                }
+                .frame(height: 220)
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8)], alignment: .leading, spacing: 8) {
+                    ForEach(issueSummaries.filter { $0.count > 0 }) { summary in
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(summary.color)
+                                .frame(width: 8, height: 8)
+                            Text(summary.issueType.rawValue)
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func defectIssueType(for defect: DefectReport) -> DefectIssueType {
+        let text = "\(defect.title ?? "") \(defect.description)".lowercased()
+        return DefectIssueType.allCases.first { issueType in
+            text.contains("[\(issueType.rawValue.lowercased())]") ||
+            text.contains(issueType.rawValue.lowercased())
+        } ?? .other
+    }
+
+    private func chartColor(at index: Int) -> Color {
+        [
+            Color(UIColor.systemBlue),
+            Color(UIColor.systemRed),
+            Color(UIColor.systemGreen),
+            Color(UIColor.systemYellow),
+            Color(UIColor.systemPurple),
+            Color(UIColor.systemTeal),
+            Color(UIColor.systemPink),
+            Color(UIColor.systemGray)
+        ][index % 8]
+    }
+}
+
+private struct DefectIssueSummary: Identifiable {
+    let issueType: DefectIssueType
+    let count: Int
+    let color: Color
+
+    var id: String { issueType.rawValue }
 }
 
 // MARK: - Defect Card
