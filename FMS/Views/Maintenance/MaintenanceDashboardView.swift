@@ -24,6 +24,9 @@ struct MaintenanceDashboardView: View {
             .padding(.top, 8)
             .padding(.bottom, 16)
         }
+        .refreshable {
+            await appViewModel.service.syncWithDatabase()
+        }
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("Dashboard")
         .navigationBarTitleDisplayMode(.large)

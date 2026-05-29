@@ -80,6 +80,9 @@ struct CompletedTripsView: View {
             }
             .padding(.horizontal, 20)
         }
+        .refreshable {
+            await appViewModel.service.syncWithDatabase()
+        }
         .background(
             ZStack {
                 DriverTheme.background.ignoresSafeArea()

@@ -17,61 +17,37 @@ struct BroadcastInboxView: View {
     BroadcastService.shared
 
     var body: some View {
-
-        Group {
-
-            // Loading state
-
-            if broadcastService.isLoading {
-
-                ProgressView(
-                    "Loading broadcasts..."
-                )
-                .frame(
-                    maxWidth: .infinity,
-                    maxHeight: .infinity
-                )
-            }
-
-            // Empty state
-
-            else if broadcastService.messages.isEmpty {
-
-                ContentUnavailableView(
-                    "No Broadcasts",
-                    systemImage:
-                    "megaphone.fill",
-                    description:
-                    Text(
-                    "Fleet manager messages will appear here"
+        ScrollView(showsIndicators: false) {
+            VStack {
+                if broadcastService.isLoading {
+                    ProgressView("Loading broadcasts...")
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                        .padding(.top, 40)
+                } else if broadcastService.messages.isEmpty {
+                    ContentUnavailableView(
+                        "No Broadcasts",
+                        systemImage: "megaphone.fill",
+                        description: Text("Fleet manager messages will appear here")
                     )
-                )
-            }
-
-            // Message list
-
-            else {
-
-                List(
-                    broadcastService.messages
-                ) { message in
-
-                    BroadcastRowView(
-                        message: message
-                    )
-
+                    .frame(maxWidth: .infinity, minHeight: 400)
+                } else {
+                    LazyVStack(spacing: 16) {
+                        ForEach(broadcastService.messages) { message in
+                            BroadcastRowView(message: message)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
                 }
             }
         }
-
-        .navigationTitle(
-            "Broadcasts"
-        )
-
-        .task {
-
+        .background(DriverTheme.background.ignoresSafeArea())
+        .refreshable {
             await loadBroadcasts()
-
+        }
+        .navigationTitle("Broadcasts")
+        .task {
+            await loadBroadcasts()
         }
     }
 

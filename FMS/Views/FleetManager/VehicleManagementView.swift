@@ -39,6 +39,9 @@ struct VehicleManagementView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 120)
             }
+            .refreshable {
+                await viewModel.refresh()
+            }
 
             addVehicleButton
         }

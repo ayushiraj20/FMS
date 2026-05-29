@@ -38,6 +38,9 @@ struct PendingVehiclesView: View {
             .padding(.top, 8)
             .padding(.bottom, 20)
         }
+        .refreshable {
+            await appViewModel.service.syncWithDatabase()
+        }
         .navigationTitle("Pending Vehicles")
         .navigationBarTitleDisplayMode(.large)
     }

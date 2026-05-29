@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct PastPartOrdersView: View {
+    @Environment(AppViewModel.self) private var appViewModel
     private var accent: Color { Color(hex: "#FF5A1F") }
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
     private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
@@ -68,6 +69,9 @@ struct PastPartOrdersView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
+            }
+            .refreshable {
+                await appViewModel.service.syncWithDatabase()
             }
         }
         .navigationTitle("Past Orders")

@@ -175,6 +175,9 @@ struct MaintenanceWorkOrdersView: View {
             }
         }
         .listStyle(.plain)
+        .refreshable {
+            await appViewModel.service.syncWithDatabase()
+        }
         .background(Color.clear)
     }
     

@@ -83,6 +83,9 @@ struct UserManagementView: View {
                     .padding(.horizontal)
                     .padding(.bottom, 100) // Space for FAB
                 }
+                .refreshable {
+                    await viewModel.refresh()
+                }
             }
 
             // Floating Action Button

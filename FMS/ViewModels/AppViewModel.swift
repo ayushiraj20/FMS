@@ -9,6 +9,7 @@ enum RootFlowState {
     case onboarding
     case login
     case demoRoleSelection
+    case forcePasswordReset
     case authenticated
 }
 
@@ -52,6 +53,7 @@ final class AppViewModel {
 
     @ObservationIgnored private var sosChannel: RealtimeChannelV2? = nil
     @ObservationIgnored private var sosPostgresChangeSubscription: Any? = nil
+    @ObservationIgnored private var autoRefreshTask: Task<Void, Never>? = nil
 
     init() {
         // Register local observer for offline real-time compatibility
@@ -155,28 +157,33 @@ final class AppViewModel {
                         )?.name
                     ?? organizationName
 
-                    // Load notifications filtered for this user's UUID immediately after login
-                    await loadNotifications()
+                    if matchedUser.isPasswordResetRequired {
+                        flowState = .forcePasswordReset
+                    } else {
+                        // Load notifications filtered for this user's UUID immediately after login
+                        await loadNotifications()
 
-                    flowState = .authenticated
+                        flowState = .authenticated
+                        startAutoRefresh()
 
-                    // START BROADCAST
+                        // START BROADCAST
 
-                    if let orgID =
-                    currentOrganization?.id {
+                        if let orgID =
+                        currentOrganization?.id {
 
-                        await BroadcastService.shared
-                            .load(
-                                orgID: orgID
-                            )
+                            await BroadcastService.shared
+                                .load(
+                                    orgID: orgID
+                                )
 
-                        BroadcastService.shared
-                            .subscribe(
-                                orgID: orgID
-                            )
-                        
-                        self.subscribeToSOSAlerts()
-                        self.checkActiveSOSAlerts()
+                            BroadcastService.shared
+                                .subscribe(
+                                    orgID: orgID
+                                )
+                            
+                            self.subscribeToSOSAlerts()
+                            self.checkActiveSOSAlerts()
+                        }
                     }
 
                 } else {
@@ -226,28 +233,33 @@ final class AppViewModel {
             )?.name
         ?? organizationName
 
-        // Pre-load notifications filtered for this user's UUID
-        notifications = service.notifications(for: user)
+        if user.isPasswordResetRequired {
+            flowState = .forcePasswordReset
+        } else {
+            // Pre-load notifications filtered for this user's UUID
+            notifications = service.notifications(for: user)
 
-        flowState = .authenticated
+            flowState = .authenticated
+            startAutoRefresh()
 
-        // START BROADCAST
+            // START BROADCAST
 
-        if let orgID =
-        currentOrganization?.id {
+            if let orgID =
+            currentOrganization?.id {
 
-            await BroadcastService.shared
-                .load(
-                    orgID: orgID
-                )
+                await BroadcastService.shared
+                    .load(
+                        orgID: orgID
+                    )
 
-            BroadcastService.shared
-                .subscribe(
-                    orgID: orgID
-                )
-            
-            self.subscribeToSOSAlerts()
-            self.checkActiveSOSAlerts()
+                BroadcastService.shared
+                    .subscribe(
+                        orgID: orgID
+                    )
+                
+                self.subscribeToSOSAlerts()
+                self.checkActiveSOSAlerts()
+            }
         }
 
         isAuthenticating = false
@@ -285,6 +297,7 @@ final class AppViewModel {
                     }
                     self.checkActiveSOSAlerts()
                     flowState = .authenticated
+                    startAutoRefresh()
                 } else {
                     authErrorMessage = "No backend user profile found for role: \(role.rawValue). Please check database profiles table."
                 }
@@ -298,6 +311,7 @@ final class AppViewModel {
         currentUser = user
         notifications = service.notifications(for: user)
         flowState = .authenticated
+        startAutoRefresh()
 
         Task {
             if let orgID = currentOrganization?.id {
@@ -309,6 +323,67 @@ final class AppViewModel {
         }
     }
 
+    // MARK: Password Reset Completion
+
+    func updatePasswordAndCompleteReset(newPassword: String) async throws {
+        guard var user = currentUser else {
+            throw NSError(domain: "AppViewModel", code: 401, userInfo: [NSLocalizedDescriptionKey: "No current user session found."])
+        }
+        
+        isAuthenticating = true
+        authErrorMessage = nil
+        
+        do {
+            if SupabaseConfig.isConfigured {
+                // 1. Update password in Supabase Auth
+                let _ = try await supabase.client.auth.update(user: UserAttributes(password: newPassword))
+                
+                // 2. Update isPasswordResetRequired to false in Profiles metadata
+                user.isPasswordResetRequired = false
+                try await supabase.updateProfile(user)
+                
+                // 3. Sync locally
+                await service.syncWithDatabase()
+                if let synced = service.users.first(where: { $0.id == user.id }) {
+                    currentUser = synced
+                } else {
+                    currentUser = user
+                }
+                
+                await loadNotifications()
+            } else {
+                // Offline/Mock mode update
+                try? await Task.sleep(for: .seconds(0.8))
+                
+                user.password = newPassword
+                user.isPasswordResetRequired = false
+                service.updateUser(user)
+                currentUser = user
+                
+                notifications = service.notifications(for: user)
+            }
+            
+            startAutoRefresh()
+            
+            if let orgID = currentOrganization?.id {
+                await BroadcastService.shared.load(orgID: orgID)
+                BroadcastService.shared.subscribe(orgID: orgID)
+                self.subscribeToSOSAlerts()
+                self.checkActiveSOSAlerts()
+            }
+            
+            withAnimation(.spring()) {
+                flowState = .authenticated
+            }
+        } catch {
+            authErrorMessage = error.localizedDescription
+            isAuthenticating = false
+            throw error
+        }
+        
+        isAuthenticating = false
+    }
+
     // MARK: Logout
 
     func logout() {
@@ -317,6 +392,7 @@ final class AppViewModel {
             .unsubscribe()
         
         self.unsubscribeSOSAlerts()
+        self.stopAutoRefresh()
 
         if SupabaseConfig
             .isConfigured {
@@ -546,6 +622,29 @@ final class AppViewModel {
                 checkActiveSOSAlerts()
             }
         }
+    }
+
+    func startAutoRefresh() {
+        stopAutoRefresh()
+        autoRefreshTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(15))
+                guard !Task.isCancelled else { break }
+                guard flowState == .authenticated else { break }
+                
+                print("[AutoRefresh] Periodic synchronization starting...")
+                await service.syncWithDatabase()
+                refreshSOSAlerts()
+                await loadNotifications()
+            }
+        }
+        print("[AutoRefresh] Periodic synchronization started.")
+    }
+
+    func stopAutoRefresh() {
+        autoRefreshTask?.cancel()
+        autoRefreshTask = nil
+        print("[AutoRefresh] Periodic synchronization stopped.")
     }
 
     // MARK: Helpers

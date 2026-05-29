@@ -504,7 +504,8 @@ final class MockDataService {
             password: "demo123",
             phone: phone,
             title: title,
-            assignedVehicleID: nil
+            assignedVehicleID: nil,
+            isPasswordResetRequired: true
         )
         
         if SupabaseConfig.isConfigured {

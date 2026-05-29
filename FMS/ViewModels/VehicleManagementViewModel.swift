@@ -504,4 +504,8 @@ final class VehicleManagementViewModel {
         guard denominator > 0 else { return 0 }
         return Double(numerator) / Double(denominator)
     }
+
+    func refresh() async {
+        await service.syncWithDatabase()
+    }
 }

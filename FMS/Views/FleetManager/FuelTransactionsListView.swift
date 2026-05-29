@@ -49,6 +49,9 @@ struct FuelTransactionsListView: View {
                         .onTapGesture { selectedTransaction = tx }
                 }
                 .listStyle(.plain)
+                .refreshable {
+                    await fuelVM.loadAllTransactions()
+                }
             }
         }
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())

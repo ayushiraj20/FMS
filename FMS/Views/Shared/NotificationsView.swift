@@ -59,15 +59,20 @@ struct NotificationsView: View {
 
                 if filteredNotifications.isEmpty {
                     // Clean Native Empty State
-                    ContentUnavailableView {
-                        Label(
-                            selectedFilter == .all ? "No Notifications" : "No Unread Notifications",
-                            systemImage: selectedFilter == .all ? "bell.slash.fill" : "bell.badge.slash.fill"
-                        )
-                    } description: {
-                        Text("You're completely up to date. New duty alerts will appear here.")
+                    ScrollView(showsIndicators: false) {
+                        ContentUnavailableView {
+                            Label(
+                                selectedFilter == .all ? "No Notifications" : "No Unread Notifications",
+                                systemImage: selectedFilter == .all ? "bell.slash.fill" : "bell.badge.slash.fill"
+                            )
+                        } description: {
+                            Text("You're completely up to date. New duty alerts will appear here.")
+                        }
+                        .frame(minHeight: 400)
                     }
-                    .frame(maxHeight: .infinity)
+                    .refreshable {
+                        await appViewModel.loadNotifications()
+                    }
                 } else {
                     // Native List with clean swipe and tap behaviors
                     List {
@@ -125,6 +130,9 @@ struct NotificationsView: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    .refreshable {
+                        await appViewModel.loadNotifications()
+                    }
                 }
             }
         }

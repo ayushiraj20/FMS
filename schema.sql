@@ -98,6 +98,7 @@ create table if not exists profiles (
   phone text not null,
   title text not null,
   assigned_vehicle_id uuid null,
+  is_password_reset_required boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -479,6 +480,7 @@ begin
     phone,
     title,
     assigned_vehicle_id,
+    is_password_reset_required,
     created_at,
     updated_at
   )
@@ -491,6 +493,7 @@ begin
     p_phone,
     p_title,
     null,
+    true,
     now(),
     now()
   );
@@ -809,3 +812,7 @@ create table if not exists spare_parts (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Migration 9: Add is_password_reset_required column to profiles (safe to re-run)
+alter table profiles
+  add column if not exists is_password_reset_required boolean not null default false;
