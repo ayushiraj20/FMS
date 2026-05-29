@@ -22,7 +22,7 @@ struct MaintenanceDashboardView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
-            .padding(.bottom, 16)
+            .padding(.bottom, 96)
         }
         .refreshable {
             await appViewModel.service.syncWithDatabase()
@@ -61,6 +61,8 @@ struct MaintenanceDashboardView: View {
         }
         .task {
             await appViewModel.loadNotifications()
+            // Sync maintenance data from Supabase for latest metrics
+            await appViewModel.service.syncMaintenanceData()
             guard isLoading else { return }
             try? await Task.sleep(for: .seconds(0.35))
             isLoading = false
@@ -152,7 +154,7 @@ struct MaintenanceDashboardView: View {
                 MaintenanceMetricCard(
                     icon: "clock.arrow.circlepath",
                     title: "Past Orders",
-                    value: "\(PastPartOrdersView.shortageOrders.count)",
+                    value: "\(appViewModel.service.partOrders.count)",
                     tint: maintenanceAccent
                 )
             }

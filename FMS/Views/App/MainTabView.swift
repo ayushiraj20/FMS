@@ -240,6 +240,11 @@ extension Notification.Name {
     Notification.Name(
         "maintenanceOrdersRequested"
     )
+
+    static let inventoryNeedsRefresh =
+    Notification.Name(
+        "inventoryNeedsRefresh"
+    )
 }
 
 #Preview {

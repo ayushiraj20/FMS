@@ -436,7 +436,7 @@ struct MaintenanceWorkOrdersView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 14)
-                .padding(.bottom, 28)
+                .padding(.bottom, 96)
             }
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("#WO-\(String(workOrder.id.uuidString.prefix(4)))")
@@ -698,7 +698,10 @@ struct MaintenanceWorkOrdersView: View {
         }
 
         private func sparePartRow(_ part: WorkOrderPartSelection) -> some View {
-            HStack(spacing: 12) {
+            let invPart = inventoryParts.first(where: { $0.id == part.id })
+            let maxStock = invPart?.quantity ?? part.quantity
+
+            return HStack(spacing: 12) {
                 Image(systemName: part.icon)
                     .font(.system(.title3, design: .rounded).weight(.bold))
                     .foregroundStyle(.secondary)
@@ -710,7 +713,7 @@ struct MaintenanceWorkOrdersView: View {
                     Text(part.name)
                         .font(.system(.subheadline, design: .rounded).weight(.bold))
                         .foregroundStyle(.primary)
-                    Text("\(part.partNumber) • \(part.category)")
+                    Text("\(part.partNumber) • \(part.category) • Stock \(maxStock)")
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
@@ -737,6 +740,7 @@ struct MaintenanceWorkOrdersView: View {
                             .font(.caption.weight(.bold))
                             .frame(width: 28, height: 28)
                     }
+                    .disabled(part.quantity >= maxStock)
                 }
                 .foregroundStyle(accent)
                 .background(accent.opacity(0.12), in: Capsule())
@@ -852,7 +856,16 @@ struct MaintenanceWorkOrdersView: View {
 
         private func adjustPartQuantity(_ id: UUID, by delta: Int) {
             guard let index = selectedParts.firstIndex(where: { $0.id == id }) else { return }
-            let updatedQuantity = selectedParts[index].quantity + delta
+            let currentQuantity = selectedParts[index].quantity
+            
+            if delta > 0 {
+                let maxStock = inventoryParts.first(where: { $0.id == id })?.quantity ?? currentQuantity
+                if currentQuantity >= maxStock {
+                    return
+                }
+            }
+            
+            let updatedQuantity = currentQuantity + delta
             if updatedQuantity <= 0 {
                 selectedParts.remove(at: index)
             } else {
@@ -878,6 +891,25 @@ struct MaintenanceWorkOrdersView: View {
             updatedOrder.repairSummary = repairSummaryText
 
             appViewModel.service.updateWorkOrder(updatedOrder)
+
+            // Persist parts usage to Supabase
+            if !selectedParts.isEmpty {
+                let partsUsage = selectedParts.map { part in
+                    WorkOrderPartUsage(
+                        workOrderID: workOrder.id,
+                        sparePartID: part.id,
+                        partName: part.name,
+                        partNumber: part.partNumber,
+                        quantityUsed: part.quantity
+                    )
+                }
+                appViewModel.service.saveWorkOrderParts(
+                    partsUsage,
+                    workOrderID: workOrder.id,
+                    decrementStock: selectedStatus == .completed
+                )
+            }
+
             workOrder = updatedOrder
             NotificationCenter.default.post(name: .maintenanceOrdersRequested, object: nil)
             dismiss()
@@ -919,6 +951,29 @@ struct MaintenanceWorkOrdersView: View {
             partsLoadError = nil
             do {
                 inventoryParts = try await SupabaseService.shared.fetchSpareParts(organizationID: orgID)
+
+                // Load any previously saved parts for this work order
+                let savedParts = try await SupabaseService.shared.fetchWorkOrderParts(workOrderID: workOrder.id)
+                if !savedParts.isEmpty && selectedParts.isEmpty {
+                    selectedParts = savedParts.map { usage in
+                        WorkOrderPartSelection(
+                            part: inventoryParts.first(where: { $0.id == usage.sparePartID }) ?? SparePart(
+                                id: usage.sparePartID,
+                                organizationID: orgID,
+                                name: usage.partName,
+                                partNumber: usage.partNumber,
+                                category: "",
+                                quantity: 0,
+                                minimumRequired: 0,
+                                icon: "wrench.fill"
+                            ),
+                            quantity: usage.quantityUsed
+                        )
+                    }
+                }
+            } catch is CancellationError {
+                // Ignore task cancellation
+                return
             } catch {
                 partsLoadError = "Could not load spare parts."
             }

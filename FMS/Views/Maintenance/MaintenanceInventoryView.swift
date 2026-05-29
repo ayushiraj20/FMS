@@ -63,7 +63,7 @@ struct MaintenanceInventoryView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
-            .padding(.bottom, 16)
+            .padding(.bottom, 96)
         }
         .navigationTitle("Inventory")
         .navigationBarTitleDisplayMode(.large)
@@ -95,6 +95,11 @@ struct MaintenanceInventoryView: View {
         .overlay(toastOverlay)
         .task { await loadParts() }
         .refreshable { await loadParts() }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("inventoryNeedsRefresh"))) { _ in
+            Task {
+                await loadParts()
+            }
+        }
     }
 
     // MARK: – Toast
@@ -274,6 +279,11 @@ struct MaintenanceInventoryView: View {
         do {
             parts = try await SupabaseService.shared.fetchSpareParts(organizationID: orgID)
             print("[Inventory] Loaded \(parts.count) spare parts ✅")
+        } catch is CancellationError {
+            // Ignore cancellation (normal on view transitions / refresh), but always
+            // reset the loading flag so the spinner does not get stuck.
+            isLoading = false
+            return
         } catch {
             loadError = "Could not load inventory: \(error.localizedDescription)"
             print("[Inventory ERROR] \(error)")
