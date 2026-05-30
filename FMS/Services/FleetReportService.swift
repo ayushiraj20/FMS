@@ -7,6 +7,7 @@ struct FleetReportService {
         workOrders: [WorkOrder],
         defects: [DefectReport],
         documents: [VehicleDocument],
+        maintenanceSchedules: [MaintenanceSchedule],
         spareParts: [SparePart],
         fuelReceipts: [FuelReceipt],
         fuelTransactions: [FuelTransaction]
@@ -15,7 +16,7 @@ struct FleetReportService {
             vehicles: vehicles,
             workOrders: workOrders,
             defects: defects,
-            schedules: [],
+            schedules: maintenanceSchedules,
             assignedMaintenanceID: nil
         )
         let inventory = generateInventorySummary(
@@ -296,6 +297,11 @@ struct FleetReportService {
         let monthlyUsage = max(1, (Double(orderSignals) * 0.7 + Double(defectSignals) * 0.9 + baseline) * fleetScale)
         let daysOfCover = monthlyUsage > 0 ? Int((Double(part.quantity) / monthlyUsage * 30).rounded()) : 90
         let reorderQuantity = max(0, Int(ceil(monthlyUsage * 1.5)) + part.minimumRequired - part.quantity)
+        let orderByDate = reorderDate(
+            reorderQuantity: reorderQuantity,
+            daysOfCover: daysOfCover,
+            isOutOfStock: part.isOutOfStock
+        )
         let severity: FleetReportSeverity
         if part.isOutOfStock || daysOfCover <= 7 {
             severity = .critical
@@ -317,6 +323,7 @@ struct FleetReportService {
             forecastMonthlyUsage: monthlyUsage,
             daysOfCover: daysOfCover,
             reorderQuantity: reorderQuantity,
+            orderByDate: orderByDate,
             severity: severity
         )
     }
@@ -461,10 +468,23 @@ struct FleetReportService {
 
     private func estimatedMonthlyDistance(vehicle: Vehicle, trips: [Trip]) -> Double {
         let vehicleTrips = trips.filter { $0.vehicleID == vehicle.id && $0.distanceKM > 0 }
-        if vehicleTrips.isEmpty {
-            return max(300, Double(vehicle.utilization) * 30)
+        guard !vehicleTrips.isEmpty else { return 0 }
+
+        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
+        let recentTrips = vehicleTrips.filter { $0.startDate >= thirtyDaysAgo }
+        if !recentTrips.isEmpty {
+            return recentTrips.reduce(0) { $0 + $1.distanceKM }
         }
-        return max(300, average(vehicleTrips.map(\.distanceKM)) * max(8, Double(vehicleTrips.count)))
+        return average(vehicleTrips.map(\.distanceKM)) * Double(vehicleTrips.count)
+    }
+
+    private func reorderDate(reorderQuantity: Int, daysOfCover: Int, isOutOfStock: Bool) -> Date? {
+        guard reorderQuantity > 0 else { return nil }
+        if isOutOfStock || daysOfCover <= 7 {
+            return Calendar.current.startOfDay(for: .now)
+        }
+        let daysUntilOrder = max(0, daysOfCover - 7)
+        return Calendar.current.date(byAdding: .day, value: daysUntilOrder, to: Calendar.current.startOfDay(for: .now))
     }
 
     private func benchmarkFuelConsumption(for vehicle: Vehicle) -> Double {

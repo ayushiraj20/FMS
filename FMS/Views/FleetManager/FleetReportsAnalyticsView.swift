@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct FleetReportsAnalyticsView: View {
     @Environment(AppViewModel.self) private var appViewModel
@@ -8,6 +9,8 @@ struct FleetReportsAnalyticsView: View {
     @State private var selectedSection: ReportSection = .overview
     @State private var isLoading = false
     @State private var loadMessage: String?
+    @State private var generatedPDFURL: URL?
+    @State private var showShareSheet = false
 
     private let reportService = FleetReportService()
 
@@ -46,20 +49,20 @@ struct FleetReportsAnalyticsView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    Task { await generateReport() }
+                    Task { await generateReport(exportPDF: true) }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
                 .disabled(isLoading)
             }
         }
-        .task {
-            if snapshot == nil {
-                await generateReport()
-            }
-        }
         .refreshable {
-            await generateReport()
+            await generateReport(exportPDF: true)
+        }
+        .sheet(isPresented: $showShareSheet, onDismiss: { generatedPDFURL = nil }) {
+            if let generatedPDFURL {
+                ShareSheet(items: [generatedPDFURL])
+            }
         }
     }
 
@@ -88,7 +91,7 @@ struct FleetReportsAnalyticsView: View {
 
                 HStack(spacing: 10) {
                     Button {
-                        Task { await generateReport() }
+                        Task { await generateReport(exportPDF: true) }
                     } label: {
                         Label("Generate Report", systemImage: "doc.badge.gearshape.fill")
                     }
@@ -199,9 +202,22 @@ struct FleetReportsAnalyticsView: View {
                 reportMetric("Low Stock", "\(report.lowStockCount)", "\(report.outOfStockCount) out", "exclamationmark.triangle.fill", report.outOfStockCount > 0 ? AppTheme.error : AppTheme.warning)
             }
 
-            reportGroup(title: "AI Spare Parts Forecast", icon: "shippingbox.fill") {
+            reportGroup(title: "Inventory Reorder Plan", icon: "shippingbox.fill") {
+                let reorderRows = report.forecastRows.filter { $0.reorderQuantity > 0 }
+                if reorderRows.isEmpty {
+                    EmptyStateView(icon: "checkmark.seal.fill", title: "No reorders needed", message: "All spare parts are above forecasted reorder thresholds.")
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(reorderRows.prefix(12)) { row in
+                            sparePartForecastRow(row)
+                        }
+                    }
+                }
+            }
+
+            reportGroup(title: "Inventory Overview", icon: "list.bullet.rectangle") {
                 if report.forecastRows.isEmpty {
-                    EmptyStateView(icon: "shippingbox", title: "No inventory data", message: "Spare parts forecasting will appear after inventory records are available.")
+                    EmptyStateView(icon: "shippingbox", title: "No inventory data", message: "Spare parts inventory will appear after records are loaded from the database.")
                 } else {
                     VStack(spacing: 10) {
                         ForEach(report.forecastRows.prefix(12)) { row in
@@ -344,11 +360,12 @@ struct FleetReportsAnalyticsView: View {
     }
 
     private func sparePartForecastRow(_ row: SparePartForecastReport) -> some View {
-        reportListRow(
+        let whenText = row.orderByDate?.formatted(date: .abbreviated, time: .omitted) ?? "Not required"
+        return reportListRow(
             icon: "shippingbox.fill",
             tint: row.severity.color,
             title: row.name,
-            subtitle: "\(row.onHand) on hand | \(row.daysOfCover) days cover | forecast \(String(format: "%.1f", row.forecastMonthlyUsage))/mo",
+            subtitle: "\(row.onHand) on hand | order \(row.reorderQuantity) by \(whenText) | forecast \(String(format: "%.1f", row.forecastMonthlyUsage))/mo",
             trailing: row.reorderQuantity > 0 ? "Order \(row.reorderQuantity)" : row.severity.rawValue
         )
     }
@@ -416,11 +433,17 @@ struct FleetReportsAnalyticsView: View {
         }
     }
 
-    private func generateReport() async {
+    private func generateReport(exportPDF: Bool) async {
         isLoading = true
         loadMessage = nil
         await appViewModel.service.syncWithDatabase()
-        await loadRemoteInputs()
+        let remoteLoaded = await loadRemoteInputs()
+
+        guard remoteLoaded else {
+            snapshot = nil
+            isLoading = false
+            return
+        }
 
         let snapshot = reportService.generateFleetSnapshot(
             vehicles: appViewModel.service.vehicles,
@@ -428,36 +451,60 @@ struct FleetReportsAnalyticsView: View {
             workOrders: appViewModel.service.workOrders,
             defects: appViewModel.service.defects,
             documents: appViewModel.service.documents,
+            maintenanceSchedules: appViewModel.service.maintenanceSchedules,
             spareParts: spareParts,
             fuelReceipts: appViewModel.service.fuelReceipts,
             fuelTransactions: fuelTransactions
         )
         self.snapshot = snapshot
         publishComplianceAlertsIfNeeded(snapshot.compliance.alerts)
+
+        if exportPDF {
+            let orgName = appViewModel.currentOrganization?.name ?? "Fleet"
+            if let pdfURL = FleetReportPDFGenerator().generate(snapshot: snapshot, organizationName: orgName) {
+                generatedPDFURL = pdfURL
+                showShareSheet = true
+                loadMessage = "PDF report generated from live database records."
+            } else {
+                loadMessage = "Report generated, but PDF export failed."
+            }
+        }
+
         isLoading = false
     }
 
-    private func loadRemoteInputs() async {
+    @discardableResult
+    private func loadRemoteInputs() async -> Bool {
         guard SupabaseConfig.isConfigured else {
+            loadMessage = "Reports require Supabase. Configure the database to load actual fleet numbers."
             spareParts = []
             fuelTransactions = []
-            return
+            return false
         }
 
-        if let orgID = appViewModel.currentOrganization?.id {
-            do {
-                spareParts = try await SupabaseService.shared.fetchSpareParts(organizationID: orgID)
-            } catch {
-                loadMessage = "Inventory forecast used local data because spare parts could not be loaded."
-            }
+        guard let orgID = appViewModel.currentOrganization?.id else {
+            loadMessage = "Organization not found. Sign in again to generate reports."
+            return false
+        }
+
+        do {
+            spareParts = try await SupabaseService.shared.fetchSpareParts(organizationID: orgID)
+        } catch {
+            loadMessage = "Could not load spare parts inventory from the database."
+            spareParts = []
+            return false
         }
 
         do {
             let repo = FuelRepository(service: FuelService(client: SupabaseService.shared.client))
             fuelTransactions = try await repo.allTransactions()
         } catch {
-            loadMessage = "Fuel analytics used cached data because fuel transactions could not be loaded."
+            loadMessage = "Could not load fuel transactions from the database."
+            fuelTransactions = []
+            return false
         }
+
+        return true
     }
 
     private func publishComplianceAlertsIfNeeded(_ alerts: [ComplianceAlertReport]) {
@@ -494,6 +541,16 @@ struct FleetReportsAnalyticsView: View {
         if days == 0 { return "Due today" }
         return "\(days) days to service"
     }
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 private enum ReportSection: String, CaseIterable, Identifiable {

@@ -83,6 +83,7 @@ struct SparePartForecastReport: Identifiable {
     let forecastMonthlyUsage: Double
     let daysOfCover: Int
     let reorderQuantity: Int
+    let orderByDate: Date?
     let severity: FleetReportSeverity
 }
 
