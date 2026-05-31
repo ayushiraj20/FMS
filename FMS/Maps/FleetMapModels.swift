@@ -186,18 +186,15 @@ extension MockDataService {
     }
 
     private func routeCoordinates(for trip: Trip, currentCoordinate: CLLocationCoordinate2D) -> [CLLocationCoordinate2D] {
-        guard let originLat = trip.originLat,
-              let originLng = trip.originLng,
-              let destinationLat = trip.destinationLat,
-              let destinationLng = trip.destinationLng else {
+        if let plan = tripRoutePlansByTripID[trip.id], !plan.mainRouteCoordinates.isEmpty {
+            return plan.mainRouteCoordinates
+        }
+
+        guard let origin = trip.originCoordinate, let destination = trip.destinationCoordinate else {
             return [fleetHubCoordinate, currentCoordinate]
         }
 
-        return [
-            CLLocationCoordinate2D(latitude: originLat, longitude: originLng),
-            currentCoordinate,
-            CLLocationCoordinate2D(latitude: destinationLat, longitude: destinationLng)
-        ]
+        return [origin, currentCoordinate, destination]
     }
 }
 

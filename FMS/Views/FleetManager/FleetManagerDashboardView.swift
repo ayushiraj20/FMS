@@ -90,19 +90,19 @@ struct FleetManagerDashboardView: View {
         .task {
             await appViewModel.service.syncWithDatabase()
             await viewModel.load()
-            sendGeofenceAlertsIfNeeded()
+            sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
         .onAppear {
             appViewModel.refreshSOSAlerts()
             Task {
                 await appViewModel.service.syncWithDatabase()
-                sendGeofenceAlertsIfNeeded()
+                sendRouteGeofenceAlertsIfNeeded()
             }
         }
         .refreshable {
             await appViewModel.service.syncWithDatabase()
-            sendGeofenceAlertsIfNeeded()
+            sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
         .sheet(
@@ -274,9 +274,14 @@ struct FleetManagerDashboardView: View {
     
     // MARK: - Live Fleet Map
     private var liveFleetMapSection: some View {
-        let geofence = appViewModel.service.fleetGeofence(for: appViewModel.currentUser)
         let locations = appViewModel.service.fleetMapPreviewLocations(for: appViewModel.currentUser)
-        let breaches = appViewModel.service.geofenceBreaches(for: appViewModel.currentUser, locations: locations)
+        let breaches = appViewModel.service.routeGeofenceBreaches(for: appViewModel.currentUser, locations: locations)
+        var mapCoordinates = locations.map(\.coordinate)
+        for tripID in locations.compactMap(\.activeTrip?.id) {
+            if let plan = appViewModel.service.tripRoutePlansByTripID[tripID] {
+                mapCoordinates.append(contentsOf: plan.allRoutes.flatMap { $0 })
+            }
+        }
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -293,9 +298,9 @@ struct FleetManagerDashboardView: View {
             
             FleetMapPreview(
                 locations: locations,
-                initialRegion: FleetMapRegion.region(for: geofence),
-                geofence: geofence,
-                geofenceBreaches: breaches
+                service: appViewModel.service,
+                initialRegion: FleetMapRegion.region(for: mapCoordinates),
+                routeBreaches: breaches
             )
                 .frame(height: 240)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -463,6 +468,10 @@ struct FleetManagerDashboardView: View {
             NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
                 quickLink(title: "Defect Reports", subtitle: "Review & approve driver defect reports", icon: "exclamationmark.triangle.fill")
             }
+
+            NavigationLink(destination: FleetReportsAnalyticsView()) {
+                quickLink(title: "Reports & Analytics", subtitle: "Generate maintenance, fuel, inventory, compliance, and routing reports", icon: "doc.text.fill")
+            }
         }
     }
     
@@ -533,10 +542,15 @@ struct FleetManagerDashboardView: View {
         }
     }
 
-    private func sendGeofenceAlertsIfNeeded() {
-        let locations = appViewModel.service.allFleetLocations()
-        let breaches = appViewModel.service.geofenceBreaches(for: appViewModel.currentUser, locations: locations)
-        appViewModel.service.sendGeofenceBreachAlerts(breaches, manager: appViewModel.currentUser)
+    private func sendRouteGeofenceAlertsIfNeeded() {
+        Task {
+            await appViewModel.service.prefetchRoutePlansForActiveTrips()
+            let locations = appViewModel.service.allFleetLocations()
+            await appViewModel.service.sendRouteGeofenceMonitoringAlerts(
+                for: appViewModel.currentUser,
+                locations: locations
+            )
+        }
     }
 
     private func quickLink(title: String, subtitle: String, icon: String) -> some View {

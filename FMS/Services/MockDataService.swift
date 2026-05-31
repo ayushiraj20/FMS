@@ -27,6 +27,8 @@ final class MockDataService {
     var breakLogs: [BreakLogEntry]
     var driverDutyStatus: [UUID: DutyStatus]
     var geofenceAlertedVehicleIDs: Set<UUID>
+    var tripRoutePlansByTripID: [UUID: TripRoutePlan] = [:]
+    var routeGeofenceAlertStates: [UUID: RouteGeofenceAlertState] = [:]
 
     init() {
         let seed = DemoSeed.make()
@@ -161,6 +163,7 @@ final class MockDataService {
         }
         if let tripsList = try? await SupabaseService.shared.fetchTrips() {
             self.trips = tripsList
+            reloadTripRoutePlansFromStoredTrips()
         }
         if let inspectionsList = try? await SupabaseService.shared.fetchInspections() {
             self.inspections = inspectionsList
@@ -464,11 +467,73 @@ final class MockDataService {
         driverDutyStatus[driverID] ?? .offDuty
     }
 
+    func hasOpenTripAssignment(for driverID: UUID) -> Bool {
+        trips.contains { trip in
+            trip.driverID == driverID &&
+            (trip.status == .scheduled || trip.status == .inProgress)
+        }
+    }
+
+    func isDriverAvailableForDispatch(_ driver: User) -> Bool {
+        guard driver.role == .driver else { return false }
+        return dutyStatus(for: driver.id) == .onDuty && !hasOpenTripAssignment(for: driver.id)
+    }
+
+    func availableDriversForDispatch(organizationID: UUID? = nil) -> [User] {
+        users
+            .filter { user in
+                guard user.role == .driver else { return false }
+                if let organizationID, user.organizationID != organizationID {
+                    return false
+                }
+                return isDriverAvailableForDispatch(user)
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
     // MARK: - Driver-Specific Mutations
 
     func toggleDutyStatus(for driverID: UUID) {
         let current = driverDutyStatus[driverID] ?? .offDuty
-        driverDutyStatus[driverID] = (current == .onDuty) ? .offDuty : .onDuty
+        let newStatus: DutyStatus = current == .onDuty ? .offDuty : .onDuty
+        driverDutyStatus[driverID] = newStatus
+
+        if newStatus == .onDuty, let driver = users.first(where: { $0.id == driverID }) {
+            notifyFleetManagersDriverOnDuty(driver)
+        }
+    }
+
+    private func notifyFleetManagersDriverOnDuty(_ driver: User) {
+        let managers = users.filter { user in
+            user.role == .fleetManager &&
+            user.organizationID == driver.organizationID
+        }
+
+        let tripNote = hasOpenTripAssignment(for: driver.id)
+            ? " They already have a trip assigned."
+            : " They are available for a new trip assignment."
+
+        let message = "\(driver.name) is now on duty.\(tripNote)"
+
+        for manager in managers {
+            addNotification(
+                userID: manager.id,
+                roleTarget: nil,
+                title: "Driver On Duty",
+                message: message,
+                category: .info
+            )
+        }
+
+        if managers.isEmpty {
+            addNotification(
+                userID: nil,
+                roleTarget: .fleetManager,
+                title: "Driver On Duty",
+                message: message,
+                category: .info
+            )
+        }
     }
 
     func addFuelReceipt(driverID: UUID, vehicleID: UUID, stationName: String, litres: Double, amount: Double, vehiclePlate: String) {
@@ -1552,7 +1617,7 @@ final class MockDataService {
         originLng: Double? = nil,
         destinationLat: Double? = nil,
         destinationLng: Double? = nil
-    ) {
+    ) async {
         guard startDate >= Date().addingTimeInterval(3600) else {
             addNotification(
                 userID: nil,
@@ -1581,7 +1646,7 @@ final class MockDataService {
         updateVehicle(updatedVehicle)
         
         // 2. Create trip entry in trips
-        let trip = Trip(
+        var trip = Trip(
             id: UUID(),
             driverID: driver.id,
             vehicleID: vehicle.id,
@@ -1599,21 +1664,23 @@ final class MockDataService {
             destinationLat: destinationLat,
             destinationLng: destinationLng
         )
+        trip = await tripWithRoutePlanAttached(trip)
         trips.insert(trip, at: 0)
         
         if SupabaseConfig.isConfigured {
-            Task {
-                do {
-                    try await SupabaseService.shared.addTrip(trip)
-                    print("[Supabase] Assigned trip \(trip.id) inserted successfully.")
-                } catch {
-                    print("[Supabase ERROR] Failed to insert assigned trip: \(error)")
-                }
+            do {
+                try await SupabaseService.shared.addTrip(trip)
+                print("[Supabase] Assigned trip \(trip.id) inserted successfully.")
+            } catch {
+                print("[Supabase ERROR] Failed to insert assigned trip: \(error)")
             }
         }
         
         // 3. Create notification for assigned driver
-        let notificationMsg = "You have been assigned vehicle \(vehicle.plateNumber) for \(origin) to \(destination). Start: \(startDate.formatted(date: .abbreviated, time: .shortened))."
+        let routesNote = trip.routeDetails?.hasPrefix("route-plan:") == true
+            ? " Open Trips to view the main route and alternate paths on the map."
+            : ""
+        let notificationMsg = "You have been assigned vehicle \(vehicle.plateNumber) for \(origin) to \(destination). Start: \(startDate.formatted(date: .abbreviated, time: .shortened)).\(routesNote)"
         addNotification(
             userID: driver.id,
             roleTarget: nil,

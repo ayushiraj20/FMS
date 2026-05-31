@@ -183,6 +183,18 @@ private struct MaintenanceTabView: View {
                 )
             }
             .tag(2)
+
+            NavigationStack {
+                MaintenanceReportsView()
+            }
+            .tabItem {
+                Label(
+                    "Reports",
+                    systemImage:
+                    "doc.text.fill"
+                )
+            }
+            .tag(3)
         }
 
         .onReceive(

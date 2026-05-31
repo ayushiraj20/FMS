@@ -2,106 +2,230 @@ import Foundation
 import MapKit
 import SwiftUI
 
-struct FleetGeofence: Identifiable {
-    let id: String
-    let managerID: UUID?
-    let organizationID: UUID?
-    let center: CLLocationCoordinate2D
-    let centerName: String
-    let radiusMeters: CLLocationDistance
+struct TripRouteGeofenceBreach: Identifiable {
+    let location: FleetVehicleLocation
+    let trip: Trip
+    let plan: TripRoutePlan
+    let status: TripRouteCorridorStatus
+    let distanceBeyondCorridorMeters: CLLocationDistance
 
-    var radiusKilometers: Double {
-        radiusMeters / 1_000
-    }
+    var id: UUID { location.vehicle.id }
 
-    var radiusText: String {
-        "\(Int(radiusKilometers.rounded())) km"
-    }
-
-    func contains(_ coordinate: CLLocationCoordinate2D) -> Bool {
-        center.distance(to: coordinate) <= radiusMeters
+    var distanceText: String {
+        String(format: "%.0f m off approved routes", distanceBeyondCorridorMeters)
     }
 }
 
-struct FleetGeofenceBreach: Identifiable {
-    let location: FleetVehicleLocation
-    let geofence: FleetGeofence
-    let distanceMeters: CLLocationDistance
-
-    var id: UUID {
-        location.vehicle.id
-    }
-
-    var distanceText: String {
-        String(format: "%.0f km from hub", distanceMeters / 1_000)
-    }
+struct RouteGeofenceAlertState {
+    var lastStatus: TripRouteCorridorStatus?
+    var lastAlternativeAlertAt: Date?
+    var lastBreachAlertAt: Date?
 }
 
 extension MockDataService {
-    static let standardFleetGeofenceRadiusMeters: CLLocationDistance = 100_000
     static let primaryFleetHubCoordinate = CLLocationCoordinate2D(latitude: 17.3850, longitude: 78.4867)
+    static let routeCorridorToleranceMeters = TripRoutePlan.corridorToleranceMeters
 
-    func fleetGeofence(for manager: User?) -> FleetGeofence {
-        FleetGeofence(
-            id: "fleet-geofence-\(manager?.id.uuidString ?? "default")",
-            managerID: manager?.id,
-            organizationID: manager?.organizationID,
-            center: Self.primaryFleetHubCoordinate,
-            centerName: "Hyderabad Fleet Hub",
-            radiusMeters: Self.standardFleetGeofenceRadiusMeters
-        )
+    func tripRoutePlan(for trip: Trip) async -> TripRoutePlan? {
+        if let cached = tripRoutePlansByTripID[trip.id] {
+            return cached
+        }
+        if let persisted = decodeRoutePlan(from: trip.routeDetails), persisted.tripID == trip.id {
+            tripRoutePlansByTripID[trip.id] = persisted
+            return persisted
+        }
+        guard trip.hasRoutableEndpoints else { return nil }
+        guard let plan = await TripRoutePlanningService.planRoutes(for: trip) else { return nil }
+        tripRoutePlansByTripID[trip.id] = plan
+        persistRoutePlan(plan, for: trip.id)
+        return plan
     }
 
-    func geofenceBreaches(for manager: User?, locations: [FleetVehicleLocation]? = nil) -> [FleetGeofenceBreach] {
-        let geofence = fleetGeofence(for: manager)
+    func prefetchRoutePlansForActiveTrips() async {
+        let activeTrips = trips.filter { $0.status == .inProgress && $0.hasRoutableEndpoints }
+        for trip in activeTrips {
+            _ = await tripRoutePlan(for: trip)
+        }
+    }
+
+    func reloadTripRoutePlansFromStoredTrips() {
+        for trip in trips {
+            if let persisted = decodeRoutePlan(from: trip.routeDetails) {
+                tripRoutePlansByTripID[trip.id] = persisted
+            }
+        }
+    }
+
+    func tripWithRoutePlanAttached(_ trip: Trip) async -> Trip {
+        guard trip.hasRoutableEndpoints else { return trip }
+        if let cached = tripRoutePlansByTripID[trip.id] {
+            return tripWithEncodedRoutePlan(trip, plan: cached)
+        }
+        if let persisted = decodeRoutePlan(from: trip.routeDetails) {
+            tripRoutePlansByTripID[trip.id] = persisted
+            return trip
+        }
+        guard let plan = await TripRoutePlanningService.planRoutes(for: trip) else { return trip }
+        tripRoutePlansByTripID[trip.id] = plan
+        return tripWithEncodedRoutePlan(trip, plan: plan)
+    }
+
+    private func tripWithEncodedRoutePlan(_ trip: Trip, plan: TripRoutePlan) -> Trip {
+        var updated = trip
+        if let data = try? JSONEncoder().encode(plan),
+           let json = String(data: data, encoding: .utf8) {
+            updated.routeDetails = "route-plan:\(json)"
+        }
+        return updated
+    }
+
+    func routeGeofenceBreaches(
+        for manager: User?,
+        locations: [FleetVehicleLocation]? = nil
+    ) -> [TripRouteGeofenceBreach] {
         let scopedLocations = (locations ?? allFleetLocations()).filter { location in
-            guard let organizationID = geofence.organizationID else { return true }
+            guard let organizationID = manager?.organizationID else { return true }
             return location.vehicle.organizationID == organizationID
         }
 
         return scopedLocations.compactMap { location in
-            let distance = geofence.center.distance(to: location.coordinate)
-            guard distance > geofence.radiusMeters else { return nil }
+            guard let trip = location.activeTrip,
+                  let plan = tripRoutePlansByTripID[trip.id] else {
+                return nil
+            }
 
-            return FleetGeofenceBreach(
+            let status = TripRouteGeofenceEvaluator.corridorStatus(for: location.coordinate, plan: plan)
+            guard case .outsideCorridor(let distance) = status else { return nil }
+
+            return TripRouteGeofenceBreach(
                 location: location,
-                geofence: geofence,
-                distanceMeters: distance
+                trip: trip,
+                plan: plan,
+                status: status,
+                distanceBeyondCorridorMeters: max(0, distance - Self.routeCorridorToleranceMeters)
             )
         }
-        .sorted { $0.distanceMeters > $1.distanceMeters }
     }
 
     func fleetMapPreviewLocations(for manager: User?, limit: Int = 3) -> [FleetVehicleLocation] {
-        let geofence = fleetGeofence(for: manager)
         let allLocations = allFleetLocations()
-        let breachedIDs = Set(geofenceBreaches(for: manager, locations: allLocations).map(\.id))
+        let breachedIDs = Set(routeGeofenceBreaches(for: manager, locations: allLocations).map(\.id))
         let breachedLocations = allLocations.filter { breachedIDs.contains($0.id) }
-        let nearbyLocations = allLocations
-            .filter { !breachedIDs.contains($0.id) }
-            .sorted { first, second in
-                first.coordinate.distance(to: geofence.center) < second.coordinate.distance(to: geofence.center)
-            }
+        let activeTripLocations = allLocations
+            .filter { !breachedIDs.contains($0.id) && $0.activeTrip != nil }
 
-        return Array((breachedLocations + nearbyLocations).prefix(max(limit, breachedLocations.count)))
+        return Array((breachedLocations + activeTripLocations + allLocations).prefix(max(limit, breachedLocations.count)))
     }
 
-    func sendGeofenceBreachAlerts(_ breaches: [FleetGeofenceBreach], manager: User?) {
-        let managers = users.filter { user in
-            guard user.role == .fleetManager else { return false }
-            if let organizationID = manager?.organizationID {
-                return user.organizationID == organizationID
+    func processRouteGeofenceUpdate(
+        trip: Trip,
+        vehicle: Vehicle,
+        driver: User?,
+        coordinate: CLLocationCoordinate2D,
+        locality: String,
+        manager: User?
+    ) async {
+        guard trip.status == .inProgress else { return }
+        guard let plan = await tripRoutePlan(for: trip) else { return }
+
+        let location = FleetVehicleLocation(
+            vehicle: vehicle,
+            driver: driver,
+            activeTrip: trip,
+            coordinate: coordinate,
+            locality: locality,
+            lastUpdated: .now,
+            route: FleetVehicleRoute(
+                originName: trip.origin,
+                destinationName: trip.destination,
+                coordinates: plan.mainRouteCoordinates,
+                progress: 0
+            )
+        )
+
+        let status = TripRouteGeofenceEvaluator.corridorStatus(for: coordinate, plan: plan)
+        let state = routeGeofenceAlertStates[vehicle.id] ?? RouteGeofenceAlertState()
+        let now = Date.now
+
+        switch status {
+        case .onAlternativeRoute(let index):
+            let shouldAlert = state.lastStatus != status
+                || state.lastAlternativeAlertAt.map { now.timeIntervalSince($0) >= 30 } != false
+            if shouldAlert {
+                sendAlternativeRouteAlert(
+                    location: location,
+                    trip: trip,
+                    alternativeIndex: index,
+                    manager: manager
+                )
+                routeGeofenceAlertStates[vehicle.id] = RouteGeofenceAlertState(
+                    lastStatus: status,
+                    lastAlternativeAlertAt: now,
+                    lastBreachAlertAt: state.lastBreachAlertAt
+                )
             }
-            return true
+
+        case .outsideCorridor:
+            let shouldAlert = state.lastStatus != status
+                || state.lastBreachAlertAt.map { now.timeIntervalSince($0) >= 30 } != false
+            if shouldAlert {
+                let breach = TripRouteGeofenceBreach(
+                    location: location,
+                    trip: trip,
+                    plan: plan,
+                    status: status,
+                    distanceBeyondCorridorMeters: corridorOverflowDistance(for: coordinate, plan: plan)
+                )
+                sendRouteCorridorBreachAlerts([breach], manager: manager)
+                routeGeofenceAlertStates[vehicle.id] = RouteGeofenceAlertState(
+                    lastStatus: status,
+                    lastAlternativeAlertAt: state.lastAlternativeAlertAt,
+                    lastBreachAlertAt: now
+                )
+            }
+
+        case .onMainRoute, .unavailable:
+            if state.lastStatus != status {
+                routeGeofenceAlertStates[vehicle.id] = RouteGeofenceAlertState(
+                    lastStatus: status,
+                    lastAlternativeAlertAt: state.lastAlternativeAlertAt,
+                    lastBreachAlertAt: state.lastBreachAlertAt
+                )
+            }
         }
 
-        for breach in breaches where !geofenceAlertedVehicleIDs.contains(breach.location.vehicle.id) {
-            let managerMessage = managerAlertMessage(for: breach)
+        if routeGeofenceAlertStates[vehicle.id] == nil {
+            routeGeofenceAlertStates[vehicle.id] = RouteGeofenceAlertState(lastStatus: status)
+        }
+    }
+
+    func sendRouteGeofenceMonitoringAlerts(for manager: User?, locations: [FleetVehicleLocation]? = nil) async {
+        let scoped = locations ?? allFleetLocations()
+        for location in scoped {
+            guard let trip = location.activeTrip else { continue }
+            await processRouteGeofenceUpdate(
+                trip: trip,
+                vehicle: location.vehicle,
+                driver: location.driver,
+                coordinate: location.coordinate,
+                locality: location.locality,
+                manager: manager
+            )
+        }
+
+        _ = routeGeofenceBreaches(for: manager, locations: scoped)
+    }
+
+    func sendRouteCorridorBreachAlerts(_ breaches: [TripRouteGeofenceBreach], manager: User?) {
+        let managers = fleetManagers(for: manager)
+
+        for breach in breaches {
+            let managerMessage = routeBreachManagerMessage(for: breach)
             for fleetManager in managers {
                 addNotification(
                     userID: fleetManager.id,
                     roleTarget: nil,
-                    title: "Geofence Breach Alert",
+                    title: "Route Corridor Breach",
                     message: managerMessage,
                     category: .critical
                 )
@@ -111,32 +235,91 @@ extension MockDataService {
                 addNotification(
                     userID: driver.id,
                     roleTarget: nil,
-                    title: "Geofence Breach Alert",
-                    message: driverAlertMessage(for: breach),
+                    title: "Route Corridor Breach",
+                    message: routeBreachDriverMessage(for: breach),
                     category: .critical
                 )
             }
-
-            geofenceAlertedVehicleIDs.insert(breach.location.vehicle.id)
         }
     }
 
-    private func managerAlertMessage(for breach: FleetGeofenceBreach) -> String {
+    private func sendAlternativeRouteAlert(
+        location: FleetVehicleLocation,
+        trip: Trip,
+        alternativeIndex: Int,
+        manager: User?
+    ) {
+        let managers = fleetManagers(for: manager)
+        let routeLabel = "Alternative route \(alternativeIndex + 1)"
+        let vehicle = location.vehicle
+        let driverName = location.driver?.name ?? "Unassigned"
+
+        let message = "\(vehicle.displayName) (\(vehicle.plateNumber)) left the ideal route for \(trip.origin) → \(trip.destination) and is on \(routeLabel). Driver: \(driverName). Location: \(location.locality)."
+
+        for fleetManager in managers {
+            addNotification(
+                userID: fleetManager.id,
+                roleTarget: nil,
+                title: "Non-Ideal Route Alert",
+                message: message,
+                category: .warning
+            )
+        }
+    }
+
+    private func fleetManagers(for manager: User?) -> [User] {
+        users.filter { user in
+            guard user.role == .fleetManager else { return false }
+            if let organizationID = manager?.organizationID {
+                return user.organizationID == organizationID
+            }
+            return true
+        }
+    }
+
+    private func routeBreachManagerMessage(for breach: TripRouteGeofenceBreach) -> String {
         let vehicle = breach.location.vehicle
         let driverName = breach.location.driver?.name ?? "Unassigned"
         let driverPhone = breach.location.driver?.phone ?? "No driver phone"
-
-        return "Fleet: \(vehicle.displayName) (\(vehicle.plateNumber)) breached the \(breach.geofence.radiusText) geofence. Driver: \(driverName), \(driverPhone). Location: \(breach.location.locality), \(breach.distanceText)."
+        return "Fleet: \(vehicle.displayName) (\(vehicle.plateNumber)) is outside all approved route corridors (±\(Int(Self.routeCorridorToleranceMeters)) m) for \(breach.trip.origin) → \(breach.trip.destination). Driver: \(driverName), \(driverPhone). \(breach.distanceText) near \(breach.location.locality)."
     }
 
-    private func driverAlertMessage(for breach: FleetGeofenceBreach) -> String {
-        "Your assigned vehicle \(breach.location.vehicle.plateNumber) is outside the \(breach.geofence.radiusText) fleet geofence near \(breach.location.locality). Contact your fleet manager."
+    private func routeBreachDriverMessage(for breach: TripRouteGeofenceBreach) -> String {
+        "You are outside the approved route corridor (±\(Int(Self.routeCorridorToleranceMeters)) m from main or alternative routes) near \(breach.location.locality). Return to an approved route or contact your fleet manager."
+    }
+
+    private func corridorOverflowDistance(
+        for coordinate: CLLocationCoordinate2D,
+        plan: TripRoutePlan
+    ) -> CLLocationDistance {
+        let distances = plan.allRoutes.map {
+            RouteGeometry.distance(from: coordinate, toPolyline: $0)
+        }
+        let nearest = distances.min() ?? 0
+        return max(0, nearest - Self.routeCorridorToleranceMeters)
+    }
+
+    private func persistRoutePlan(_ plan: TripRoutePlan, for tripID: UUID) {
+        guard let index = trips.firstIndex(where: { $0.id == tripID }) else { return }
+        if let data = try? JSONEncoder().encode(plan),
+           let json = String(data: data, encoding: .utf8) {
+            trips[index].routeDetails = "route-plan:\(json)"
+        }
+    }
+
+    private func decodeRoutePlan(from routeDetails: String?) -> TripRoutePlan? {
+        guard let routeDetails,
+              routeDetails.hasPrefix("route-plan:"),
+              let data = routeDetails.dropFirst("route-plan:".count).data(using: .utf8) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(TripRoutePlan.self, from: data)
     }
 }
 
-struct FleetGeofenceStatusBanner: View {
-    let geofence: FleetGeofence
-    let breaches: [FleetGeofenceBreach]
+struct TripRouteGeofenceStatusBanner: View {
+    let breaches: [TripRouteGeofenceBreach]
+    let monitoredTripCount: Int
 
     var body: some View {
         HStack(spacing: 10) {
@@ -145,10 +328,10 @@ struct FleetGeofenceStatusBanner: View {
                 .foregroundStyle(breaches.isEmpty ? AppTheme.success : AppTheme.error)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(breaches.isEmpty ? "Fleet inside geofence" : "\(breaches.count) geofence breach\(breaches.count == 1 ? "" : "es")")
+                Text(breaches.isEmpty ? "Vehicles on approved routes" : "\(breaches.count) route corridor breach\(breaches.count == 1 ? "" : "es")")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.textPrimary)
-                Text("\(geofence.centerName) · \(geofence.radiusText) radius")
+                Text("Main + 2 alternate routes · ±\(Int(TripRoutePlan.corridorToleranceMeters)) m corridor · \(monitoredTripCount) active trip\(monitoredTripCount == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(AppTheme.textSecondary)
             }
@@ -165,17 +348,5 @@ struct FleetGeofenceStatusBanner: View {
     }
 }
 
-extension FleetMapRegion {
-    static func region(for geofence: FleetGeofence) -> MKCoordinateRegion {
-        let latitudeRadius = geofence.radiusMeters / 111_000
-        let longitudeRadius = geofence.radiusMeters / (111_000 * max(cos(geofence.center.latitude * .pi / 180), 0.2))
-
-        return MKCoordinateRegion(
-            center: geofence.center,
-            span: MKCoordinateSpan(
-                latitudeDelta: latitudeRadius * 2.6,
-                longitudeDelta: longitudeRadius * 2.6
-            )
-        )
-    }
-}
+// Backward-compatible typealiases for older references during migration.
+typealias FleetGeofenceBreach = TripRouteGeofenceBreach
