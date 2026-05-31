@@ -5,20 +5,22 @@ struct AssignedRoutesView: View {
 
     private var currentUser: User? { appViewModel.currentUser }
 
-    private var allTrips: [Trip] {
+    private var assignedTrips: [Trip] {
         guard let user = currentUser else { return [] }
         return appViewModel.service.trips(for: user.id)
+            .filter { $0.status == .scheduled || $0.status == .inProgress }
+            .sorted { $0.startDate < $1.startDate }
     }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 20) {
 
-                if allTrips.isEmpty {
+                if assignedTrips.isEmpty {
                     emptyState
                 } else {
                     LazyVStack(spacing: 16) {
-                        ForEach(allTrips) { trip in
+                        ForEach(assignedTrips) { trip in
                             NavigationLink(destination: TripDetailView(trip: trip)) {
                                 routeCard(trip)
                             }
@@ -31,6 +33,11 @@ struct AssignedRoutesView: View {
         }
         .refreshable {
             await appViewModel.service.syncWithDatabase()
+        }
+        .task(id: assignedTrips.map(\.id)) {
+            for trip in assignedTrips where trip.hasRoutableEndpoints {
+                _ = await appViewModel.service.tripRoutePlan(for: trip)
+            }
         }
         .background(
             ZStack {

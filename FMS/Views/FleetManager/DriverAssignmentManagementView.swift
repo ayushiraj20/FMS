@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct DriverAssignmentManagementView: View {
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var viewModel: DriverAssignmentViewModel
     @State private var isPresentingAssignDriverTripModal = false
     
@@ -25,6 +26,8 @@ struct DriverAssignmentManagementView: View {
                         }
                         .padding(.horizontal)
                         
+                        availableDriversSection
+
                         // Section Title
                         VStack(alignment: .leading, spacing: 12) {
                             SectionTitle(title: "Driver Assignments", subtitle: "Active pairings and duty status")
@@ -56,6 +59,12 @@ struct DriverAssignmentManagementView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear {
+            viewModel.organizationID = appViewModel.currentOrganization?.id
+        }
+        .onChange(of: appViewModel.currentOrganization?.id) { _, newValue in
+            viewModel.organizationID = newValue
+        }
         .sheet(isPresented: $viewModel.isPresentingAssignSheet) {
             if let driver = viewModel.selectedDriver {
                 AssignVehicleSheet(viewModel: viewModel, driver: driver)
@@ -66,6 +75,65 @@ struct DriverAssignmentManagementView: View {
         }
     }
     
+    // MARK: - Available Drivers (on duty, no trip)
+
+    private var availableDriversSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionTitle(
+                title: "Available Drivers",
+                subtitle: "On duty with no scheduled or active trips"
+            )
+            .padding(.horizontal)
+
+            if viewModel.availableDrivers.isEmpty {
+                EmptyStateView(
+                    icon: "person.crop.circle.badge.clock",
+                    title: "No available drivers",
+                    message: "Drivers appear here when they switch to on duty and have no trip assigned."
+                )
+                .padding(.horizontal)
+            } else {
+                LazyVStack(spacing: 10) {
+                    ForEach(viewModel.availableDrivers) { driver in
+                        availableDriverRow(driver)
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    private func availableDriverRow(_ driver: User) -> some View {
+        HStack(spacing: 12) {
+            AvatarView(name: driver.name, size: 40)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(driver.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text(driver.phone)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+
+            Spacer()
+
+            Text("Ready")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(AppTheme.success)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(AppTheme.success.opacity(0.12), in: Capsule())
+        }
+        .padding(12)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(AppTheme.border, lineWidth: 0.5)
+        )
+    }
+
     // MARK: - Component UI Elements
     
     private func summaryStatCard(title: String, value: String, icon: String, tint: Color) -> some View {

@@ -3,6 +3,7 @@ import MapKit
 
 struct AssignDriverTripView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppViewModel.self) private var appViewModel
     let service: MockDataService
 
     // Step management
@@ -27,6 +28,7 @@ struct AssignDriverTripView: View {
         )
     )
     @State private var locationService = LocationSearchService()
+    @State private var assignmentRoutePlan: TripRoutePlan?
     @State private var originCoordinate: CLLocationCoordinate2D?
     @State private var destinationCoordinate: CLLocationCoordinate2D?
     @State private var activeField: LocationField? = nil
@@ -54,11 +56,11 @@ struct AssignDriverTripView: View {
         case refrigerated   = "Refrigerated"
     }
 
-    // Available drivers: role == .driver and not already assigned to a vehicle
+    // On-duty drivers with no scheduled or in-progress trips (eligible for a new trip).
     private var availableDrivers: [User] {
-        let all = service.users.filter { user in
-            user.role == .driver &&
-            !service.vehicles.contains { $0.assignedDriverID == user.id } &&
+        let all = service.availableDriversForDispatch(
+            organizationID: appViewModel.currentOrganization?.id
+        ).filter { user in
             selectedVehicle.map { service.isDriver(user, compatibleWith: $0) } ?? true
         }
         guard !driverSearch.isEmpty else { return all }
@@ -120,8 +122,9 @@ struct AssignDriverTripView: View {
                     // Map preview with route
                     ZStack(alignment: .topTrailing) {
                         Map(position: $cameraPosition) {
-                            // Route polyline
-                            if !locationService.routeCoordinates.isEmpty {
+                            if let assignmentRoutePlan {
+                                TripRoutesMapContent(plan: assignmentRoutePlan)
+                            } else if !locationService.routeCoordinates.isEmpty {
                                 MapPolyline(coordinates: locationService.routeCoordinates)
                                     .stroke(
                                         LinearGradient(
@@ -424,6 +427,7 @@ struct AssignDriverTripView: View {
                         destinationCoordinate = nil
                     }
                     routeCalculated = false
+                    assignmentRoutePlan = nil
                     locationService.clearRoute()
                     locationService.clearSuggestions()
                 } label: {
@@ -528,8 +532,16 @@ struct AssignDriverTripView: View {
     // MARK: - Calculate & Display Route
     private func calculateAndDisplayRoute(from origin: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) async {
         await locationService.calculateRoute(from: origin, to: dest)
+        assignmentRoutePlan = await TripRoutePlanningService.planRoutes(
+            tripID: UUID(),
+            origin: origin,
+            destination: dest
+        )
 
-        if locationService.routeDistanceKM > 0 {
+        if let assignmentRoutePlan {
+            routeCalculated = true
+            distanceStr = String(format: "%.1f", assignmentRoutePlan.mainDistanceKM)
+        } else if locationService.routeDistanceKM > 0 {
             routeCalculated = true
             distanceStr = String(format: "%.1f", locationService.routeDistanceKM)
 
@@ -821,10 +833,14 @@ struct AssignDriverTripView: View {
             VStack(spacing: 16) {
 
                 // Route map preview
-                if !locationService.routeCoordinates.isEmpty {
+                if assignmentRoutePlan != nil || !locationService.routeCoordinates.isEmpty {
                     Map(position: .constant(cameraPosition)) {
-                        MapPolyline(coordinates: locationService.routeCoordinates)
-                            .stroke(AppTheme.brand, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                        if let assignmentRoutePlan {
+                            TripRoutesMapContent(plan: assignmentRoutePlan, showLabels: false)
+                        } else {
+                            MapPolyline(coordinates: locationService.routeCoordinates)
+                                .stroke(AppTheme.brand, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                        }
 
                         if let coord = originCoordinate {
                             Annotation("", coordinate: coord) {
@@ -848,6 +864,11 @@ struct AssignDriverTripView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.border, lineWidth: 0.5))
                     .allowsHitTesting(false)
+
+                    if assignmentRoutePlan != nil {
+                        TripRouteLegendView()
+                            .padding(.top, 4)
+                    }
                 }
 
                 // Route summary card
@@ -1036,24 +1057,26 @@ struct AssignDriverTripView: View {
         }
         let dist = Double(distanceStr) ?? 0.0
 
-        service.addTripAssignment(
-            driver: driver,
-            vehicle: vehicle,
-            origin: tripStartLocation,
-            destination: tripDestination,
-            routeDetails: routeDetails.isEmpty ? nil : routeDetails,
-            notes: notes.isEmpty ? nil : notes,
-            startDate: startDate,
-            endDate: endDate,
-            distanceKM: dist,
-            originLat: originCoordinate?.latitude,
-            originLng: originCoordinate?.longitude,
-            destinationLat: destinationCoordinate?.latitude,
-            destinationLng: destinationCoordinate?.longitude
-        )
+        Task {
+            await service.addTripAssignment(
+                driver: driver,
+                vehicle: vehicle,
+                origin: tripStartLocation,
+                destination: tripDestination,
+                routeDetails: routeDetails.isEmpty ? nil : routeDetails,
+                notes: notes.isEmpty ? nil : notes,
+                startDate: startDate,
+                endDate: endDate,
+                distanceKM: dist,
+                originLat: originCoordinate?.latitude,
+                originLng: originCoordinate?.longitude,
+                destinationLat: destinationCoordinate?.latitude,
+                destinationLng: destinationCoordinate?.longitude
+            )
 
-        successMessage = "Assigned \(vehicle.displayName) to \(driver.name)"
-        withAnimation { isShowingToast = true }
+            successMessage = "Assigned \(vehicle.displayName) to \(driver.name) with main and alternate routes."
+            withAnimation { isShowingToast = true }
+        }
 
         Task {
             try? await Task.sleep(for: .seconds(2))

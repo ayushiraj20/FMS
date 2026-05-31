@@ -5,33 +5,17 @@ struct FleetMapFullView: View {
     let service: MockDataService
     let manager: User?
     @State private var selectedLocation: FleetVehicleLocation?
-    @State private var mapPosition: MapCameraPosition
-
-    init(service: MockDataService, manager: User? = nil) {
-        self.service = service
-        self.manager = manager
-        _mapPosition = State(initialValue: .region(FleetMapRegion.region(for: service.fleetGeofence(for: manager))))
-    }
+    @State private var mapPosition: MapCameraPosition = .region(FleetMapRegion.india)
 
     var body: some View {
         let locations = service.allFleetLocations()
-        let geofence = service.fleetGeofence(for: manager)
-        let breaches = service.geofenceBreaches(for: manager, locations: locations)
+        let breaches = service.routeGeofenceBreaches(for: manager, locations: locations)
+        let monitoredTrips = locations.compactMap(\.activeTrip).count
 
         ZStack(alignment: .top) {
             Map(position: $mapPosition) {
-                MapCircle(center: geofence.center, radius: geofence.radiusMeters)
-                    .foregroundStyle(Color.orange.opacity(0.22))
-
-                MapCircle(center: geofence.center, radius: geofence.radiusMeters)
-                    .stroke(Color.orange.opacity(0.8), lineWidth: 2)
-
-                Annotation(geofence.centerName, coordinate: geofence.center) {
-                    Image(systemName: "building.2.crop.circle.fill")
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(Color.orange)
-                        .padding(7)
-                        .background(.background, in: Circle())
+                ForEach(activeTripPlans(locations: locations), id: \.plan.tripID) { item in
+                    TripRoutesMapContent(plan: item.plan, showLabels: false)
                 }
 
                 ForEach(locations) { location in
@@ -51,16 +35,23 @@ struct FleetMapFullView: View {
                 MapScaleView()
             }
 
-            FleetGeofenceStatusBanner(geofence: geofence, breaches: breaches)
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
+            VStack(spacing: 8) {
+                TripRouteGeofenceStatusBanner(breaches: breaches, monitoredTripCount: monitoredTrips)
+                TripRouteLegendView()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
         }
         .navigationTitle("All Fleet")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    mapPosition = .region(FleetMapRegion.region(for: locations))
+                    var coordinates = locations.map(\.coordinate)
+                    for item in activeTripPlans(locations: locations) {
+                        coordinates.append(contentsOf: item.plan.allRoutes.flatMap { $0 })
+                    }
+                    mapPosition = .region(FleetMapRegion.region(for: coordinates))
                 } label: {
                     Image(systemName: "location.viewfinder")
                 }
@@ -71,12 +62,26 @@ struct FleetMapFullView: View {
             FleetVehicleDetailSheet(location: location)
                 .presentationDetents([.medium, .large])
         }
-        .task(id: breaches.map(\.id).map(\.uuidString).joined(separator: ",")) {
-            service.sendGeofenceBreachAlerts(breaches, manager: manager)
+        .task {
+            await service.prefetchRoutePlansForActiveTrips()
+            mapPosition = .region(FleetMapRegion.region(for: locations.map(\.coordinate)))
+        }
+        .task(id: locations.map(\.id.uuidString).joined()) {
+            await service.sendRouteGeofenceMonitoringAlerts(for: manager, locations: locations)
         }
     }
 
-    private func isBreaching(_ location: FleetVehicleLocation, breaches: [FleetGeofenceBreach]) -> Bool {
+    private func activeTripPlans(locations: [FleetVehicleLocation]) -> [(trip: Trip, plan: TripRoutePlan)] {
+        locations.compactMap { location in
+            guard let trip = location.activeTrip,
+                  let plan = service.tripRoutePlansByTripID[trip.id] else {
+                return nil
+            }
+            return (trip, plan)
+        }
+    }
+
+    private func isBreaching(_ location: FleetVehicleLocation, breaches: [TripRouteGeofenceBreach]) -> Bool {
         breaches.contains { $0.id == location.id }
     }
 }

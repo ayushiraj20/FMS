@@ -120,9 +120,9 @@ private struct DriversTabView: View {
     private var totalCount: Int { viewModel.service.users.filter { $0.role == .driver }.count }
 
     private var availableCount: Int {
-        viewModel.service.users.filter { $0.role == .driver }.filter { driver in
-            !viewModel.service.vehicles.contains { $0.assignedDriverID == driver.id }
-        }.count
+        viewModel.service.availableDriversForDispatch(
+            organizationID: viewModel.currentOrgID
+        ).count
     }
 
     private var assignedCount: Int {
@@ -223,23 +223,24 @@ private struct DriverRowCard: View {
         service.trips.contains { $0.driverID == driver.id && $0.status == .inProgress }
     }
 
-    private var dutyStatus: (String, Color) {
-        if assignedVehicle != nil {
-            return ("On Duty", AppTheme.success)
-        }
-        return ("Off Duty", Color(white: 0.55))
+    private var isOnDuty: Bool {
+        service.dutyStatus(for: driver.id) == .onDuty
     }
 
-    /// Driver activity status: only shown when On Duty
-    /// - Idle: assigned to a vehicle but no active trip
-    /// - Active: currently on an in-progress trip
+    private var dutyStatus: (String, Color) {
+        isOnDuty ? ("On Duty", AppTheme.success) : ("Off Duty", Color(white: 0.55))
+    }
+
+    /// Shown when on duty: trip activity or availability for dispatch.
     private var driverActivityStatus: (String, Color)? {
-        guard assignedVehicle != nil else { return nil }
+        guard isOnDuty else { return nil }
         if hasActiveTrip {
             return ("Active", AppTheme.success)
-        } else {
-            return ("Idle", AppTheme.warning)
         }
+        if service.hasOpenTripAssignment(for: driver.id) {
+            return ("Scheduled", AppTheme.brand)
+        }
+        return ("Available", AppTheme.success)
     }
 
     var body: some View {

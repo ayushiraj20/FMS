@@ -181,34 +181,17 @@ struct ActiveTripMapView: View {
     @Environment(DriverViewModel.self) private var driverVM: DriverViewModel
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var showReportSheet = false
-    @State private var calculatedRoute: MKRoute?
+    @State private var routePlan: TripRoutePlan?
+    @State private var corridorStatus: TripRouteCorridorStatus = .unavailable
 
     let trip: Trip
 
-    // Use trip coordinates if available, otherwise fallback
     private var originCoordinate: CLLocationCoordinate2D {
-        if let lat = trip.originLat, let lng = trip.originLng {
-            return CLLocationCoordinate2D(latitude: lat, longitude: lng)
-        }
-        return CLLocationCoordinate2D(latitude: 19.0760, longitude: 72.8777)
+        trip.originCoordinate ?? CLLocationCoordinate2D(latitude: 19.0760, longitude: 72.8777)
     }
 
     private var destinationCoordinate: CLLocationCoordinate2D {
-        if let lat = trip.destinationLat, let lng = trip.destinationLng {
-            return CLLocationCoordinate2D(latitude: lat, longitude: lng)
-        }
-        return CLLocationCoordinate2D(latitude: 18.5204, longitude: 73.8567)
-    }
-
-    private var routeCoordinates: [CLLocationCoordinate2D] {
-        if let route = calculatedRoute {
-            // Extract polyline coordinates from MKRoute
-            let polyline = route.polyline
-            var coords = [CLLocationCoordinate2D](repeating: CLLocationCoordinate2D(), count: polyline.pointCount)
-            polyline.getCoordinates(&coords, range: NSRange(location: 0, length: polyline.pointCount))
-            return coords
-        }
-        return [originCoordinate, destinationCoordinate]
+        trip.destinationCoordinate ?? CLLocationCoordinate2D(latitude: 18.5204, longitude: 73.8567)
     }
 
     private var currentPosition: CLLocationCoordinate2D {
@@ -218,28 +201,11 @@ struct ActiveTripMapView: View {
     var body: some View {
         ZStack {
             Map(position: $cameraPosition) {
-                if let route = calculatedRoute {
-                    MapPolyline(route.polyline)
-                        .stroke(DriverTheme.accent.opacity(0.8), style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round))
+                if let routePlan {
+                    TripRoutesMapContent(plan: routePlan)
                 } else {
                     MapPolyline(coordinates: [originCoordinate, destinationCoordinate])
                         .stroke(DriverTheme.accent.opacity(0.8), style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round))
-                }
-
-                Annotation("Start", coordinate: originCoordinate) {
-                    Circle()
-                        .fill(DriverTheme.successGreen)
-                        .frame(width: 16, height: 16)
-                        .overlay(Circle().stroke(.white, lineWidth: 3))
-                        .shadow(radius: 4)
-                }
-
-                Annotation("End", coordinate: destinationCoordinate) {
-                    Circle()
-                        .fill(DriverTheme.criticalRed)
-                        .frame(width: 16, height: 16)
-                        .overlay(Circle().stroke(.white, lineWidth: 3))
-                        .shadow(radius: 4)
                 }
 
                 Annotation("Current", coordinate: currentPosition) {
@@ -248,15 +214,22 @@ struct ActiveTripMapView: View {
                             .fill(DriverTheme.accent.opacity(0.3))
                             .frame(width: 60, height: 60)
                             .symbolEffect(.pulse, options: .repeating)
-                        
-                        Image(systemName: "location.north.fill")
-                            .font(.title2)
-                            .foregroundStyle(.white)
-                            .padding(12)
-                            .background(DriverTheme.accent, in: Circle())
-                            .overlay(Circle().stroke(.white, lineWidth: 3))
-                            .shadow(radius: 6)
-                            .rotationEffect(.degrees(45))
+
+                        if let vehicle = appViewModel.service.vehicles.first(where: { $0.id == trip.vehicleID }) {
+                            VehicleMapMarker(
+                                symbolName: vehicle.fleetMapSymbolName,
+                                tint: DriverTheme.accent,
+                                isMoving: true,
+                                size: 24
+                            )
+                        } else {
+                            Image(systemName: "location.north.fill")
+                                .font(.title2)
+                                .foregroundStyle(.white)
+                                .padding(12)
+                                .background(DriverTheme.accent, in: Circle())
+                                .overlay(Circle().stroke(.white, lineWidth: 3))
+                        }
                     }
                 }
             }
@@ -265,6 +238,11 @@ struct ActiveTripMapView: View {
 
             VStack {
                 topOverlays
+                if routePlan != nil {
+                    TripRouteLegendView()
+                        .padding(.top, 4)
+                }
+                corridorStatusBanner
                 Spacer()
                 HStack(alignment: .bottom) {
                     leftInfoCard
@@ -276,46 +254,77 @@ struct ActiveTripMapView: View {
                 bottomButtons
             }
         }
+        .task {
+            await loadRoutePlan()
+        }
         .onAppear {
-            calculateRoute()
             driverVM.startLiveTracking()
         }
         .onDisappear {
             driverVM.stopLiveTracking()
+        }
+        .onChange(of: driverVM.currentLocation?.latitude) { _, _ in
+            evaluateRouteCompliance()
         }
         .sheet(isPresented: $showReportSheet) {
             DefectReportView().environment(appViewModel)
         }
     }
 
-    // MARK: - Route Calculation
-    private func calculateRoute() {
-        let request = MKDirections.Request()
-        request.source = MKMapItem(location: CLLocation(latitude: originCoordinate.latitude, longitude: originCoordinate.longitude), address: nil as MKAddress?)
-        request.destination = MKMapItem(location: CLLocation(latitude: destinationCoordinate.latitude, longitude: destinationCoordinate.longitude), address: nil as MKAddress?)
-        request.transportType = .automobile
+    private func loadRoutePlan() async {
+        let plan = await appViewModel.service.tripRoutePlan(for: trip)
+        routePlan = plan
+        if let plan {
+            cameraPosition = TripRouteMapCamera.position(for: plan, current: currentPosition)
+        } else {
+            cameraPosition = .region(FleetMapRegion.region(for: [originCoordinate, destinationCoordinate]))
+        }
+        evaluateRouteCompliance()
+    }
+
+    private func evaluateRouteCompliance() {
+        guard let plan = routePlan else { return }
+        let status = TripRouteGeofenceEvaluator.corridorStatus(for: currentPosition, plan: plan)
+        corridorStatus = status
+
+        guard let vehicle = appViewModel.service.vehicles.first(where: { $0.id == trip.vehicleID }),
+              let driver = appViewModel.currentUser else { return }
 
         Task {
-            let directions = MKDirections(request: request)
-            if let response = try? await directions.calculate(),
-               let route = response.routes.first {
-                await MainActor.run {
-                    self.calculatedRoute = route
-                    let rect = route.polyline.boundingMapRect
-                    cameraPosition = .rect(rect.insetBy(dx: -rect.size.width * 0.2, dy: -rect.size.height * 0.2))
-                }
-            } else {
-                // Fallback: center between origin and destination
-                let center = CLLocationCoordinate2D(
-                    latitude: (originCoordinate.latitude + destinationCoordinate.latitude) / 2,
-                    longitude: (originCoordinate.longitude + destinationCoordinate.longitude) / 2
-                )
-                let span = MKCoordinateSpan(
-                    latitudeDelta: abs(originCoordinate.latitude - destinationCoordinate.latitude) * 1.5,
-                    longitudeDelta: abs(originCoordinate.longitude - destinationCoordinate.longitude) * 1.5
-                )
-                cameraPosition = .region(MKCoordinateRegion(center: center, span: span))
-            }
+            await appViewModel.service.processRouteGeofenceUpdate(
+                trip: trip,
+                vehicle: vehicle,
+                driver: driver,
+                coordinate: currentPosition,
+                locality: trip.destination,
+                manager: appViewModel.service.users.first { $0.role == .fleetManager && $0.organizationID == driver.organizationID }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var corridorStatusBanner: some View {
+        switch corridorStatus {
+        case .onMainRoute:
+            EmptyView()
+        case .onAlternativeRoute(let index):
+            Text("On alternate route \(index + 1). Fleet manager has been notified.")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.orange)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(.top, 6)
+        case .outsideCorridor:
+            Text("Outside approved route corridor (±\(Int(TripRoutePlan.corridorToleranceMeters)) m). Return to a highlighted route.")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(DriverTheme.criticalRed)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(.top, 6)
+        case .unavailable:
+            EmptyView()
         }
     }
 
@@ -333,7 +342,7 @@ struct ActiveTripMapView: View {
 
             Spacer()
 
-            if let route = calculatedRoute {
+            if let routePlan {
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.turn.up.right")
                         .font(.headline)
@@ -342,9 +351,9 @@ struct ActiveTripMapView: View {
                         .background(DriverTheme.accent, in: Circle())
                     
                     VStack(alignment: .leading) {
-                        Text("\(String(format: "%.1f", route.distance / 1000)) km")
+                        Text("\(String(format: "%.1f", routePlan.mainDistanceKM)) km")
                             .font(.system(.headline, design: .rounded).bold())
-                        Text("\(Int(route.expectedTravelTime / 60)) min")
+                        Text("\(Int(routePlan.mainETAMinutes)) min")
                             .font(.caption.bold())
                             .foregroundStyle(DriverTheme.textSecondary)
                     }
@@ -366,8 +375,8 @@ struct ActiveTripMapView: View {
                 .font(.system(.title3, design: .rounded).bold())
                 .foregroundStyle(DriverTheme.textPrimary)
 
-            if let route = calculatedRoute {
-                let minutes = Int(route.expectedTravelTime / 60)
+            if let routePlan {
+                let minutes = Int(routePlan.mainETAMinutes)
                 let hours = minutes / 60
                 let remainingMins = minutes % 60
                 Text(hours > 0 ? "\(hours)h \(remainingMins)m" : "\(remainingMins)m")

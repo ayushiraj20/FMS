@@ -5,7 +5,8 @@ import Observation
 @MainActor
 final class DriverAssignmentViewModel {
     let service: MockDataService
-    
+    var organizationID: UUID?
+
     var isPresentingAssignSheet: Bool = false
     var selectedDriver: User? = nil
     var selectedVehicle: Vehicle? = nil
@@ -34,10 +35,12 @@ final class DriverAssignmentViewModel {
         drivers.count
     }
     
+    var availableDrivers: [User] {
+        service.availableDriversForDispatch(organizationID: organizationID)
+    }
+
     var availableDriversCount: Int {
-        drivers.filter { driver in
-            !service.vehicles.contains { $0.assignedDriverID == driver.id }
-        }.count
+        availableDrivers.count
     }
     
     var assignedDriversCount: Int {
