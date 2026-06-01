@@ -135,9 +135,8 @@ struct UserManagementView: View {
 private struct TeamMemberCard: View {
     let user: User
     
-    // Mock status based on ID hash for UI
     private var isOnDuty: Bool {
-        user.id.hashValue % 2 == 0
+        user.dutyStatus == .onDuty
     }
     
     private var statusColor: Color {

@@ -486,6 +486,26 @@ final class MockDataService {
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
+    /// Drivers eligible to be assigned a trip by a Fleet Manager.
+    /// Unlike `isDriverAvailableForDispatch`, this does NOT require the driver to be On Duty —
+    /// so the FM can pre-assign trips to off-duty drivers who will see them upon going online.
+    func isDriverEligibleForTripAssignment(_ driver: User) -> Bool {
+        guard driver.role == .driver else { return false }
+        return !hasOpenTripAssignment(for: driver.id)
+    }
+
+    func driversEligibleForTripAssignment(organizationID: UUID? = nil) -> [User] {
+        users
+            .filter { user in
+                guard user.role == .driver else { return false }
+                if let organizationID, user.organizationID != organizationID {
+                    return false
+                }
+                return isDriverEligibleForTripAssignment(user)
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
     // MARK: - Driver-Specific Mutations
 
     func toggleDutyStatus(for driverID: UUID) {
