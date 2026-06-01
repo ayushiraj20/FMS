@@ -213,6 +213,15 @@ struct MaintenanceTabContentView: View {
 struct MaintenanceMemberDetailView: View {
     let member: User
     let service: MockDataService
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var showEditSheet = false
+    @State private var showDeleteConfirmation = false
+    @State private var isDeleted = false
+
+    private var currentMember: User {
+        service.users.first { $0.id == member.id } ?? member
+    }
 
     var body: some View {
         ScrollView {
@@ -220,13 +229,13 @@ struct MaintenanceMemberDetailView: View {
                 // Profile Hero Card
                 GlassCard {
                     VStack(spacing: 14) {
-                        AvatarView(name: member.name, size: 80)
+                        AvatarView(name: currentMember.name, size: 80)
 
                         VStack(spacing: 4) {
-                            Text(member.name)
+                            Text(currentMember.name)
                                 .font(.title2.weight(.bold))
                                 .foregroundStyle(AppTheme.textPrimary)
-                            Text(member.title)
+                            Text(currentMember.title)
                                 .font(.subheadline)
                                 .foregroundStyle(AppTheme.textSecondary)
                         }
@@ -234,7 +243,7 @@ struct MaintenanceMemberDetailView: View {
                         HStack(spacing: 12) {
                             // Call button
                             Button {
-                                if let url = URL(string: "tel://\(member.phone.replacingOccurrences(of: " ", with: ""))") {
+                                if let url = URL(string: "tel://\(currentMember.phone.replacingOccurrences(of: " ", with: ""))") {
                                     UIApplication.shared.open(url)
                                 }
                             } label: {
@@ -248,7 +257,7 @@ struct MaintenanceMemberDetailView: View {
 
                             // Email button
                             Button {
-                                if let url = URL(string: "mailto:\(member.email)") {
+                                if let url = URL(string: "mailto:\(currentMember.email)") {
                                     UIApplication.shared.open(url)
                                 }
                             } label: {
@@ -272,14 +281,16 @@ struct MaintenanceMemberDetailView: View {
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(AppTheme.textSecondary)
 
-                        contactRow(icon: "phone.fill", label: "Phone", value: member.phone)
+                        contactRow(icon: "phone.fill", label: "Phone", value: currentMember.phone)
                         Divider().background(AppTheme.border)
-                        contactRow(icon: "envelope.fill", label: "Email", value: member.email)
+                        contactRow(icon: "envelope.fill", label: "Email", value: currentMember.email)
                     }
                 }
 
                 // Active Work Orders
-                activeWorkOrdersSection
+                if !isDeleted {
+                    activeWorkOrdersSection
+                }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
@@ -287,6 +298,48 @@ struct MaintenanceMemberDetailView: View {
         .background(AppTheme.background.ignoresSafeArea())
         .navigationTitle("Technician Profile")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    showEditSheet = true
+                } label: {
+                    Image(systemName: "pencil.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(AppTheme.brand)
+                        .font(.title3)
+                }
+
+                Button(role: .destructive) {
+                    showDeleteConfirmation = true
+                } label: {
+                    Image(systemName: "trash.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(AppTheme.error)
+                        .font(.title3)
+                }
+            }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            EditMaintenanceMemberSheet(member: currentMember, service: service)
+                .registersSheetPresentation()
+        }
+        .confirmationDialog(
+            "Delete Technician",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                let userToDelete = currentMember
+                isDeleted = true
+                service.deleteUser(userToDelete)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    dismiss()
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete \(currentMember.name)? This action cannot be undone.")
+        }
     }
 
     private func contactRow(icon: String, label: String, value: String) -> some View {
@@ -490,6 +543,136 @@ private struct AddMaintenanceMemberSheet: View {
             errorMessage = error.localizedDescription
             isCreating = false
         }
+    }
+}
+
+// MARK: - Edit Maintenance Member Sheet
+
+private struct EditMaintenanceMemberSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let member: User
+    let service: MockDataService
+
+    @State private var editName: String
+    @State private var editEmail: String
+    @State private var editPhone: String
+    @State private var editTitle: String
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    init(member: User, service: MockDataService) {
+        self.member = member
+        self.service = service
+        _editName = State(wrappedValue: member.name)
+        _editEmail = State(wrappedValue: member.email)
+        _editPhone = State(wrappedValue: member.phone)
+        _editTitle = State(wrappedValue: member.title)
+    }
+
+    private var canSave: Bool {
+        !editName.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !editEmail.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !editPhone.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !editTitle.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !isSaving
+    }
+
+    private var hasChanges: Bool {
+        editName != member.name ||
+        editEmail != member.email ||
+        editPhone != member.phone ||
+        editTitle != member.title
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Profile") {
+                    HStack {
+                        Spacer()
+                        AvatarView(name: editName, size: 64)
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+
+                    TextField("Full Name", text: $editName)
+                        .disabled(isSaving)
+
+                    LabeledContent("Role") {
+                        Text(member.role.rawValue)
+                            .foregroundStyle(AppTheme.brand)
+                    }
+
+                    TextField("Job Title", text: $editTitle)
+                        .disabled(isSaving)
+                }
+
+                Section("Contact") {
+                    TextField("Email", text: $editEmail)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.emailAddress)
+                        .disabled(isSaving)
+
+                    TextField("Phone", text: $editPhone)
+                        .keyboardType(.phonePad)
+                        .disabled(isSaving)
+                }
+
+                if let error = errorMessage {
+                    Section {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(AppTheme.error)
+                            Text(error)
+                                .font(.footnote)
+                                .foregroundStyle(AppTheme.error)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Edit Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isSaving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        saveChanges()
+                    } label: {
+                        if isSaving {
+                            ProgressView().tint(AppTheme.brand)
+                        } else {
+                            Text("Save")
+                        }
+                    }
+                    .disabled(!canSave || !hasChanges)
+                }
+            }
+        }
+    }
+
+    private func saveChanges() {
+        errorMessage = nil
+        isSaving = true
+
+        if editEmail.lowercased() != member.email.lowercased(),
+           service.users.contains(where: { $0.email.lowercased() == editEmail.lowercased() }) {
+            errorMessage = "An account with this email already exists."
+            isSaving = false
+            return
+        }
+
+        var updatedUser = member
+        updatedUser.name = editName.trimmingCharacters(in: .whitespaces)
+        updatedUser.email = editEmail.trimmingCharacters(in: .whitespaces)
+        updatedUser.phone = editPhone.trimmingCharacters(in: .whitespaces)
+        updatedUser.title = editTitle.trimmingCharacters(in: .whitespaces)
+
+        service.updateUser(updatedUser)
+        isSaving = false
+        dismiss()
     }
 }
 

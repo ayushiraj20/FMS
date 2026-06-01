@@ -361,17 +361,19 @@ struct FleetManagerDashboardView: View {
                     
                     // Stats
                     VStack(spacing: 12) {
-                        utilizationRow(color: AppTheme.success, label: "Active", value: summary.activePercent)
-                        utilizationRow(color: AppTheme.warning, label: "Idle", value: summary.idlePercent)
-                        utilizationRow(color: Color(UIColor.systemBlue), label: "Maintenance", value: summary.maintenancePercent)
+                        utilizationRow(color: AppTheme.success, label: "Active", count: summary.activeVehicles, total: summary.totalVehicles)
+                        utilizationRow(color: AppTheme.warning, label: "Idle", count: summary.idleVehicles, total: summary.totalVehicles)
+                        utilizationRow(color: Color(UIColor.systemBlue), label: "Mainte-\nnance", count: summary.maintenanceVehicles, total: summary.totalVehicles)
                     }
                 }
             }
         }
     }
     
-    private func utilizationRow(color: Color, label: String, value: Int) -> some View {
-        HStack(spacing: 8) {
+    private func utilizationRow(color: Color, label: String, count: Int, total: Int) -> some View {
+        let barFraction: CGFloat = total > 0 ? CGFloat(count) / CGFloat(total) : 0
+
+        return HStack(spacing: 8) {
             Circle()
                 .fill(color)
                 .frame(width: 6, height: 6)
@@ -388,14 +390,14 @@ struct FleetManagerDashboardView: View {
                         .frame(height: 6)
                     Capsule()
                         .fill(color)
-                        .frame(width: geometry.size.width * CGFloat(value) / 100.0, height: 6)
+                        .frame(width: geometry.size.width * barFraction, height: 6)
                 }
             }
             .frame(height: 6)
             
-            Text("\(value)")
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.textSecondary)
+            Text("\(count)")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
                 .frame(width: 35, alignment: .trailing)
         }
     }
