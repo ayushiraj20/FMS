@@ -37,6 +37,17 @@ final class SupabaseService {
             .eq("id", value: user.id)
             .execute()
     }
+
+    func updateDriverDutyStatus(driverID: UUID, status: DutyStatus) async throws {
+        struct DutyStatusPayload: Encodable {
+            let duty_status: String
+        }
+
+        try await client.from("profiles")
+            .update(DutyStatusPayload(duty_status: status.rawValue))
+            .eq("id", value: driverID)
+            .execute()
+    }
     
     func deleteProfile(_ user: User) async throws {
         try await client.from("profiles")
