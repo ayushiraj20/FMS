@@ -104,6 +104,7 @@ struct User: Identifiable, Codable, Hashable {
     var title: String
     var assignedVehicleID: UUID?
     var isPasswordResetRequired: Bool = false
+    var dutyStatus: DutyStatus = .offDuty
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -115,9 +116,22 @@ struct User: Identifiable, Codable, Hashable {
         case title
         case assignedVehicleID = "assigned_vehicle_id"
         case isPasswordResetRequired = "is_password_reset_required"
+        case dutyStatus = "duty_status"
     }
 
-    init(id: UUID, organizationID: UUID, name: String, role: UserRole, email: String, password: String = "demo123", phone: String, title: String, assignedVehicleID: UUID? = nil, isPasswordResetRequired: Bool = false) {
+    init(
+        id: UUID,
+        organizationID: UUID,
+        name: String,
+        role: UserRole,
+        email: String,
+        password: String = "demo123",
+        phone: String,
+        title: String,
+        assignedVehicleID: UUID? = nil,
+        isPasswordResetRequired: Bool = false,
+        dutyStatus: DutyStatus = .offDuty
+    ) {
         self.id = id
         self.organizationID = organizationID
         self.name = name
@@ -128,6 +142,7 @@ struct User: Identifiable, Codable, Hashable {
         self.title = title
         self.assignedVehicleID = assignedVehicleID
         self.isPasswordResetRequired = isPasswordResetRequired
+        self.dutyStatus = dutyStatus
     }
 
     init(from decoder: Decoder) throws {
@@ -142,6 +157,7 @@ struct User: Identifiable, Codable, Hashable {
         title = try container.decode(String.self, forKey: .title)
         assignedVehicleID = try container.decodeIfPresent(UUID.self, forKey: .assignedVehicleID)
         isPasswordResetRequired = try container.decodeIfPresent(Bool.self, forKey: .isPasswordResetRequired) ?? false
+        dutyStatus = (try? container.decode(DutyStatus.self, forKey: .dutyStatus)) ?? .offDuty
     }
 
     func encode(to encoder: Encoder) throws {
@@ -159,6 +175,9 @@ struct User: Identifiable, Codable, Hashable {
             try container.encodeNil(forKey: .assignedVehicleID)
         }
         try container.encode(isPasswordResetRequired, forKey: .isPasswordResetRequired)
+        if role == .driver {
+            try container.encode(dutyStatus, forKey: .dutyStatus)
+        }
     }
 }
 

@@ -31,51 +31,24 @@ final class MockDataService {
     var routeGeofenceAlertStates: [UUID: RouteGeofenceAlertState] = [:]
 
     init() {
-        let seed = DemoSeed.make()
-
-        // When Supabase is configured, start with empty operational data so only
-        // real database records are shown. Seed data is kept only when running
-        // fully offline (no Supabase credentials) for demo/testing purposes.
-        if SupabaseConfig.isConfigured {
-            organizations = []
-            users = []
-            vehicles = []
-            documents = []
-            trips = []
-            inspections = []
-            defects = []
-            workOrders = []
-            maintenanceSchedules = []
-            notifications = []
-            partOrders = []
-            shifts = []
-            fuelReceipts = []
-            chatMessages = []
-            tripCheckpoints = []
-            vehicleAlerts = []
-            breakLogs = []
-            driverDutyStatus = [:]
-        } else {
-            organizations = seed.organizations
-            users = seed.users
-            vehicles = seed.vehicles
-            documents = seed.documents
-            trips = seed.trips
-            inspections = seed.inspections
-            defects = seed.defects
-            workOrders = seed.workOrders
-            maintenanceSchedules = seed.maintenanceSchedules
-            notifications = seed.notifications
-            partOrders = []
-            shifts = seed.shifts
-            fuelReceipts = seed.fuelReceipts
-            chatMessages = seed.chatMessages
-            tripCheckpoints = seed.tripCheckpoints
-            vehicleAlerts = seed.vehicleAlerts
-            breakLogs = seed.breakLogs
-            driverDutyStatus = seed.dutyStatuses
-        }
-
+        organizations = []
+        users = []
+        vehicles = []
+        documents = []
+        trips = []
+        inspections = []
+        defects = []
+        workOrders = []
+        maintenanceSchedules = []
+        notifications = []
+        partOrders = []
+        shifts = []
+        fuelReceipts = []
+        chatMessages = []
+        tripCheckpoints = []
+        vehicleAlerts = []
+        breakLogs = []
+        driverDutyStatus = [:]
         sosAlerts = []
         geofenceAlertedVehicleIDs = []
         
@@ -144,6 +117,7 @@ final class MockDataService {
         }
         if let usersList = try? await SupabaseService.shared.fetchProfiles(), !usersList.isEmpty {
             self.users = usersList
+            applyDutyStatusesFromProfiles()
         }
         if let vehiclesList = try? await SupabaseService.shared.fetchVehicles(), !vehiclesList.isEmpty {
             self.vehicles = vehiclesList.sorted { $0.displayName < $1.displayName }
@@ -464,7 +438,28 @@ final class MockDataService {
     }
 
     func dutyStatus(for driverID: UUID) -> DutyStatus {
-        driverDutyStatus[driverID] ?? .offDuty
+        if let cached = driverDutyStatus[driverID] {
+            return cached
+        }
+        if let profileStatus = users.first(where: { $0.id == driverID })?.dutyStatus {
+            return profileStatus
+        }
+        return .offDuty
+    }
+
+    func applyDutyStatusesFromProfiles() {
+        for user in users where user.role == .driver {
+            driverDutyStatus[user.id] = user.dutyStatus
+        }
+    }
+
+    func assignedVehicle(for driverID: UUID) -> Vehicle? {
+        vehicles.first { $0.assignedDriverID == driverID }
+    }
+
+    func canAssignVehicle(_ vehicle: Vehicle, to driver: User) -> Bool {
+        guard let assigned = assignedVehicle(for: driver.id) else { return true }
+        return assigned.id == vehicle.id
     }
 
     func hasOpenTripAssignment(for driverID: UUID) -> Bool {
@@ -494,12 +489,28 @@ final class MockDataService {
     // MARK: - Driver-Specific Mutations
 
     func toggleDutyStatus(for driverID: UUID) {
-        let current = driverDutyStatus[driverID] ?? .offDuty
+        let current = dutyStatus(for: driverID)
         let newStatus: DutyStatus = current == .onDuty ? .offDuty : .onDuty
-        driverDutyStatus[driverID] = newStatus
+        setDutyStatus(newStatus, for: driverID)
 
         if newStatus == .onDuty, let driver = users.first(where: { $0.id == driverID }) {
             notifyFleetManagersDriverOnDuty(driver)
+        }
+    }
+
+    func setDutyStatus(_ status: DutyStatus, for driverID: UUID) {
+        driverDutyStatus[driverID] = status
+        if let index = users.firstIndex(where: { $0.id == driverID }) {
+            users[index].dutyStatus = status
+        }
+
+        guard SupabaseConfig.isConfigured else { return }
+        Task {
+            do {
+                try await SupabaseService.shared.updateDriverDutyStatus(driverID: driverID, status: status)
+            } catch {
+                print("[Supabase ERROR] Failed to update duty status: \(error.localizedDescription)")
+            }
         }
     }
 
