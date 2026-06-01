@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct DefectReportView: View {
     @Environment(\.dismiss) private var dismiss
@@ -8,9 +9,13 @@ struct DefectReportView: View {
     @State private var severity: WorkOrderPriority = .medium
     @State private var title = ""
     @State private var description = ""
-    @State private var uploadedImages: [String] = []
 
-    private let sampleImages = ["brake_defect", "engine_smoke", "tire_wear", "scratch_defect"]
+    // Real image capture
+    @State private var capturedImages: [UIImage] = []
+    @State private var isShowingPhotoSource = false
+    @State private var isShowingCamera = false
+    @State private var cameraImage: UIImage? = nil
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
 
     var body: some View {
         NavigationStack {
@@ -105,44 +110,54 @@ struct DefectReportView: View {
                             .scrollContentBackground(.hidden)
                     }
 
+                    // MARK: - Photos (Camera + Gallery)
                     formSection(title: "Photos") {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 16) {
-                                Button {
-                                    let nextImg = sampleImages[uploadedImages.count % sampleImages.count] + "_\(UUID().uuidString.prefix(4))"
-                                    withAnimation { uploadedImages.append(nextImg) }
-                                } label: {
-                                    VStack(spacing: 8) {
-                                        Image(systemName: "camera.fill").font(.title2)
-                                        Text("Add Photo").font(.caption.bold())
-                                    }
-                                    .foregroundStyle(DriverTheme.accent)
-                                    .frame(width: 100, height: 100)
-                                    .background(DriverTheme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(DriverTheme.accent.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [6, 4])))
-                                }
-
-                                ForEach(uploadedImages, id: \.self) { img in
-                                    ZStack(alignment: .topTrailing) {
-                                        Image(systemName: "photo.fill")
-                                            .font(.largeTitle)
-                                            .foregroundStyle(DriverTheme.textSecondary.opacity(0.3))
-                                            .frame(width: 100, height: 100)
-                                            .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 16))
-                                        
-                                        Button {
-                                            withAnimation { uploadedImages.removeAll { $0 == img } }
-                                        } label: {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .font(.title3)
-                                                .foregroundStyle(DriverTheme.criticalRed, .white)
-                                                .padding(6)
+                        VStack(alignment: .leading, spacing: 12) {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 16) {
+                                    // Add Photo button — opens action sheet
+                                    Button {
+                                        isShowingPhotoSource = true
+                                    } label: {
+                                        VStack(spacing: 8) {
+                                            Image(systemName: "camera.fill").font(.title2)
+                                            Text("Add Photo").font(.caption.bold())
                                         }
+                                        .foregroundStyle(DriverTheme.accent)
+                                        .frame(width: 100, height: 100)
+                                        .background(DriverTheme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+                                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(DriverTheme.accent.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [6, 4])))
                                     }
-                                    .transition(.scale.combined(with: .opacity))
+
+                                    // Captured image thumbnails
+                                    ForEach(Array(capturedImages.enumerated()), id: \.offset) { index, img in
+                                        ZStack(alignment: .topTrailing) {
+                                            Image(uiImage: img)
+                                                .resizable()
+                                                .scaledToFill()
+                                                .frame(width: 100, height: 100)
+                                                .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                                            Button {
+                                                withAnimation { _ = capturedImages.remove(at: index) }
+                                            } label: {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.title3)
+                                                    .foregroundStyle(DriverTheme.criticalRed, .white)
+                                                    .padding(6)
+                                            }
+                                        }
+                                        .transition(.scale.combined(with: .opacity))
+                                    }
                                 }
+                                .padding(.vertical, 8)
                             }
-                            .padding(.vertical, 8)
+
+                            if !capturedImages.isEmpty {
+                                Text("\(capturedImages.count) photo\(capturedImages.count == 1 ? "" : "s") attached")
+                                    .font(.caption)
+                                    .foregroundStyle(DriverTheme.successGreen)
+                            }
                         }
                     }
 
@@ -152,7 +167,7 @@ struct DefectReportView: View {
                         appViewModel.service.addDefect(
                             driverID: user.id, vehicleID: vehicle.id, severity: severity,
                             description: "[\(issueType.rawValue)] \(description)", title: issueTitle,
-                            images: uploadedImages.isEmpty ? nil : uploadedImages
+                            photoImages: capturedImages.isEmpty ? nil : capturedImages
                         )
                         dismiss()
                     } label: {
@@ -189,8 +204,56 @@ struct DefectReportView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            // Action sheet: Camera vs Photo Library
+            .confirmationDialog("Add Photo", isPresented: $isShowingPhotoSource, titleVisibility: .visible) {
+                Button("Take Photo") {
+                    isShowingCamera = true
+                }
+                Button("Choose from Library") {
+                    // PhotosPicker is presented inline below
+                    isShowingPhotoSource = false
+                    // Trigger the PhotosPicker via the overlay modifier
+                    showGalleryPicker = true
+                }
+                Button("Cancel", role: .cancel) { }
+            }
+            // Camera sheet
+            .fullScreenCover(isPresented: $isShowingCamera) {
+                CameraView(image: $cameraImage) { capturedImage in
+                    withAnimation {
+                        capturedImages.append(capturedImage)
+                    }
+                }
+                .ignoresSafeArea()
+            }
+            // Gallery picker sheet
+            .photosPicker(
+                isPresented: $showGalleryPicker,
+                selection: $selectedPhotoItems,
+                maxSelectionCount: 5,
+                matching: .images,
+                photoLibrary: .shared()
+            )
+            .onChange(of: selectedPhotoItems) { _, newItems in
+                Task {
+                    for item in newItems {
+                        if let data = try? await item.loadTransferable(type: Data.self),
+                           let uiImage = UIImage(data: data) {
+                            await MainActor.run {
+                                withAnimation {
+                                    capturedImages.append(uiImage)
+                                }
+                            }
+                        }
+                    }
+                    // Clear selection so user can pick again later
+                    selectedPhotoItems.removeAll()
+                }
+            }
         }
     }
+
+    @State private var showGalleryPicker = false
 
     private func formSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
