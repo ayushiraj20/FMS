@@ -98,11 +98,13 @@ struct FleetManagerDashboardView: View {
             appViewModel.refreshSOSAlerts()
             Task {
                 await appViewModel.service.syncWithDatabase()
+                await appViewModel.loadNotifications()
                 sendRouteGeofenceAlertsIfNeeded()
             }
         }
         .refreshable {
             await appViewModel.service.syncWithDatabase()
+            await appViewModel.loadNotifications()
             sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
@@ -312,21 +314,10 @@ struct FleetManagerDashboardView: View {
     
     // MARK: - Fleet Utilization
     private var fleetUtilizationSection: some View {
-        // Compute values here, outside @ViewBuilder, so all child views can see them
-        let total     = appViewModel.service.vehicles.count
-        let activeCount = appViewModel.service.vehicles.filter { $0.status == .active || $0.status == .inService }.count
-        let idleCount   = appViewModel.service.vehicles.filter { $0.status == .idle }.count
-        let maintCount  = appViewModel.service.vehicles.filter { vehicle in
-            vehicle.status == .inService ||
-            appViewModel.service.workOrders.contains { $0.vehicleID == vehicle.id && $0.status != .completed }
-        }.count
-        let avgUtilization = total > 0
-            ? Int((Double(appViewModel.service.vehicles.reduce(0) { $0 + $1.utilization }) / Double(total)).rounded())
-            : 0
-        let activePct = total > 0 ? Int(Double(activeCount) / Double(total) * 100) : 0
-        let idlePct   = total > 0 ? Int(Double(idleCount)   / Double(total) * 100) : 0
-        let maintPct  = total > 0 ? Int(Double(maintCount)  / Double(total) * 100) : 0
-        let fillTo    = total > 0 ? 0.1 + 0.8 * Double(avgUtilization) / 100.0 : 0.1
+        let summary = appViewModel.service.fleetUtilizationSummary()
+        let fillTo = summary.totalVehicles > 0
+            ? 0.1 + 0.8 * Double(summary.averageUtilization) / 100.0
+            : 0.1
 
         return GlassCard {
             VStack(alignment: .leading, spacing: 20) {
@@ -358,7 +349,7 @@ struct FleetManagerDashboardView: View {
                                 .rotationEffect(.degrees(90))
                                 .frame(width: 90, height: 90)
                             
-                            Text("\(avgUtilization)%")
+                            Text("\(summary.averageUtilization)%")
                                 .font(.title2.weight(.bold))
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
@@ -370,9 +361,9 @@ struct FleetManagerDashboardView: View {
                     
                     // Stats
                     VStack(spacing: 12) {
-                        utilizationRow(color: AppTheme.success, label: "Active", value: activePct)
-                        utilizationRow(color: AppTheme.warning, label: "Idle", value: idlePct)
-                        utilizationRow(color: Color(UIColor.systemBlue), label: "Maintenance", value: maintPct)
+                        utilizationRow(color: AppTheme.success, label: "Active", value: summary.activePercent)
+                        utilizationRow(color: AppTheme.warning, label: "Idle", value: summary.idlePercent)
+                        utilizationRow(color: Color(UIColor.systemBlue), label: "Maintenance", value: summary.maintenancePercent)
                     }
                 }
             }

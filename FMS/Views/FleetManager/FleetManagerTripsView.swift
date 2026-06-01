@@ -193,10 +193,10 @@ struct FleetManagerTripsView: View {
                     
                     // Distance metric
                     VStack(spacing: 4) {
-                        Text("/ \\") // Mock icon resembling road perspective
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.gray)
-                        Text("123 km") // Mock distance
+                        Image(systemName: "road.lanes")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                        Text("\(Int(trip.distanceKM.rounded())) km")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(AppTheme.textPrimary)
                     }

@@ -421,6 +421,49 @@ final class MockDataService {
         alerts(for: vehicleID).filter { $0.severity == .critical }
     }
 
+    func fleetUtilizationSummary() -> FleetUtilizationSummary {
+        let total = vehicles.count
+        let vehicleIDsWithOpenWork = Set(workOrders
+            .filter { $0.status != .completed }
+            .map(\.vehicleID))
+
+        let maintenanceCount = vehicles.filter {
+            $0.status == .outOfService || vehicleIDsWithOpenWork.contains($0.id)
+        }.count
+
+        let activeCount = vehicles.filter {
+            ($0.status == .active || $0.status == .inService) &&
+            !vehicleIDsWithOpenWork.contains($0.id)
+        }.count
+
+        let idleCount = vehicles.filter {
+            $0.status == .idle &&
+            !vehicleIDsWithOpenWork.contains($0.id)
+        }.count
+
+        let averageUtilization = total > 0
+            ? Int((Double(vehicles.reduce(0) { $0 + $1.utilization }) / Double(total)).rounded())
+            : 0
+
+        let relevantTrips = trips.filter { $0.status == .completed || $0.status == .inProgress }
+        let completedTrips = trips.filter { $0.status == .completed }
+        let totalTripDistance = relevantTrips.reduce(0.0) { $0 + $1.distanceKM }
+        let averageTripDistance = relevantTrips.isEmpty ? 0 : totalTripDistance / Double(relevantTrips.count)
+        let activeTrips = trips.filter { $0.status == .inProgress }.count
+
+        return FleetUtilizationSummary(
+            totalVehicles: total,
+            activeVehicles: activeCount,
+            idleVehicles: idleCount,
+            maintenanceVehicles: maintenanceCount,
+            averageUtilization: averageUtilization,
+            totalTripDistance: totalTripDistance,
+            averageTripDistance: averageTripDistance,
+            completedTrips: completedTrips.count,
+            activeTrips: activeTrips
+        )
+    }
+
     func chatMessages(for driverID: UUID) -> [ChatMessage] {
         chatMessages.filter { $0.senderID == driverID || $0.receiverID == driverID }
             .sorted { $0.timestamp < $1.timestamp }
@@ -1441,6 +1484,7 @@ final class MockDataService {
             if let idx = vehicles.firstIndex(where: { $0.id == vehicleID }) {
                 vehicles[idx].status = .active
                 vehicles[idx].assignedDriverID = nil
+                vehicles[idx].odometer += Int(trip.distanceKM.rounded())
                 let updatedVehicle = vehicles[idx]
                 if SupabaseConfig.isConfigured {
                     Task {
@@ -1493,6 +1537,7 @@ final class MockDataService {
         if let idx = vehicles.firstIndex(where: { $0.id == vehicleID }) {
             vehicles[idx].status = .active
             vehicles[idx].assignedDriverID = nil
+            vehicles[idx].odometer += Int(trips[index].distanceKM.rounded())
             let updatedVehicle = vehicles[idx]
             if SupabaseConfig.isConfigured {
                 Task {
