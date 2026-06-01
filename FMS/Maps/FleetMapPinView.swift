@@ -5,17 +5,18 @@ struct FleetMapPinView: View {
     var isCompact = false
     var isBreaching = false
 
+    private var pinTint: Color {
+        isBreaching ? AppTheme.error : location.statusColor
+    }
+
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Image(systemName: "car.fill")
-                .font(.system(size: isCompact ? 22 : 28, weight: .semibold))
-                .foregroundStyle(isBreaching ? AppTheme.error : location.statusColor)
-                .padding(isCompact ? 7 : 9)
-                .background(.background, in: Circle())
-                .overlay(
-                    Circle()
-                        .stroke(isBreaching ? AppTheme.error : location.statusColor, lineWidth: isBreaching ? 2 : 1)
-                )
+            VehicleMapMarker(
+                symbolName: location.vehicle.fleetMapSymbolName,
+                tint: pinTint,
+                isMoving: location.isMoving,
+                size: isCompact ? 22 : 28
+            )
 
             if isBreaching {
                 Image(systemName: "exclamationmark")
@@ -26,6 +27,6 @@ struct FleetMapPinView: View {
                     .offset(x: 3, y: -3)
             }
         }
-        .accessibilityLabel("\(location.vehicle.displayName), \(location.vehicle.status.rawValue)\(isBreaching ? ", geofence breach" : "")")
+        .accessibilityLabel("\(location.vehicle.displayName), \(location.vehicle.vehicleType), \(location.vehicle.status.rawValue)\(isBreaching ? ", route breach" : "")")
     }
 }

@@ -15,6 +15,7 @@ final class MockDataService {
     var workOrders: [WorkOrder]
     var maintenanceSchedules: [MaintenanceSchedule]
     var notifications: [AppNotification]
+    var partOrders: [PartOrder]
 
     // Driver-specific data
     var shifts: [ShiftInfo]
@@ -26,6 +27,8 @@ final class MockDataService {
     var breakLogs: [BreakLogEntry]
     var driverDutyStatus: [UUID: DutyStatus]
     var geofenceAlertedVehicleIDs: Set<UUID>
+    var tripRoutePlansByTripID: [UUID: TripRoutePlan] = [:]
+    var routeGeofenceAlertStates: [UUID: RouteGeofenceAlertState] = [:]
 
     init() {
         let seed = DemoSeed.make()
@@ -44,6 +47,7 @@ final class MockDataService {
             workOrders = []
             maintenanceSchedules = []
             notifications = []
+            partOrders = []
             shifts = []
             fuelReceipts = []
             chatMessages = []
@@ -62,6 +66,7 @@ final class MockDataService {
             workOrders = seed.workOrders
             maintenanceSchedules = seed.maintenanceSchedules
             notifications = seed.notifications
+            partOrders = []
             shifts = seed.shifts
             fuelReceipts = seed.fuelReceipts
             chatMessages = seed.chatMessages
@@ -158,6 +163,7 @@ final class MockDataService {
         }
         if let tripsList = try? await SupabaseService.shared.fetchTrips() {
             self.trips = tripsList
+            reloadTripRoutePlansFromStoredTrips()
         }
         if let inspectionsList = try? await SupabaseService.shared.fetchInspections() {
             self.inspections = inspectionsList
@@ -182,6 +188,13 @@ final class MockDataService {
         }
         if let chatList = try? await SupabaseService.shared.fetchChatMessages() {
             self.chatMessages = chatList
+        }
+        // Sync part orders for the first available organization
+        if let orgID = organizations.first?.id {
+            if let orders = try? await SupabaseService.shared.fetchPartOrders(organizationID: orgID) {
+                self.partOrders = orders
+                print("[Sync] Loaded \(orders.count) part order(s)")
+            }
         }
     }
 
@@ -217,6 +230,25 @@ final class MockDataService {
             print("[DefectSync] Synced from Supabase: \(self.defects.count) defect(s), \(self.workOrders.count) work order(s)")
         } catch {
             print("[DefectSync] ERROR: \(error) — keeping \(self.defects.count) local defect(s)")
+        }
+    }
+
+    /// Lightweight refresh: pulls only maintenance-related tables.
+    /// Used by the Maintenance role views for targeted refreshes.
+    func syncMaintenanceData() async {
+        guard SupabaseConfig.isConfigured else { return }
+        do {
+            let remoteOrders = try await SupabaseService.shared.fetchWorkOrders()
+            self.workOrders = remoteOrders
+            let remoteSchedules = try await SupabaseService.shared.fetchSchedules()
+            self.maintenanceSchedules = remoteSchedules
+            if let orgID = organizations.first?.id {
+                let remotePartOrders = try await SupabaseService.shared.fetchPartOrders(organizationID: orgID)
+                self.partOrders = remotePartOrders
+            }
+            print("[MaintenanceSync] Synced: \(workOrders.count) WOs, \(maintenanceSchedules.count) schedules, \(partOrders.count) part orders")
+        } catch {
+            print("[MaintenanceSync] ERROR: \(error)")
         }
     }
 
@@ -272,6 +304,43 @@ final class MockDataService {
         .sorted { $0.date > $1.date }
     }
 
+    func isDriver(_ driver: User, compatibleWith vehicle: Vehicle) -> Bool {
+        guard driver.role == .driver else { return false }
+        let license = driverLicenseCategory(for: driver)
+        let requirement = licenseRequirement(for: vehicle)
+
+        switch requirement {
+        case .twoWheeler:
+            return true
+        case .light:
+            return license == .light || license == .heavy
+        case .heavy:
+            return license == .heavy
+        }
+    }
+
+    func driverLicenseSummary(for driver: User) -> String {
+        switch driverLicenseCategory(for: driver) {
+        case .twoWheeler:
+            return "2-wheeler licence"
+        case .light:
+            return "Light vehicle licence"
+        case .heavy:
+            return "Heavy vehicle licence"
+        }
+    }
+
+    func requiredLicenseSummary(for vehicle: Vehicle) -> String {
+        switch licenseRequirement(for: vehicle) {
+        case .twoWheeler:
+            return "2-wheeler"
+        case .light:
+            return "Light vehicle"
+        case .heavy:
+            return "Heavy vehicle"
+        }
+    }
+
 
     func vehicle(for id: UUID?) -> Vehicle? {
         guard let id else { return nil }
@@ -281,6 +350,65 @@ final class MockDataService {
     func user(for id: UUID?) -> User? {
         guard let id else { return nil }
         return users.first { $0.id == id }
+    }
+
+    private enum DriverLicenseCategory {
+        case twoWheeler
+        case light
+        case heavy
+    }
+
+    private func driverLicenseCategory(for driver: User) -> DriverLicenseCategory {
+        let profileText = "\(driver.title) \(driver.email)".lowercased()
+
+        if profileText.contains("2 wheeler") ||
+            profileText.contains("two wheeler") ||
+            profileText.contains("bike") ||
+            profileText.contains("motorcycle") ||
+            profileText.contains("scooter") {
+            return .twoWheeler
+        }
+
+        if profileText.contains("hmv") ||
+            profileText.contains("heavy") ||
+            profileText.contains("truck") ||
+            profileText.contains("linehaul") ||
+            profileText.contains("transport") {
+            return .heavy
+        }
+
+        if profileText.contains("lmv") ||
+            profileText.contains("light") ||
+            profileText.contains("car") ||
+            profileText.contains("van") {
+            return .light
+        }
+
+        // Existing data has generic titles such as "Senior Driver"; treat them as
+        // transport-capable drivers unless a narrower licence is explicitly recorded.
+        return .heavy
+    }
+
+    private func licenseRequirement(for vehicle: Vehicle) -> DriverLicenseCategory {
+        let vehicleText = "\(vehicle.vehicleType) \(vehicle.model) \(vehicle.displayName)".lowercased()
+
+        if vehicleText.contains("2 wheeler") ||
+            vehicleText.contains("two wheeler") ||
+            vehicleText.contains("bike") ||
+            vehicleText.contains("motorcycle") ||
+            vehicleText.contains("scooter") {
+            return .twoWheeler
+        }
+
+        if vehicleText.contains("truck") ||
+            vehicleText.contains("heavy") ||
+            vehicleText.contains("container") ||
+            vehicleText.contains("bus") ||
+            vehicleText.contains("trailer") {
+            return .heavy
+        }
+
+        return .light
     }
 
     // MARK: - Driver-Specific Queries
@@ -339,11 +467,73 @@ final class MockDataService {
         driverDutyStatus[driverID] ?? .offDuty
     }
 
+    func hasOpenTripAssignment(for driverID: UUID) -> Bool {
+        trips.contains { trip in
+            trip.driverID == driverID &&
+            (trip.status == .scheduled || trip.status == .inProgress)
+        }
+    }
+
+    func isDriverAvailableForDispatch(_ driver: User) -> Bool {
+        guard driver.role == .driver else { return false }
+        return dutyStatus(for: driver.id) == .onDuty && !hasOpenTripAssignment(for: driver.id)
+    }
+
+    func availableDriversForDispatch(organizationID: UUID? = nil) -> [User] {
+        users
+            .filter { user in
+                guard user.role == .driver else { return false }
+                if let organizationID, user.organizationID != organizationID {
+                    return false
+                }
+                return isDriverAvailableForDispatch(user)
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
     // MARK: - Driver-Specific Mutations
 
     func toggleDutyStatus(for driverID: UUID) {
         let current = driverDutyStatus[driverID] ?? .offDuty
-        driverDutyStatus[driverID] = (current == .onDuty) ? .offDuty : .onDuty
+        let newStatus: DutyStatus = current == .onDuty ? .offDuty : .onDuty
+        driverDutyStatus[driverID] = newStatus
+
+        if newStatus == .onDuty, let driver = users.first(where: { $0.id == driverID }) {
+            notifyFleetManagersDriverOnDuty(driver)
+        }
+    }
+
+    private func notifyFleetManagersDriverOnDuty(_ driver: User) {
+        let managers = users.filter { user in
+            user.role == .fleetManager &&
+            user.organizationID == driver.organizationID
+        }
+
+        let tripNote = hasOpenTripAssignment(for: driver.id)
+            ? " They already have a trip assigned."
+            : " They are available for a new trip assignment."
+
+        let message = "\(driver.name) is now on duty.\(tripNote)"
+
+        for manager in managers {
+            addNotification(
+                userID: manager.id,
+                roleTarget: nil,
+                title: "Driver On Duty",
+                message: message,
+                category: .info
+            )
+        }
+
+        if managers.isEmpty {
+            addNotification(
+                userID: nil,
+                roleTarget: .fleetManager,
+                title: "Driver On Duty",
+                message: message,
+                category: .info
+            )
+        }
     }
 
     func addFuelReceipt(driverID: UUID, vehicleID: UUID, stationName: String, litres: Double, amount: Double, vehiclePlate: String) {
@@ -849,6 +1039,177 @@ final class MockDataService {
         }
     }
 
+    func deleteWorkOrder(_ workOrder: WorkOrder) {
+        workOrders.removeAll { $0.id == workOrder.id }
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.deleteWorkOrder(workOrder)
+                    print("[Supabase] Work order deleted: \(workOrder.id)")
+                } catch {
+                    print("[Supabase ERROR] deleteWorkOrder: \(error)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Part Order Mutations
+
+    func addPartOrder(_ order: PartOrder) {
+        partOrders.insert(order, at: 0)
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.addPartOrder(order)
+                    print("[Supabase] Part order added: \(order.partName)")
+                } catch {
+                    print("[Supabase ERROR] addPartOrder: \(error)")
+                }
+            }
+        }
+    }
+
+    func updatePartOrder(_ order: PartOrder) {
+        guard let index = partOrders.firstIndex(where: { $0.id == order.id }) else { return }
+        partOrders[index] = order
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.updatePartOrder(order)
+                    print("[Supabase] Part order updated: \(order.partName)")
+                } catch {
+                    print("[Supabase ERROR] updatePartOrder: \(error)")
+                }
+            }
+        }
+    }
+
+    func deletePartOrder(_ order: PartOrder) {
+        partOrders.removeAll { $0.id == order.id }
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.deletePartOrder(order)
+                    print("[Supabase] Part order deleted: \(order.partName)")
+                } catch {
+                    print("[Supabase ERROR] deletePartOrder: \(error)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Work Order Parts Mutations
+
+    func saveWorkOrderParts(_ parts: [WorkOrderPartUsage], workOrderID: UUID, decrementStock: Bool = false) {
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.saveWorkOrderParts(parts, workOrderID: workOrderID)
+                    print("[Supabase] Saved \(parts.count) part(s) for work order \(workOrderID)")
+
+                    // Post notification to reload inventory views in real time
+                    NotificationCenter.default.post(name: Notification.Name("inventoryNeedsRefresh"), object: nil)
+
+                    // Check each consumed part's updated quantity and alert fleet manager if low stock
+                    await checkLowStockAndNotify(for: parts)
+                } catch {
+                    print("[Supabase ERROR] saveWorkOrderParts: \(error)")
+                }
+            }
+        }
+    }
+
+    /// Fetches the current quantity of each part used in the work order and fires a
+    /// low-stock notification (to Fleet Managers and Maintenance Personnel) for any
+    /// part whose remaining quantity has dropped to 2 or below.
+    private func checkLowStockAndNotify(for parts: [WorkOrderPartUsage]) async {
+        guard let orgID = organizations.first?.id else { return }
+        do {
+            let allParts = try await SupabaseService.shared.fetchSpareParts(organizationID: orgID)
+            let consumedIDs = Set(parts.map { $0.sparePartID })
+            for part in allParts where consumedIDs.contains(part.id) {
+                guard part.quantity <= 2 else { continue }
+
+                let unitLabel = part.quantity == 1 ? "unit" : "units"
+                let stockStatus = part.quantity == 0 ? "OUT OF STOCK" : "only \(part.quantity) \(unitLabel) remaining"
+                let title = part.quantity == 0 ? "🚨 Part Out of Stock" : "⚠️ Low Stock Alert"
+                let message = "\(part.name) (\(part.partNumber)) is \(stockStatus). Please reorder soon."
+
+                // Notify Fleet Manager role
+                addNotification(
+                    userID: nil,
+                    roleTarget: .fleetManager,
+                    title: title,
+                    message: message,
+                    category: part.quantity == 0 ? .warning : .warning
+                )
+                // Notify Maintenance Personnel role
+                addNotification(
+                    userID: nil,
+                    roleTarget: .maintenance,
+                    title: title,
+                    message: message,
+                    category: .warning
+                )
+                print("[Low Stock] Notified: \(part.name) — qty \(part.quantity)")
+            }
+        } catch {
+            print("[Low Stock Check ERROR] \(error)")
+        }
+    }
+
+    // MARK: - Maintenance Schedule Mutations
+
+    func addMaintenanceSchedule(vehicleID: UUID, serviceType: String, dueDate: Date) {
+        let schedule = MaintenanceSchedule(
+            id: UUID(),
+            vehicleID: vehicleID,
+            serviceType: serviceType,
+            dueDate: dueDate,
+            status: .upcoming
+        )
+        maintenanceSchedules.insert(schedule, at: 0)
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.addMaintenanceSchedule(schedule)
+                    print("[Supabase] Maintenance schedule added: \(serviceType)")
+                } catch {
+                    print("[Supabase ERROR] addMaintenanceSchedule: \(error)")
+                }
+            }
+        }
+    }
+
+    func updateMaintenanceSchedule(_ schedule: MaintenanceSchedule) {
+        guard let index = maintenanceSchedules.firstIndex(where: { $0.id == schedule.id }) else { return }
+        maintenanceSchedules[index] = schedule
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.updateMaintenanceSchedule(schedule)
+                    print("[Supabase] Maintenance schedule updated: \(schedule.serviceType)")
+                } catch {
+                    print("[Supabase ERROR] updateMaintenanceSchedule: \(error)")
+                }
+            }
+        }
+    }
+
+    func deleteMaintenanceSchedule(_ schedule: MaintenanceSchedule) {
+        maintenanceSchedules.removeAll { $0.id == schedule.id }
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.deleteMaintenanceSchedule(schedule)
+                    print("[Supabase] Maintenance schedule deleted: \(schedule.serviceType)")
+                } catch {
+                    print("[Supabase ERROR] deleteMaintenanceSchedule: \(error)")
+                }
+            }
+        }
+    }
+
     func addInspection(driverID: UUID, vehicleID: UUID, type: InspectionType, notes: String, items: [InspectionItem]) {
         let record = InspectionRecord(
             id: UUID(),
@@ -1256,14 +1617,36 @@ final class MockDataService {
         originLng: Double? = nil,
         destinationLat: Double? = nil,
         destinationLng: Double? = nil
-    ) {
+    ) async {
+        guard startDate >= Date().addingTimeInterval(3600) else {
+            addNotification(
+                userID: nil,
+                roleTarget: .fleetManager,
+                title: "Trip Assignment Blocked",
+                message: "Trips must be assigned at least 1 hour before the start time.",
+                category: .warning
+            )
+            return
+        }
+
+        guard isDriver(driver, compatibleWith: vehicle) else {
+            addNotification(
+                userID: nil,
+                roleTarget: .fleetManager,
+                title: "Trip Assignment Blocked",
+                message: "\(driver.name) does not have the required licence for \(vehicle.displayName) (\(vehicle.plateNumber)).",
+                category: .warning
+            )
+            return
+        }
+
         // 1. Assign vehicle to driver
         var updatedVehicle = vehicle
         updatedVehicle.assignedDriverID = driver.id
         updateVehicle(updatedVehicle)
         
         // 2. Create trip entry in trips
-        let trip = Trip(
+        var trip = Trip(
             id: UUID(),
             driverID: driver.id,
             vehicleID: vehicle.id,
@@ -1281,21 +1664,23 @@ final class MockDataService {
             destinationLat: destinationLat,
             destinationLng: destinationLng
         )
+        trip = await tripWithRoutePlanAttached(trip)
         trips.insert(trip, at: 0)
         
         if SupabaseConfig.isConfigured {
-            Task {
-                do {
-                    try await SupabaseService.shared.addTrip(trip)
-                    print("[Supabase] Assigned trip \(trip.id) inserted successfully.")
-                } catch {
-                    print("[Supabase ERROR] Failed to insert assigned trip: \(error)")
-                }
+            do {
+                try await SupabaseService.shared.addTrip(trip)
+                print("[Supabase] Assigned trip \(trip.id) inserted successfully.")
+            } catch {
+                print("[Supabase ERROR] Failed to insert assigned trip: \(error)")
             }
         }
         
         // 3. Create notification for assigned driver
-        let notificationMsg = "You have been assigned vehicle \(vehicle.plateNumber) for \(origin) → \(destination) route."
+        let routesNote = trip.routeDetails?.hasPrefix("route-plan:") == true
+            ? " Open Trips to view the main route and alternate paths on the map."
+            : ""
+        let notificationMsg = "You have been assigned vehicle \(vehicle.plateNumber) for \(origin) to \(destination). Start: \(startDate.formatted(date: .abbreviated, time: .shortened)).\(routesNote)"
         addNotification(
             userID: driver.id,
             roleTarget: nil,

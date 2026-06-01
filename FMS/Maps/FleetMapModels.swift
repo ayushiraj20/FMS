@@ -54,7 +54,7 @@ struct FleetVehicleRoute {
 
 extension MockDataService {
     private var fleetHubCoordinate: CLLocationCoordinate2D {
-        CLLocationCoordinate2D(latitude: 19.0760, longitude: 72.8777)
+        Self.primaryFleetHubCoordinate
     }
 
     func allFleetLocations() -> [FleetVehicleLocation] {
@@ -85,15 +85,29 @@ extension MockDataService {
     }
 
     private func demoLocation(for vehicle: Vehicle) -> (coordinate: CLLocationCoordinate2D, locality: String) {
+        if let trip = trips.first(where: { $0.vehicleID == vehicle.id && $0.status == .inProgress }),
+           let originLat = trip.originLat,
+           let originLng = trip.originLng,
+           let destinationLat = trip.destinationLat,
+           let destinationLng = trip.destinationLng {
+            let progress = min(max(Double(vehicle.utilization) / 100.0, 0.05), 0.95)
+            let latitude = originLat + ((destinationLat - originLat) * progress)
+            let longitude = originLng + ((destinationLng - originLng) * progress)
+            return (
+                CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+                trip.destination
+            )
+        }
+
         switch vehicle.id.uuidString.uppercased() {
         case "11111111-1111-1111-1111-111111111111":
-            return (CLLocationCoordinate2D(latitude: 19.0330, longitude: 73.0297), "Panvel, Navi Mumbai")
+            return (CLLocationCoordinate2D(latitude: 17.4948, longitude: 78.3996), "Kukatpally, Hyderabad")
         case "22222222-2222-2222-2222-222222222222":
-            return (CLLocationCoordinate2D(latitude: 28.7041, longitude: 77.1025), "Delhi NCR")
+            return (CLLocationCoordinate2D(latitude: 17.2403, longitude: 78.4294), "Shamshabad, Hyderabad")
         case "33333333-3333-3333-3333-333333333333":
-            return (CLLocationCoordinate2D(latitude: 18.5204, longitude: 73.8567), "Pune Workshop")
+            return (CLLocationCoordinate2D(latitude: 17.6599, longitude: 78.7318), "Ghatkesar Workshop")
         case "44444444-4444-4444-4444-444444444444":
-            return (CLLocationCoordinate2D(latitude: 19.2183, longitude: 72.9781), "Thane Depot")
+            return (CLLocationCoordinate2D(latitude: 17.6868, longitude: 78.3832), "Medchal Depot")
         default:
             let seed = stableSeed(for: vehicle.id)
             let latitudeOffset = Double(seed % 9 - 4) * 0.035
@@ -103,7 +117,7 @@ extension MockDataService {
                     latitude: fleetHubCoordinate.latitude + latitudeOffset,
                     longitude: fleetHubCoordinate.longitude + longitudeOffset
                 ),
-                "Mumbai Service Area"
+                "Hyderabad Service Area"
             )
         }
     }
@@ -113,47 +127,40 @@ extension MockDataService {
             return FleetVehicleRoute(
                 originName: activeTrip.origin,
                 destinationName: activeTrip.destination,
-                coordinates: [
-                    fleetHubCoordinate,
-                    currentCoordinate,
-                    CLLocationCoordinate2D(latitude: 18.7557, longitude: 73.4091),
-                    CLLocationCoordinate2D(latitude: 18.5204, longitude: 73.8567)
-                ],
-                progress: 0.42
+                coordinates: routeCoordinates(for: activeTrip, currentCoordinate: currentCoordinate),
+                progress: min(max(Double(vehicle.utilization) / 100.0, 0.05), 0.95)
             )
         }
 
         switch vehicle.status {
         case .active:
             return FleetVehicleRoute(
-                originName: "Mumbai Hub",
-                destinationName: "Pune Warehouse",
+                originName: "Hyderabad Hub",
+                destinationName: "Outer Ring Road Dispatch",
                 coordinates: [
                     fleetHubCoordinate,
                     currentCoordinate,
-                    CLLocationCoordinate2D(latitude: 18.7557, longitude: 73.4091),
-                    CLLocationCoordinate2D(latitude: 18.5204, longitude: 73.8567)
+                    CLLocationCoordinate2D(latitude: 17.2403, longitude: 78.4294)
                 ],
-                progress: 0.36
+                progress: min(max(Double(vehicle.utilization) / 100.0, 0), 1)
             )
         case .inService:
             return FleetVehicleRoute(
-                originName: "Pune Workshop",
-                destinationName: "Nashik Depot",
+                originName: "Hyderabad Workshop",
+                destinationName: "Fleet Hub",
                 coordinates: [
-                    CLLocationCoordinate2D(latitude: 18.5204, longitude: 73.8567),
+                    CLLocationCoordinate2D(latitude: 17.6599, longitude: 78.7318),
                     currentCoordinate,
-                    CLLocationCoordinate2D(latitude: 19.9975, longitude: 73.7898)
+                    fleetHubCoordinate
                 ],
-                progress: 0.18
+                progress: min(max(Double(vehicle.utilization) / 100.0, 0), 1)
             )
         case .idle:
             return FleetVehicleRoute(
-                originName: "Thane Depot",
-                destinationName: "Mumbai Hub",
+                originName: "Medchal Depot",
+                destinationName: "Hyderabad Hub",
                 coordinates: [
                     currentCoordinate,
-                    CLLocationCoordinate2D(latitude: 19.1800, longitude: 72.9500),
                     fleetHubCoordinate
                 ],
                 progress: 0.0
@@ -177,6 +184,18 @@ extension MockDataService {
             (partialResult * 31 + Int(scalar.value)) % 10_000
         }
     }
+
+    private func routeCoordinates(for trip: Trip, currentCoordinate: CLLocationCoordinate2D) -> [CLLocationCoordinate2D] {
+        if let plan = tripRoutePlansByTripID[trip.id], !plan.mainRouteCoordinates.isEmpty {
+            return plan.mainRouteCoordinates
+        }
+
+        guard let origin = trip.originCoordinate, let destination = trip.destinationCoordinate else {
+            return [fleetHubCoordinate, currentCoordinate]
+        }
+
+        return [origin, currentCoordinate, destination]
+    }
 }
 
 extension CLLocationCoordinate2D {
@@ -199,8 +218,8 @@ enum FleetMapRegion {
     static func region(for coordinates: [CLLocationCoordinate2D]) -> MKCoordinateRegion {
         guard !coordinates.isEmpty else {
             return MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: 22.5, longitude: 78.9),
-                span: MKCoordinateSpan(latitudeDelta: 20.0, longitudeDelta: 20.0)
+                center: MockDataService.primaryFleetHubCoordinate,
+                span: MKCoordinateSpan(latitudeDelta: 2.6, longitudeDelta: 2.6)
             )
         }
 

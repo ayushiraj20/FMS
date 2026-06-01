@@ -863,3 +863,82 @@ struct SparePart: Identifiable, Codable, Hashable {
         case icon
     }
 }
+
+// MARK: - Part Orders
+
+enum PartOrderStatus: String, Codable, CaseIterable, Identifiable {
+    case processing = "Processing"
+    case inTransit = "In Transit"
+    case delivered = "Delivered"
+    case cancelled = "Cancelled"
+
+    var id: String { rawValue }
+}
+
+struct PartOrder: Identifiable, Codable, Hashable {
+    let id: UUID
+    var organizationID: UUID
+    var sparePartID: UUID?
+    var partName: String
+    var partNumber: String
+    var orderedQuantity: Int
+    var orderDate: Date
+    var status: PartOrderStatus
+    var estimatedDelivery: Date?
+    var notes: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case organizationID = "organization_id"
+        case sparePartID = "spare_part_id"
+        case partName = "part_name"
+        case partNumber = "part_number"
+        case orderedQuantity = "ordered_quantity"
+        case orderDate = "order_date"
+        case status
+        case estimatedDelivery = "estimated_delivery"
+        case notes
+    }
+
+    init(id: UUID = UUID(), organizationID: UUID, sparePartID: UUID? = nil, partName: String, partNumber: String, orderedQuantity: Int, orderDate: Date = .now, status: PartOrderStatus = .processing, estimatedDelivery: Date? = nil, notes: String = "") {
+        self.id = id
+        self.organizationID = organizationID
+        self.sparePartID = sparePartID
+        self.partName = partName
+        self.partNumber = partNumber
+        self.orderedQuantity = orderedQuantity
+        self.orderDate = orderDate
+        self.status = status
+        self.estimatedDelivery = estimatedDelivery
+        self.notes = notes
+    }
+}
+
+// MARK: - Work Order Parts Usage
+
+struct WorkOrderPartUsage: Identifiable, Codable, Hashable {
+    let id: UUID
+    var workOrderID: UUID
+    var sparePartID: UUID
+    var partName: String
+    var partNumber: String
+    var quantityUsed: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case workOrderID = "work_order_id"
+        case sparePartID = "spare_part_id"
+        case partName = "part_name"
+        case partNumber = "part_number"
+        case quantityUsed = "quantity_used"
+    }
+
+    init(id: UUID = UUID(), workOrderID: UUID, sparePartID: UUID, partName: String, partNumber: String, quantityUsed: Int = 1) {
+        self.id = id
+        self.workOrderID = workOrderID
+        self.sparePartID = sparePartID
+        self.partName = partName
+        self.partNumber = partNumber
+        self.quantityUsed = quantityUsed
+    }
+}

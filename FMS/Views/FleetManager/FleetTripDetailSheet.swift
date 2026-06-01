@@ -16,18 +16,10 @@ struct FleetTripDetailSheet: View {
 
     // Route state
     @State private var cameraPosition: MapCameraPosition = .automatic
-    @State private var routeCoordinates: [CLLocationCoordinate2D] = []
-    @State private var routeDistanceKM: Double = 0
-    @State private var routeETAMinutes: Double = 0
+    @State private var routePlan: TripRoutePlan?
 
-    private var originCoordinate: CLLocationCoordinate2D? {
-        guard let lat = trip.originLat, let lng = trip.originLng else { return nil }
-        return CLLocationCoordinate2D(latitude: lat, longitude: lng)
-    }
-    private var destinationCoordinate: CLLocationCoordinate2D? {
-        guard let lat = trip.destinationLat, let lng = trip.destinationLng else { return nil }
-        return CLLocationCoordinate2D(latitude: lat, longitude: lng)
-    }
+    private var originCoordinate: CLLocationCoordinate2D? { trip.originCoordinate }
+    private var destinationCoordinate: CLLocationCoordinate2D? { trip.destinationCoordinate }
     
     var body: some View {
         NavigationStack {
@@ -38,56 +30,31 @@ struct FleetTripDetailSheet: View {
                 VStack(spacing: 0) {
                     ZStack {
                         Map(position: $cameraPosition) {
-                            if !routeCoordinates.isEmpty {
-                                MapPolyline(coordinates: routeCoordinates)
-                                    .stroke(
-                                        AppTheme.brand,
-                                        style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round)
-                                    )
-                            }
-
-                            if let coord = originCoordinate {
-                                Annotation(trip.origin, coordinate: coord) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.blue)
-                                            .frame(width: 18, height: 18)
-                                            .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                                            .shadow(color: Color.blue.opacity(0.4), radius: 4)
-                                    }
-                                }
-                            }
-
-                            if let coord = destinationCoordinate {
-                                Annotation(trip.destination, coordinate: coord) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.orange)
-                                            .frame(width: 18, height: 18)
-                                            .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                                            .shadow(color: Color.orange.opacity(0.4), radius: 4)
-                                    }
-                                }
+                            if let routePlan {
+                                TripRoutesMapContent(plan: routePlan)
+                            } else if let originCoordinate, let destinationCoordinate {
+                                MapPolyline(coordinates: [originCoordinate, destinationCoordinate])
+                                    .stroke(AppTheme.brand, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
                             }
                         }
                         .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
 
                         // Route info badge
-                        if routeDistanceKM > 0 {
+                        if let routePlan {
                             VStack {
                                 Spacer()
                                 HStack(spacing: 12) {
                                     HStack(spacing: 4) {
                                         Image(systemName: "road.lanes")
                                             .font(.system(size: 11, weight: .semibold))
-                                        Text("\(Int(routeDistanceKM)) km")
+                                        Text("\(Int(routePlan.mainDistanceKM)) km")
                                             .font(.system(size: 12, weight: .bold))
                                     }
                                     Divider().frame(height: 14)
                                     HStack(spacing: 4) {
                                         Image(systemName: "clock.fill")
                                             .font(.system(size: 11, weight: .semibold))
-                                        Text(formatETA(routeETAMinutes))
+                                        Text(formatETA(routePlan.mainETAMinutes))
                                             .font(.system(size: 12, weight: .bold))
                                     }
                                 }
@@ -98,6 +65,9 @@ struct FleetTripDetailSheet: View {
                                 .background(AppTheme.brand.opacity(0.7))
                                 .clipShape(Capsule())
                                 .padding(.bottom, 12)
+
+                                TripRouteLegendView()
+                                    .padding(.bottom, 8)
                             }
                         }
                     }
@@ -167,13 +137,13 @@ struct FleetTripDetailSheet: View {
                         // Metrics
                         HStack(spacing: 0) {
                             metricView(
-                                value: routeDistanceKM > 0 ? "\(Int(routeDistanceKM)) km" : "\(Int(trip.distanceKM)) km",
+                                value: (routePlan?.mainDistanceKM ?? 0) > 0 ? "\(Int(routePlan?.mainDistanceKM ?? trip.distanceKM)) km" : "\(Int(trip.distanceKM)) km",
                                 label: "Distance",
                                 icon: "road.lanes"
                             )
                             Spacer()
                             metricView(
-                                value: routeETAMinutes > 0 ? formatETA(routeETAMinutes) : "--",
+                                value: (routePlan?.mainETAMinutes ?? 0) > 0 ? formatETA(routePlan?.mainETAMinutes ?? 0) : "--",
                                 label: "Est. Time",
                                 icon: "clock.fill"
                             )
@@ -236,8 +206,7 @@ struct FleetTripDetailSheet: View {
 
     // MARK: - Load Route
     private func loadRoute() {
-        guard let origin = originCoordinate, let dest = destinationCoordinate else {
-            // Center on India as fallback
+        guard originCoordinate != nil, destinationCoordinate != nil else {
             cameraPosition = .region(MKCoordinateRegion(
                 center: CLLocationCoordinate2D(latitude: 22.5, longitude: 79.0),
                 span: MKCoordinateSpan(latitudeDelta: 8.0, longitudeDelta: 8.0)
@@ -246,40 +215,14 @@ struct FleetTripDetailSheet: View {
         }
 
         Task {
-            let request = MKDirections.Request()
-            request.source = MKMapItem(location: CLLocation(latitude: origin.latitude, longitude: origin.longitude), address: nil as MKAddress?)
-            request.destination = MKMapItem(location: CLLocation(latitude: dest.latitude, longitude: dest.longitude), address: nil as MKAddress?)
-            request.transportType = .automobile
-
-            do {
-                let directions = MKDirections(request: request)
-                let response = try await directions.calculate()
-                if let route = response.routes.first {
-                    let pointCount = route.polyline.pointCount
-                    let points = route.polyline.points()
-                    var coords: [CLLocationCoordinate2D] = []
-                    coords.reserveCapacity(pointCount)
-                    for i in 0..<pointCount {
-                        coords.append(points[i].coordinate)
-                    }
-                    routeCoordinates = coords
-                    routeDistanceKM = route.distance / 1000.0
-                    routeETAMinutes = route.expectedTravelTime / 60.0
-                }
-            } catch {
-                print("[FleetTripDetail] Route error: \(error.localizedDescription)")
-            }
-
-            // Fit camera
-            let midLat = (origin.latitude + dest.latitude) / 2
-            let midLng = (origin.longitude + dest.longitude) / 2
-            let latDelta = abs(origin.latitude - dest.latitude) * 1.5 + 0.05
-            let lngDelta = abs(origin.longitude - dest.longitude) * 1.5 + 0.05
+            let plan = await appViewModel.service.tripRoutePlan(for: trip)
+            routePlan = plan
             withAnimation(.easeInOut(duration: 0.6)) {
-                cameraPosition = .region(MKCoordinateRegion(
-                    center: CLLocationCoordinate2D(latitude: midLat, longitude: midLng),
-                    span: MKCoordinateSpan(latitudeDelta: max(latDelta, 0.1), longitudeDelta: max(lngDelta, 0.1))
-                ))
+                if let plan {
+                    cameraPosition = TripRouteMapCamera.position(for: plan)
+                } else if let origin = originCoordinate, let dest = destinationCoordinate {
+                    cameraPosition = .region(FleetMapRegion.region(for: [origin, dest]))
+                }
             }
         }
     }

@@ -90,16 +90,19 @@ struct FleetManagerDashboardView: View {
         .task {
             await appViewModel.service.syncWithDatabase()
             await viewModel.load()
+            sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
         .onAppear {
             appViewModel.refreshSOSAlerts()
             Task {
                 await appViewModel.service.syncWithDatabase()
+                sendRouteGeofenceAlertsIfNeeded()
             }
         }
         .refreshable {
             await appViewModel.service.syncWithDatabase()
+            sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
         .sheet(
@@ -271,20 +274,34 @@ struct FleetManagerDashboardView: View {
     
     // MARK: - Live Fleet Map
     private var liveFleetMapSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let locations = appViewModel.service.fleetMapPreviewLocations(for: appViewModel.currentUser)
+        let breaches = appViewModel.service.routeGeofenceBreaches(for: appViewModel.currentUser, locations: locations)
+        var mapCoordinates = locations.map(\.coordinate)
+        for tripID in locations.compactMap(\.activeTrip?.id) {
+            if let plan = appViewModel.service.tripRoutePlansByTripID[tripID] {
+                mapCoordinates.append(contentsOf: plan.allRoutes.flatMap { $0 })
+            }
+        }
+
+        return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Live Fleet Map")
                     .font(.title3.weight(.bold))
                     .foregroundStyle(AppTheme.textPrimary)
                 Spacer()
-                NavigationLink(destination: FleetMapFullView(service: appViewModel.service)) {
+                NavigationLink(destination: FleetMapFullView(service: appViewModel.service, manager: appViewModel.currentUser)) {
                     Text("See All")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.brand)
                 }
             }
             
-            FleetMapPreview(locations: appViewModel.service.nearbyFleetLocations())
+            FleetMapPreview(
+                locations: locations,
+                service: appViewModel.service,
+                initialRegion: FleetMapRegion.region(for: mapCoordinates),
+                routeBreaches: breaches
+            )
                 .frame(height: 240)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
@@ -298,13 +315,19 @@ struct FleetManagerDashboardView: View {
     private var fleetUtilizationSection: some View {
         // Compute values here, outside @ViewBuilder, so all child views can see them
         let total     = appViewModel.service.vehicles.count
-        let activeCount = appViewModel.service.vehicles.filter { $0.status == .active }.count
+        let activeCount = appViewModel.service.vehicles.filter { $0.status == .active || $0.status == .inService }.count
         let idleCount   = appViewModel.service.vehicles.filter { $0.status == .idle }.count
-        let maintCount  = appViewModel.service.vehicles.filter { $0.status == .inService }.count
+        let maintCount  = appViewModel.service.vehicles.filter { vehicle in
+            vehicle.status == .inService ||
+            appViewModel.service.workOrders.contains { $0.vehicleID == vehicle.id && $0.status != .completed }
+        }.count
+        let avgUtilization = total > 0
+            ? Int((Double(appViewModel.service.vehicles.reduce(0) { $0 + $1.utilization }) / Double(total)).rounded())
+            : 0
         let activePct = total > 0 ? Int(Double(activeCount) / Double(total) * 100) : 0
         let idlePct   = total > 0 ? Int(Double(idleCount)   / Double(total) * 100) : 0
         let maintPct  = total > 0 ? Int(Double(maintCount)  / Double(total) * 100) : 0
-        let fillTo    = total > 0 ? 0.1 + 0.8 * Double(activePct) / 100.0 : 0.1
+        let fillTo    = total > 0 ? 0.1 + 0.8 * Double(avgUtilization) / 100.0 : 0.1
 
         return GlassCard {
             VStack(alignment: .leading, spacing: 20) {
@@ -332,11 +355,11 @@ struct FleetManagerDashboardView: View {
                             
                             Circle()
                                 .trim(from: 0.1, to: fillTo)
-                                .stroke(AngularGradient(gradient: Gradient(colors: [.green, .orange]), center: .center, startAngle: .degrees(90), endAngle: .degrees(90 + 360)), style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                                .stroke(AppTheme.success, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                                 .rotationEffect(.degrees(90))
                                 .frame(width: 90, height: 90)
                             
-                            Text("\(activePct)%")
+                            Text("\(avgUtilization)%")
                                 .font(.title2.weight(.bold))
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
@@ -348,9 +371,9 @@ struct FleetManagerDashboardView: View {
                     
                     // Stats
                     VStack(spacing: 12) {
-                        utilizationRow(color: .green, label: "Active",      value: activePct)
-                        utilizationRow(color: .orange, label: "Idle",       value: idlePct)
-                        utilizationRow(color: .red,    label: "Maintenance", value: maintPct)
+                        utilizationRow(color: AppTheme.success, label: "Active", value: activePct)
+                        utilizationRow(color: AppTheme.warning, label: "Idle", value: idlePct)
+                        utilizationRow(color: Color(UIColor.systemBlue), label: "Maintenance", value: maintPct)
                     }
                 }
             }
@@ -389,12 +412,16 @@ struct FleetManagerDashboardView: View {
     
     // MARK: - Needs Attention
     private var needsAttentionSection: some View {
-        let maintenanceDue = appViewModel.service.maintenanceSchedules
-            .filter { $0.status == .upcoming && $0.dueDate < Date().addingTimeInterval(86400 * 7) }.count
+        let vehicleIDsWithOpenWork = Set(appViewModel.service.workOrders
+            .filter { $0.status != .completed }
+            .map(\.vehicleID))
+        let vehiclesInMaintenance = appViewModel.service.vehicles
+            .filter { $0.status == .inService || vehicleIDsWithOpenWork.contains($0.id) }
+            .count
         let overdueServices = appViewModel.service.maintenanceSchedules
             .filter { $0.status == .overdue }.count
-        let lostGPS = appViewModel.service.vehicles
-            .filter { $0.status == .active }.count  // placeholder – replace with real GPS-loss logic
+        let lostOrOffline = appViewModel.service.vehicles
+            .filter { $0.status == .outOfService }.count
         
         return GlassCard {
             VStack(alignment: .leading, spacing: 16) {
@@ -403,9 +430,9 @@ struct FleetManagerDashboardView: View {
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 HStack(spacing: 12) {
-                    needsAttentionCard(count: maintenanceDue, label: "Maintenance\nDue", color: Color("AccentColor"))
-                    needsAttentionCard(count: overdueServices, label: "Overdue\nServices", color: Color("AccentColor"))
-                    needsAttentionCard(count: lostGPS, label: "Lost\nGPS Feed", color: Color("AccentColor"))
+                    needsAttentionCard(count: vehiclesInMaintenance, label: "In\nMaintenance", color: AppTheme.warning)
+                    needsAttentionCard(count: overdueServices, label: "Overdue\nServices", color: AppTheme.error)
+                    needsAttentionCard(count: lostOrOffline, label: "Lost /\nOffline", color: Color(UIColor.systemBlue))
                 }
             }
         }
@@ -440,6 +467,10 @@ struct FleetManagerDashboardView: View {
             
             NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
                 quickLink(title: "Defect Reports", subtitle: "Review & approve driver defect reports", icon: "exclamationmark.triangle.fill")
+            }
+
+            NavigationLink(destination: FleetReportsAnalyticsView()) {
+                quickLink(title: "Reports & Analytics", subtitle: "Generate maintenance, fuel, inventory, compliance, and routing reports", icon: "doc.text.fill")
             }
         }
     }
@@ -510,6 +541,18 @@ struct FleetManagerDashboardView: View {
             return Color.orange
         }
     }
+
+    private func sendRouteGeofenceAlertsIfNeeded() {
+        Task {
+            await appViewModel.service.prefetchRoutePlansForActiveTrips()
+            let locations = appViewModel.service.allFleetLocations()
+            await appViewModel.service.sendRouteGeofenceMonitoringAlerts(
+                for: appViewModel.currentUser,
+                locations: locations
+            )
+        }
+    }
+
     private func quickLink(title: String, subtitle: String, icon: String) -> some View {
         GlassCard {
             HStack(spacing: 14) {

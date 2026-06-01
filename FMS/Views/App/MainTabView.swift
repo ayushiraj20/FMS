@@ -183,6 +183,18 @@ private struct MaintenanceTabView: View {
                 )
             }
             .tag(2)
+
+            NavigationStack {
+                MaintenanceReportsView()
+            }
+            .tabItem {
+                Label(
+                    "Reports",
+                    systemImage:
+                    "doc.text.fill"
+                )
+            }
+            .tag(3)
         }
 
         .onReceive(
@@ -193,6 +205,15 @@ private struct MaintenanceTabView: View {
         ) { _ in
 
             selectedTab = 0
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for:
+                .maintenanceOrdersRequested
+            )
+        ) { _ in
+
+            selectedTab = 1
         }
 
         .tint(
@@ -206,6 +227,16 @@ extension Notification.Name {
     static let maintenanceDashboardRequested =
     Notification.Name(
         "maintenanceDashboardRequested"
+    )
+
+    static let maintenanceOrdersRequested =
+    Notification.Name(
+        "maintenanceOrdersRequested"
+    )
+
+    static let inventoryNeedsRefresh =
+    Notification.Name(
+        "inventoryNeedsRefresh"
     )
 }
 

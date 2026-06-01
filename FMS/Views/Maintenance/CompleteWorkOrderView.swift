@@ -249,6 +249,32 @@ struct CompleteWorkOrderView: View {
         updatedOrder.repairSummary = trimmedNotes.isEmpty ? "Work completed by maintenance staff." : trimmedNotes
 
         appViewModel.service.updateWorkOrder(updatedOrder)
+        
+        // Persist part usage if a specific part name was specified
+        if partName != "None" && !partName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Task {
+                do {
+                    guard let orgID = appViewModel.currentOrganization?.id else { return }
+                    let spareParts = try await SupabaseService.shared.fetchSpareParts(organizationID: orgID)
+                    if let matchedPart = spareParts.first(where: { 
+                        $0.name.localizedCaseInsensitiveContains(partName) || 
+                        partName.localizedCaseInsensitiveContains($0.name) 
+                    }) {
+                        let partUsage = WorkOrderPartUsage(
+                            workOrderID: workOrder.id,
+                            sparePartID: matchedPart.id,
+                            partName: matchedPart.name,
+                            partNumber: matchedPart.partNumber,
+                            quantityUsed: 1
+                        )
+                        appViewModel.service.saveWorkOrderParts([partUsage], workOrderID: workOrder.id, decrementStock: true)
+                    }
+                } catch {
+                    print("[CompleteWorkOrderView] Error persisting part usage: \(error)")
+                }
+            }
+        }
+
         workOrder = updatedOrder
         completedOrder = updatedOrder
     }

@@ -3,27 +3,15 @@ import SwiftUI
 
 struct FleetMapPreview: View {
     let locations: [FleetVehicleLocation]
+    let service: MockDataService
     var initialRegion = FleetMapRegion.india
-    var geofence: FleetGeofence?
-    var geofenceBreaches: [FleetGeofenceBreach] = []
+    var routeBreaches: [TripRouteGeofenceBreach] = []
     @State private var selectedLocation: FleetVehicleLocation?
 
     var body: some View {
         Map(initialPosition: .region(initialRegion), interactionModes: []) {
-            if let geofence {
-                MapCircle(center: geofence.center, radius: geofence.radiusMeters)
-                    .foregroundStyle(Color.orange.opacity(0.3))
-
-                MapCircle(center: geofence.center, radius: geofence.radiusMeters)
-                    .stroke(Color.accentColor.opacity(0.85), lineWidth: 2)
-
-                Annotation(geofence.centerName, coordinate: geofence.center) {
-                    Image(systemName: "building.2.crop.circle.fill")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(Color.accentColor)
-                        .padding(6)
-                        .background(.background, in: Circle())
-                }
+            ForEach(activeTripPlans, id: \.plan.tripID) { item in
+                TripRoutesMapContent(plan: item.plan, showLabels: false)
             }
 
             ForEach(locations) { location in
@@ -44,7 +32,17 @@ struct FleetMapPreview: View {
         }
     }
 
+    private var activeTripPlans: [(trip: Trip, plan: TripRoutePlan)] {
+        locations.compactMap { location in
+            guard let trip = location.activeTrip,
+                  let plan = service.tripRoutePlansByTripID[trip.id] else {
+                return nil
+            }
+            return (trip, plan)
+        }
+    }
+
     private func isBreaching(_ location: FleetVehicleLocation) -> Bool {
-        geofenceBreaches.contains { $0.id == location.id }
+        routeBreaches.contains { $0.id == location.id }
     }
 }
