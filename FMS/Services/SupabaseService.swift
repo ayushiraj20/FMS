@@ -184,6 +184,32 @@ final class SupabaseService {
         return defects
     }
     
+    /// Upload a defect photo to the `defect-photos` storage bucket.
+    /// Returns the signed URL string to store in the `defect_reports.images` column.
+    func uploadDefectPhoto(
+        imageData: Data,
+        vehicleID: UUID,
+        defectID: UUID,
+        index: Int
+    ) async throws -> String {
+        let bucketName = "defect-photos"
+        let filePath = "\(vehicleID.uuidString)/\(defectID.uuidString)_\(index).jpg"
+
+        try await client.storage
+            .from(bucketName)
+            .upload(
+                filePath,
+                data: imageData,
+                options: FileOptions(contentType: "image/jpeg", upsert: true)
+            )
+
+        let signedURL = try await client.storage
+            .from(bucketName)
+            .createSignedURL(path: filePath, expiresIn: 315360000) // 10 years
+
+        return signedURL.absoluteString
+    }
+
     func addDefect(_ defect: DefectReport) async throws {
         try await client.from("defect_reports").insert(defect).execute()
     }

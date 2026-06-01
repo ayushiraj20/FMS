@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import Observation
+import UIKit
 
 @Observable
 @MainActor
@@ -1266,9 +1267,10 @@ final class MockDataService {
         }
     }
 
-    func addDefect(driverID: UUID, vehicleID: UUID, severity: WorkOrderPriority, description: String, title: String? = nil, images: [String]? = nil) {
-        let defect = DefectReport(
-            id: UUID(),
+    func addDefect(driverID: UUID, vehicleID: UUID, severity: WorkOrderPriority, description: String, title: String? = nil, images: [String]? = nil, photoImages: [UIImage]? = nil) {
+        let defectID = UUID()
+        var defect = DefectReport(
+            id: defectID,
             driverID: driverID,
             vehicleID: vehicleID,
             severity: severity,
@@ -1300,6 +1302,26 @@ final class MockDataService {
         if SupabaseConfig.isConfigured {
             Task {
                 do {
+                    // Upload photos to Supabase Storage and collect signed URLs
+                    if let photos = photoImages, !photos.isEmpty {
+                        var uploadedURLs: [String] = []
+                        for (index, photo) in photos.enumerated() {
+                            guard let jpegData = photo.jpegData(compressionQuality: 0.7) else { continue }
+                            let url = try await SupabaseService.shared.uploadDefectPhoto(
+                                imageData: jpegData,
+                                vehicleID: vehicleID,
+                                defectID: defectID,
+                                index: index
+                            )
+                            uploadedURLs.append(url)
+                        }
+                        defect.images = uploadedURLs
+                        // Update the local copy too
+                        if let idx = defects.firstIndex(where: { $0.id == defectID }) {
+                            defects[idx].images = uploadedURLs
+                        }
+                    }
+                    
                     try await SupabaseService.shared.addDefect(defect)
                     print("Defect report successfully saved to Supabase ✅")
                 } catch {
