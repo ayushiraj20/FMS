@@ -2,11 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCameraUsageDescription</key>
-	<string>FMS needs camera access so drivers can photograph vehicle defects and attach evidence to inspection reports.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>FMS needs photo library access so drivers can attach existing photos to defect reports.</string>
+	<key>CFBundleDisplayName</key>
+	<string>TrackNGo</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>FMS sends alerts when critical work orders become overdue.</string>
+	<string>TrackNGo sends alerts when critical work orders become overdue and when fleet events need your attention.</string>
 </dict>
 </plist>

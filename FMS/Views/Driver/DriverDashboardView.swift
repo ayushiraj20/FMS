@@ -67,7 +67,7 @@ struct DriverDashboardView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(destination: NotificationsView()) {
-                        Image(systemName: appViewModel.unreadNotificationsCount > 0 ? "bell.badge.fill" : "bell.fill")
+                        NotificationToolbarIcon()
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.identity)
@@ -83,14 +83,17 @@ struct DriverDashboardView: View {
                 FuelReceiptView()
                     .environment(appViewModel)
                     .environment(driverVM)
+                    .registersSheetPresentation()
             }
             .sheet(isPresented: $driverVM.showBreakLogSheet) {
                 TripBreakLogSheet(trip: currentUser.flatMap { appViewModel.service.activeTrip(for: $0.id) })
                     .environment(appViewModel)
+                    .registersSheetPresentation()
             }
             .sheet(item: $driverVM.showAlertDetail) { alert in
                 VehicleAlertDetailSheet(alert: alert)
                     .environment(appViewModel)
+                    .registersSheetPresentation()
             }
             .sheet(isPresented: $showTripInspectionSheet) {
                 TripStartInspectionSheet(trip: tripToStart) {
@@ -98,6 +101,7 @@ struct DriverDashboardView: View {
                 }
                 .environment(appViewModel)
                 .environment(driverVM)
+                .registersSheetPresentation()
             }
             .overlay(alignment: .top) {
                 if driverVM.showToast, let message = driverVM.toastMessage {

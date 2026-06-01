@@ -130,6 +130,7 @@ struct DefectReportsListView: View {
         .sheet(item: $selectedDefect) { defect in
             DefectReviewSheet(defect: defect)
                 .environment(appViewModel)
+                .registersSheetPresentation()
         }
         .animation(.easeInOut(duration: 0.25), value: isLoading)
     }

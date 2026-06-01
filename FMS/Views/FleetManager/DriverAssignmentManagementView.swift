@@ -68,10 +68,12 @@ struct DriverAssignmentManagementView: View {
         .sheet(isPresented: $viewModel.isPresentingAssignSheet) {
             if let driver = viewModel.selectedDriver {
                 AssignVehicleSheet(viewModel: viewModel, driver: driver)
+                    .registersSheetPresentation()
             }
         }
         .sheet(isPresented: $isPresentingAssignDriverTripModal) {
             AssignDriverTripView(service: viewModel.service)
+                .registersSheetPresentation()
         }
     }
     

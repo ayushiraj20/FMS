@@ -19,7 +19,7 @@ struct MainTabView: View {
                 EmptyStateView(
                     icon: "person.crop.circle.badge.exclamationmark",
                     title: "No active session",
-                    message: "Select a demo role or sign in again."
+                    message: "Sign in to \(AppBranding.name) to continue."
                 )
             }
         }
@@ -30,6 +30,7 @@ private struct FleetManagerTabView: View {
 
     @Environment(AppViewModel.self)
     private var appViewModel
+    @State private var sheetPresentationDepth = 0
 
     var body: some View {
 
@@ -69,6 +70,8 @@ private struct FleetManagerTabView: View {
             }
         }
         .tint(Color("AccentColor"))
+        .toolbar(sheetPresentationDepth > 0 ? .hidden : .automatic, for: .tabBar)
+        .tabBarSheetDepthTracking($sheetPresentationDepth)
     }
 }
 
@@ -77,6 +80,7 @@ private struct DriverTabView: View {
 
     @Environment(AppViewModel.self)
     private var appViewModel
+    @State private var sheetPresentationDepth = 0
 
     @State
     private var driverVM = DriverViewModel()
@@ -131,7 +135,10 @@ private struct DriverTabView: View {
                 .environment(
                     driverVM
                 )
+                .registersSheetPresentation()
         }
+        .toolbar(sheetPresentationDepth > 0 ? .hidden : .automatic, for: .tabBar)
+        .tabBarSheetDepthTracking($sheetPresentationDepth)
     }
 }
 
@@ -140,6 +147,7 @@ private struct MaintenanceTabView: View {
 
     @State
     private var selectedTab = 0
+    @State private var sheetPresentationDepth = 0
 
     var body: some View {
 
@@ -219,6 +227,8 @@ private struct MaintenanceTabView: View {
         .tint(
             Color(hex: "#FF5A1F")
         )
+        .toolbar(sheetPresentationDepth > 0 ? .hidden : .automatic, for: .tabBar)
+        .tabBarSheetDepthTracking($sheetPresentationDepth)
     }
 }
 

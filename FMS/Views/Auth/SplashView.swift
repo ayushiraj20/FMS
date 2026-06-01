@@ -16,10 +16,10 @@ struct SplashView: View {
             }
 
             VStack(spacing: 10) {
-                Text("FleetSphere")
+                Text(AppBranding.name)
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.textPrimary)
-                Text("Enterprise fleet command for operators, drivers, and workshop teams.")
+                Text(AppBranding.tagline)
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(AppTheme.textSecondary)

@@ -61,6 +61,7 @@ struct PriorityAlertDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $selectedAlert) { alert in
             AlertDetailSheet(alert: alert)
+                .registersSheetPresentation()
         }
     }
     

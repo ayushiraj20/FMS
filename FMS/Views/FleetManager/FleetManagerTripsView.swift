@@ -110,9 +110,11 @@ struct FleetManagerTripsView: View {
         .searchable(text: $searchText, prompt: "Search trips by location...")
         .sheet(isPresented: $isPresentingAssignDriverTripModal) {
             AssignDriverTripView(service: appViewModel.service)
+                .registersSheetPresentation()
         }
         .fullScreenCover(item: $selectedTrip) { trip in
             FleetTripDetailSheet(trip: trip)
+                .registersSheetPresentation()
         }
         .refreshable {
             await appViewModel.service.syncWithDatabase()

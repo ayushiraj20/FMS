@@ -43,29 +43,7 @@ final class BroadcastService {
                 print("Load error:", error)
             }
         } else {
-            // Seed local/mock broadcasts if empty
-            if messages.isEmpty {
-                messages = [
-                    BroadcastMessage(
-                        id: UUID(),
-                        organizationID: orgID,
-                        senderID: UUID(),
-                        senderName: "Ayush Ahuja (Admin)",
-                        title: "Weather Alert & High Traffic",
-                        message: "Attention all drivers: Heavy rainfall and waterlogging reported near the harbor highway. Please use the alternate bypass route and maintain safe distance.",
-                        sentAt: Date().addingTimeInterval(-3600 * 2)
-                    ),
-                    BroadcastMessage(
-                        id: UUID(),
-                        organizationID: orgID,
-                        senderID: UUID(),
-                        senderName: "Ayush Ahuja (Admin)",
-                        title: "System Maintenance Tonight",
-                        message: "The vehicle logs and dispatch modules will undergo scheduled maintenance tonight between 12:00 AM and 2:00 AM. Offline syncing will remain active.",
-                        sentAt: Date().addingTimeInterval(-3600 * 5)
-                    )
-                ]
-            }
+            messages = []
         }
     }
 
