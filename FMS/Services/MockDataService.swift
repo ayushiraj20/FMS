@@ -426,6 +426,18 @@ final class MockDataService {
             .sorted { $0.timestamp < $1.timestamp }
     }
 
+    func chatMessages(between firstUserID: UUID, and secondUserID: UUID) -> [ChatMessage] {
+        chatMessages
+            .filter {
+                $0.workOrderID == nil &&
+                (
+                    ($0.senderID == firstUserID && $0.receiverID == secondUserID) ||
+                    ($0.senderID == secondUserID && $0.receiverID == firstUserID)
+                )
+            }
+            .sorted { $0.timestamp < $1.timestamp }
+    }
+
     func chatMessages(forWorkOrder workOrderID: UUID) -> [ChatMessage] {
         chatMessages.filter { $0.workOrderID == workOrderID }
             .sorted { $0.timestamp < $1.timestamp }
