@@ -283,8 +283,10 @@
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TrackNGo;
 				INFOPLIST_KEY_NSCameraUsageDescription = "TrackNGo needs camera access so drivers can photograph vehicle defects and attach evidence to inspection reports.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "TrackNGo needs photo library access so drivers can attach existing photos to defect reports.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "TrackNGo uses your location to monitor trip routes and geofence compliance while you are on duty.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "TrackNGo uses the microphone so drivers can record voice messages to the fleet manager.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "TrackNGo converts your voice to text when you send a message to the fleet manager.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "TrackNGo needs photo library access so drivers can attach existing photos to defect reports.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -321,8 +323,10 @@
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TrackNGo;
 				INFOPLIST_KEY_NSCameraUsageDescription = "TrackNGo needs camera access so drivers can photograph vehicle defects and attach evidence to inspection reports.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "TrackNGo needs photo library access so drivers can attach existing photos to defect reports.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "TrackNGo uses your location to monitor trip routes and geofence compliance while you are on duty.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "TrackNGo uses the microphone so drivers can record voice messages to the fleet manager.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "TrackNGo converts your voice to text when you send a message to the fleet manager.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "TrackNGo needs photo library access so drivers can attach existing photos to defect reports.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

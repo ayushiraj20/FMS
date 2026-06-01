@@ -127,6 +127,8 @@ struct DriverManagerChatView: View {
 
     @State private var messageText = ""
     @State private var pollTimer: Timer? = nil
+    @State private var speech = SpeechTranscriptionService()
+    @State private var showSpeechError = false
 
     init(driverID: UUID? = nil) {
         self.driverID = driverID
@@ -220,6 +222,19 @@ struct DriverManagerChatView: View {
         .onDisappear {
             pollTimer?.invalidate()
             pollTimer = nil
+            if speech.isRecording {
+                speech.cancelRecording()
+            }
+        }
+        .onChange(of: speech.partialTranscript) { _, newValue in
+            if speech.isRecording {
+                messageText = newValue
+            }
+        }
+        .alert("Voice message", isPresented: $showSpeechError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(speech.errorMessage ?? "Could not record your message.")
         }
     }
 
@@ -314,7 +329,7 @@ struct DriverManagerChatView: View {
                 .font(.headline)
                 .foregroundStyle(primaryText)
 
-            Text("Start a direct conversation for trip updates, dispatch changes, or urgent coordination.")
+            Text("Type a message or tap the microphone to speak. Your words are converted to text and sent to the fleet manager.")
                 .font(.subheadline)
                 .foregroundStyle(secondaryText)
                 .multilineTextAlignment(.center)
@@ -347,25 +362,66 @@ struct DriverManagerChatView: View {
     }
 
     private var inputBar: some View {
-        HStack(spacing: 12) {
-            TextField("Type a message...", text: $messageText)
+        VStack(spacing: 8) {
+            if isDriverExperience && speech.isRecording {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 8, height: 8)
+                    Text("Listening… speak your message")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(accent)
+                    Spacer()
+                    Text("Tap mic to send")
+                        .font(.caption2)
+                        .foregroundStyle(secondaryText)
+                }
+                .padding(.horizontal, 4)
+            }
+
+            HStack(spacing: 12) {
+                if isDriverExperience {
+                    Button {
+                        Task { await toggleVoiceRecording() }
+                    } label: {
+                        Image(systemName: speech.isRecording ? "stop.circle.fill" : "mic.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(speech.isRecording ? .red : accent)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                (speech.isRecording ? Color.red.opacity(0.12) : accent.opacity(0.12)),
+                                in: Circle()
+                            )
+                            .symbolEffect(.pulse, isActive: speech.isRecording)
+                    }
+                    .accessibilityLabel(speech.isRecording ? "Stop recording and send" : "Record voice message")
+                }
+
+                TextField(
+                    speech.isRecording ? "Listening…" : "Type a message...",
+                    text: $messageText,
+                    axis: .vertical
+                )
+                .lineLimit(1...4)
                 .font(.system(size: 15))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
                 .background(isDriverExperience ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(AppTheme.surfaceSecondary), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .foregroundStyle(primaryText)
+                .disabled(speech.isRecording)
 
-            Button {
-                sendMessage()
-            } label: {
-                Image(systemName: "paperplane.fill")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(accent, in: Circle())
+                Button {
+                    sendMessage()
+                } label: {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(accent, in: Circle())
+                }
+                .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || recipient == nil || speech.isRecording)
+                .opacity(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || recipient == nil || speech.isRecording ? 0.5 : 1)
             }
-            .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || recipient == nil)
-            .opacity(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || recipient == nil ? 0.5 : 1)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -425,6 +481,34 @@ struct DriverManagerChatView: View {
             message: trimmed
         )
         messageText = ""
+    }
+
+    private func toggleVoiceRecording() async {
+        if speech.isRecording {
+            let transcript = speech.stopRecording()
+            messageText = transcript
+            guard !transcript.isEmpty else { return }
+            sendMessage()
+            return
+        }
+
+        guard await speech.requestPermissions() else {
+            showSpeechError = true
+            return
+        }
+
+        guard speech.isAvailable else {
+            speech.errorMessage = SpeechTranscriptionError.recognizerUnavailable.errorDescription
+            showSpeechError = true
+            return
+        }
+
+        do {
+            try await speech.startRecording()
+        } catch {
+            speech.errorMessage = error.localizedDescription
+            showSpeechError = true
+        }
     }
 }
 
