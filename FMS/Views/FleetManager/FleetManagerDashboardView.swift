@@ -81,7 +81,7 @@ struct FleetManagerDashboardView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: NotificationsView()) {
-                    Image(systemName: "bell.fill")
+                    NotificationToolbarIcon()
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.identity)
@@ -90,6 +90,7 @@ struct FleetManagerDashboardView: View {
         .task {
             await appViewModel.service.syncWithDatabase()
             await viewModel.load()
+            await appViewModel.loadNotifications()
             sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
@@ -97,21 +98,21 @@ struct FleetManagerDashboardView: View {
             appViewModel.refreshSOSAlerts()
             Task {
                 await appViewModel.service.syncWithDatabase()
+                await appViewModel.loadNotifications()
                 sendRouteGeofenceAlertsIfNeeded()
             }
         }
         .refreshable {
             await appViewModel.service.syncWithDatabase()
+            await appViewModel.loadNotifications()
             sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
-        .sheet(
-            isPresented:
-            $showBroadcast
-        ) {
-
+        .sheet(isPresented: $showBroadcast) {
             BroadcastComposeView()
+                .registersSheetPresentation()
         }
+        .hidesTabBarWhileSheet(isPresented: showBroadcast)
     }
     
     // MARK: - Header Section
@@ -313,21 +314,10 @@ struct FleetManagerDashboardView: View {
     
     // MARK: - Fleet Utilization
     private var fleetUtilizationSection: some View {
-        // Compute values here, outside @ViewBuilder, so all child views can see them
-        let total     = appViewModel.service.vehicles.count
-        let activeCount = appViewModel.service.vehicles.filter { $0.status == .active || $0.status == .inService }.count
-        let idleCount   = appViewModel.service.vehicles.filter { $0.status == .idle }.count
-        let maintCount  = appViewModel.service.vehicles.filter { vehicle in
-            vehicle.status == .inService ||
-            appViewModel.service.workOrders.contains { $0.vehicleID == vehicle.id && $0.status != .completed }
-        }.count
-        let avgUtilization = total > 0
-            ? Int((Double(appViewModel.service.vehicles.reduce(0) { $0 + $1.utilization }) / Double(total)).rounded())
-            : 0
-        let activePct = total > 0 ? Int(Double(activeCount) / Double(total) * 100) : 0
-        let idlePct   = total > 0 ? Int(Double(idleCount)   / Double(total) * 100) : 0
-        let maintPct  = total > 0 ? Int(Double(maintCount)  / Double(total) * 100) : 0
-        let fillTo    = total > 0 ? 0.1 + 0.8 * Double(avgUtilization) / 100.0 : 0.1
+        let summary = appViewModel.service.fleetUtilizationSummary()
+        let fillTo = summary.totalVehicles > 0
+            ? 0.1 + 0.8 * Double(summary.averageUtilization) / 100.0
+            : 0.1
 
         return GlassCard {
             VStack(alignment: .leading, spacing: 20) {
@@ -359,7 +349,7 @@ struct FleetManagerDashboardView: View {
                                 .rotationEffect(.degrees(90))
                                 .frame(width: 90, height: 90)
                             
-                            Text("\(avgUtilization)%")
+                            Text("\(summary.averageUtilization)%")
                                 .font(.title2.weight(.bold))
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
@@ -371,9 +361,9 @@ struct FleetManagerDashboardView: View {
                     
                     // Stats
                     VStack(spacing: 12) {
-                        utilizationRow(color: AppTheme.success, label: "Active", value: activePct)
-                        utilizationRow(color: AppTheme.warning, label: "Idle", value: idlePct)
-                        utilizationRow(color: Color(UIColor.systemBlue), label: "Maintenance", value: maintPct)
+                        utilizationRow(color: AppTheme.success, label: "Active", value: summary.activePercent)
+                        utilizationRow(color: AppTheme.warning, label: "Idle", value: summary.idlePercent)
+                        utilizationRow(color: Color(UIColor.systemBlue), label: "Maintenance", value: summary.maintenancePercent)
                     }
                 }
             }
@@ -461,7 +451,7 @@ struct FleetManagerDashboardView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(title: "Quick Access", subtitle: "Navigate to key management modules")
             
-            NavigationLink(destination: AssignDriverView(service: appViewModel.service)) {
+            NavigationLink(destination: AssignDriverView(service: appViewModel.service, organizationID: appViewModel.currentOrganization?.id)) {
                 quickLink(title: "Assign Driver", subtitle: "Pair available vehicles & drivers", icon: "person.badge.key.fill")
             }
             
@@ -580,30 +570,6 @@ struct FleetManagerDashboardView: View {
         }
     }
     
-    private var notificationBadge: some View {
-        ZStack {
-            Image(systemName: "bell.fill")
-                .font(.title3)
-                .foregroundStyle(AppTheme.textPrimary)
-                
-            if appViewModel.unreadNotificationsCount > 0 {
-                Text(appViewModel.unreadNotificationsCount > 10 ? "10+" : "\(appViewModel.unreadNotificationsCount)")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, appViewModel.unreadNotificationsCount > 10 ? 4 : 0)
-                    .frame(minWidth: 18, minHeight: 18)
-                    .background(AppTheme.error)
-                    .clipShape(Capsule())
-                    .overlay(
-                        Capsule().stroke(Color.white, lineWidth: 1.5)
-                    )
-                    .offset(x: 10, y: -10)
-                    .zIndex(1)
-            }
-        }
-        .frame(width: 44, height: 44)
-    }
-
     // MARK: - Premium SOS Overlay Banner Helper
     private func emergencyAlertBanner(for alert: SOSAlert) -> some View {
         return GlassCard {

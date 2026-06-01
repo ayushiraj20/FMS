@@ -49,9 +49,11 @@ struct WorkOrderManagementView: View {
         }
         .sheet(isPresented: $viewModel.isPresentingCreateSheet) {
             CreateWorkOrderSheet(viewModel: viewModel)
+                .registersSheetPresentation()
         }
         .sheet(item: $viewModel.selectedWorkOrder) { _ in
             WorkOrderDetailSheet(viewModel: viewModel)
+                .registersSheetPresentation()
         }
         .task {
             await appViewModel.service.syncDefectsAndWorkOrders()

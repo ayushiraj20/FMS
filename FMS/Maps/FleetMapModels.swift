@@ -53,15 +53,11 @@ struct FleetVehicleRoute {
 }
 
 extension MockDataService {
-    private var fleetHubCoordinate: CLLocationCoordinate2D {
-        Self.primaryFleetHubCoordinate
-    }
-
     func allFleetLocations() -> [FleetVehicleLocation] {
-        vehicles.enumerated().map { index, vehicle in
-            let location = demoLocation(for: vehicle)
+        vehicles.compactMap { vehicle in
+            guard let location = liveLocation(for: vehicle) else { return nil }
             let activeTrip = trips.first { $0.vehicleID == vehicle.id && $0.status == .inProgress }
-            let route = demoRoute(for: vehicle, currentCoordinate: location.coordinate, activeTrip: activeTrip)
+            let route = routeForVehicle(vehicle, activeTrip: activeTrip, currentCoordinate: location.coordinate)
 
             return FleetVehicleLocation(
                 vehicle: vehicle,
@@ -69,28 +65,23 @@ extension MockDataService {
                 activeTrip: activeTrip,
                 coordinate: location.coordinate,
                 locality: location.locality,
-                lastUpdated: .now.addingTimeInterval(-Double(index + 1) * 180),
+                lastUpdated: .now,
                 route: route
             )
         }
     }
 
     func nearbyFleetLocations(limit: Int = 3) -> [FleetVehicleLocation] {
-        allFleetLocations()
-            .sorted { first, second in
-                first.coordinate.distance(to: fleetHubCoordinate) < second.coordinate.distance(to: fleetHubCoordinate)
-            }
-            .prefix(limit)
-            .map { $0 }
+        Array(allFleetLocations().prefix(limit))
     }
 
-    private func demoLocation(for vehicle: Vehicle) -> (coordinate: CLLocationCoordinate2D, locality: String) {
+    private func liveLocation(for vehicle: Vehicle) -> (coordinate: CLLocationCoordinate2D, locality: String)? {
         if let trip = trips.first(where: { $0.vehicleID == vehicle.id && $0.status == .inProgress }),
            let originLat = trip.originLat,
            let originLng = trip.originLng,
            let destinationLat = trip.destinationLat,
            let destinationLng = trip.destinationLng {
-            let progress = min(max(Double(vehicle.utilization) / 100.0, 0.05), 0.95)
+            let progress = tripProgress(for: trip)
             let latitude = originLat + ((destinationLat - originLat) * progress)
             let longitude = originLng + ((destinationLng - originLng) * progress)
             return (
@@ -99,90 +90,48 @@ extension MockDataService {
             )
         }
 
-        switch vehicle.id.uuidString.uppercased() {
-        case "11111111-1111-1111-1111-111111111111":
-            return (CLLocationCoordinate2D(latitude: 17.4948, longitude: 78.3996), "Kukatpally, Hyderabad")
-        case "22222222-2222-2222-2222-222222222222":
-            return (CLLocationCoordinate2D(latitude: 17.2403, longitude: 78.4294), "Shamshabad, Hyderabad")
-        case "33333333-3333-3333-3333-333333333333":
-            return (CLLocationCoordinate2D(latitude: 17.6599, longitude: 78.7318), "Ghatkesar Workshop")
-        case "44444444-4444-4444-4444-444444444444":
-            return (CLLocationCoordinate2D(latitude: 17.6868, longitude: 78.3832), "Medchal Depot")
-        default:
-            let seed = stableSeed(for: vehicle.id)
-            let latitudeOffset = Double(seed % 9 - 4) * 0.035
-            let longitudeOffset = Double(seed / 9 % 9 - 4) * 0.035
+        if let scheduledTrip = trips.first(where: {
+            $0.vehicleID == vehicle.id && $0.status == .scheduled
+        }),
+           let originLat = scheduledTrip.originLat,
+           let originLng = scheduledTrip.originLng {
             return (
-                CLLocationCoordinate2D(
-                    latitude: fleetHubCoordinate.latitude + latitudeOffset,
-                    longitude: fleetHubCoordinate.longitude + longitudeOffset
-                ),
-                "Hyderabad Service Area"
+                CLLocationCoordinate2D(latitude: originLat, longitude: originLng),
+                scheduledTrip.origin
             )
         }
+
+        return nil
     }
 
-    private func demoRoute(for vehicle: Vehicle, currentCoordinate: CLLocationCoordinate2D, activeTrip: Trip?) -> FleetVehicleRoute {
+    private func tripProgress(for trip: Trip) -> Double {
+        guard let endDate = trip.endDate else { return 0.35 }
+        let total = endDate.timeIntervalSince(trip.startDate)
+        guard total > 0 else { return 0.35 }
+        let elapsed = Date.now.timeIntervalSince(trip.startDate)
+        return min(max(elapsed / total, 0.05), 0.95)
+    }
+
+    private func routeForVehicle(
+        _ vehicle: Vehicle,
+        activeTrip: Trip?,
+        currentCoordinate: CLLocationCoordinate2D
+    ) -> FleetVehicleRoute {
         if let activeTrip {
             return FleetVehicleRoute(
                 originName: activeTrip.origin,
                 destinationName: activeTrip.destination,
                 coordinates: routeCoordinates(for: activeTrip, currentCoordinate: currentCoordinate),
-                progress: min(max(Double(vehicle.utilization) / 100.0, 0.05), 0.95)
+                progress: tripProgress(for: activeTrip)
             )
         }
 
-        switch vehicle.status {
-        case .active:
-            return FleetVehicleRoute(
-                originName: "Hyderabad Hub",
-                destinationName: "Outer Ring Road Dispatch",
-                coordinates: [
-                    fleetHubCoordinate,
-                    currentCoordinate,
-                    CLLocationCoordinate2D(latitude: 17.2403, longitude: 78.4294)
-                ],
-                progress: min(max(Double(vehicle.utilization) / 100.0, 0), 1)
-            )
-        case .inService:
-            return FleetVehicleRoute(
-                originName: "Hyderabad Workshop",
-                destinationName: "Fleet Hub",
-                coordinates: [
-                    CLLocationCoordinate2D(latitude: 17.6599, longitude: 78.7318),
-                    currentCoordinate,
-                    fleetHubCoordinate
-                ],
-                progress: min(max(Double(vehicle.utilization) / 100.0, 0), 1)
-            )
-        case .idle:
-            return FleetVehicleRoute(
-                originName: "Medchal Depot",
-                destinationName: "Hyderabad Hub",
-                coordinates: [
-                    currentCoordinate,
-                    fleetHubCoordinate
-                ],
-                progress: 0.0
-            )
-        case .outOfService:
-            return FleetVehicleRoute(
-                originName: "Service Bay",
-                destinationName: "Mumbai Hub",
-                coordinates: [
-                    currentCoordinate,
-                    CLLocationCoordinate2D(latitude: 19.1200, longitude: 72.9200),
-                    fleetHubCoordinate
-                ],
-                progress: 0.0
-            )
-        }
-    }
-
-    private func stableSeed(for vehicleID: UUID) -> Int {
-        vehicleID.uuidString.unicodeScalars.reduce(0) { partialResult, scalar in
-            (partialResult * 31 + Int(scalar.value)) % 10_000
-        }
+        return FleetVehicleRoute(
+            originName: vehicle.displayName,
+            destinationName: "No active route",
+            coordinates: [currentCoordinate],
+            progress: 0
+        )
     }
 
     private func routeCoordinates(for trip: Trip, currentCoordinate: CLLocationCoordinate2D) -> [CLLocationCoordinate2D] {
@@ -191,7 +140,7 @@ extension MockDataService {
         }
 
         guard let origin = trip.originCoordinate, let destination = trip.destinationCoordinate else {
-            return [fleetHubCoordinate, currentCoordinate]
+            return [currentCoordinate]
         }
 
         return [origin, currentCoordinate, destination]

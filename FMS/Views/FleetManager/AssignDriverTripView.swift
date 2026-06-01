@@ -56,9 +56,10 @@ struct AssignDriverTripView: View {
         case refrigerated   = "Refrigerated"
     }
 
-    // On-duty drivers with no scheduled or in-progress trips (eligible for a new trip).
+    // All drivers without an active trip — duty status is shown as info, not a filter.
+    // This lets Fleet Managers pre-assign trips to off-duty drivers.
     private var availableDrivers: [User] {
-        let all = service.availableDriversForDispatch(
+        let all = service.driversEligibleForTripAssignment(
             organizationID: appViewModel.currentOrganization?.id
         ).filter { user in
             selectedVehicle.map { service.isDriver(user, compatibleWith: $0) } ?? true
@@ -622,9 +623,12 @@ struct AssignDriverTripView: View {
                 .padding(.bottom, 6)
 
             HStack {
-                Text("\(availableDrivers.count) available drivers")
+                Text("\(availableDrivers.count) eligible driver\(availableDrivers.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(AppTheme.textSecondary)
+                Text("Off-duty drivers can be pre-assigned")
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.brand.opacity(0.8))
                 Spacer()
             }
             .padding(.horizontal, 16)
@@ -691,22 +695,22 @@ struct AssignDriverTripView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text("Available")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(AppTheme.success)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(AppTheme.success.opacity(0.12))
-                    .clipShape(Capsule())
-
                 HStack(spacing: 3) {
                     Circle()
-                        .fill(isOnDuty ? AppTheme.success : AppTheme.textSecondary)
-                        .frame(width: 5, height: 5)
+                        .fill(isOnDuty ? AppTheme.success : Color.orange)
+                        .frame(width: 6, height: 6)
                     Text(isOnDuty ? "On Duty" : "Off Duty")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(isOnDuty ? AppTheme.success : AppTheme.textSecondary)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(isOnDuty ? AppTheme.success : Color.orange)
                 }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background((isOnDuty ? AppTheme.success : Color.orange).opacity(0.12))
+                .clipShape(Capsule())
+
+                Text("No active trip")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(AppTheme.textSecondary)
             }
         }
         .padding(.vertical, 8)

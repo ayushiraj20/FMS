@@ -1,6 +1,12 @@
 import SwiftUI
 
 struct FleetUtilizationDetailView: View {
+    @Environment(AppViewModel.self) private var appViewModel
+
+    private var summary: FleetUtilizationSummary {
+        appViewModel.service.fleetUtilizationSummary()
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -33,7 +39,7 @@ struct FleetUtilizationDetailView: View {
                         .frame(width: 140, height: 140)
                     
                     Circle()
-                        .trim(from: 0.1, to: 0.1 + (0.8 * 0.78))
+                        .trim(from: 0.1, to: 0.1 + (0.8 * Double(summary.averageUtilization) / 100.0))
                         .stroke(
                             AngularGradient(gradient: Gradient(colors: [.green, .orange]), center: .center, startAngle: .degrees(90), endAngle: .degrees(90 + 360)),
                             style: StrokeStyle(lineWidth: 16, lineCap: .round)
@@ -42,12 +48,12 @@ struct FleetUtilizationDetailView: View {
                         .frame(width: 140, height: 140)
                     
                     VStack {
-                        Text("78%")
+                        Text("\(summary.averageUtilization)%")
                             .font(.system(size: 36, weight: .bold))
                             .foregroundStyle(AppTheme.textPrimary)
-                        Text("Optimal")
+                        Text(utilizationStatus)
                             .font(.caption)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(utilizationStatusColor)
                     }
                 }
                 .padding(.vertical, 10)
@@ -65,9 +71,9 @@ struct FleetUtilizationDetailView: View {
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 VStack(spacing: 16) {
-                    utilizationRow(color: .green, label: "Active", value: 78, detail: "Vehicles on the road")
-                    utilizationRow(color: .orange, label: "Idle", value: 15, detail: "Available but not in use")
-                    utilizationRow(color: .red, label: "Maintenance", value: 7, detail: "Currently being serviced")
+                    utilizationRow(color: .green, label: "Active", value: summary.activePercent, count: summary.activeVehicles, detail: "Vehicles on the road")
+                    utilizationRow(color: .orange, label: "Idle", value: summary.idlePercent, count: summary.idleVehicles, detail: "Available but not in use")
+                    utilizationRow(color: Color(UIColor.systemBlue), label: "Maintenance", value: summary.maintenancePercent, count: summary.maintenanceVehicles, detail: "Vehicles with open work orders or out of service")
                 }
             }
         }
@@ -82,20 +88,38 @@ struct FleetUtilizationDetailView: View {
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 HStack(spacing: 12) {
-                    metricBox(title: "Avg. Hours/Day", value: "8.4h", trend: "+0.2h", isPositive: true)
-                    metricBox(title: "Idle Time", value: "1.2h", trend: "-0.3h", isPositive: true)
+                    metricBox(title: "Active Trips", value: "\(summary.activeTrips)", icon: "truck.box.fill", tint: AppTheme.brand)
+                    metricBox(title: "Completed Trips", value: "\(summary.completedTrips)", icon: "checkmark.seal.fill", tint: AppTheme.success)
                 }
                 
                 HStack(spacing: 12) {
-                    metricBox(title: "Avg. Distance", value: "240 km", trend: "+12 km", isPositive: true)
-                    metricBox(title: "Fuel Efficiency", value: "14 km/L", trend: "-0.5 km/L", isPositive: false)
+                    metricBox(title: "Avg. Distance", value: "\(Int(summary.averageTripDistance.rounded())) km", icon: "road.lanes", tint: Color(UIColor.systemTeal))
+                    metricBox(title: "Total Distance", value: "\(Int(summary.totalTripDistance.rounded())) km", icon: "speedometer", tint: Color(UIColor.systemPurple))
                 }
             }
         }
     }
     
     // MARK: - Helpers
-    private func utilizationRow(color: Color, label: String, value: Int, detail: String) -> some View {
+    private var utilizationStatus: String {
+        switch summary.averageUtilization {
+        case 80...: return "High"
+        case 50..<80: return "Optimal"
+        case 1..<50: return "Low"
+        default: return "No Data"
+        }
+    }
+
+    private var utilizationStatusColor: Color {
+        switch summary.averageUtilization {
+        case 80...: return AppTheme.warning
+        case 50..<80: return AppTheme.success
+        case 1..<50: return Color(UIColor.systemBlue)
+        default: return AppTheme.textSecondary
+        }
+    }
+
+    private func utilizationRow(color: Color, label: String, value: Int, count: Int, detail: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Circle()
@@ -108,12 +132,12 @@ struct FleetUtilizationDetailView: View {
                 
                 Spacer()
                 
-                Text("\(value)")
+                Text("\(value)%")
                     .font(.headline)
                     .foregroundStyle(AppTheme.textPrimary)
             }
             
-            Text(detail)
+            Text("\(count) vehicle\(count == 1 ? "" : "s") - \(detail)")
                 .font(.caption)
                 .foregroundStyle(AppTheme.textSecondary)
                 .padding(.leading, 16)
@@ -133,30 +157,24 @@ struct FleetUtilizationDetailView: View {
         }
     }
     
-    private func metricBox(title: String, value: String, trend: String, isPositive: Bool) -> some View {
+    private func metricBox(title: String, value: String, icon: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(tint)
+
             Text(title)
                 .font(.subheadline)
                 .foregroundStyle(AppTheme.textSecondary)
             
-            HStack(alignment: .bottom) {
-                Text(value)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                
-                Spacer()
-                
-                HStack(spacing: 2) {
-                    Image(systemName: isPositive ? "arrow.up.right" : "arrow.down.right")
-                        .font(.caption2.weight(.bold))
-                    Text(trend)
-                        .font(.caption.weight(.bold))
-                }
-                .foregroundStyle(isPositive ? .green : .red)
-                .padding(.bottom, 2)
-            }
+            Text(value)
+                .font(.title2.weight(.bold))
+                .foregroundStyle(AppTheme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
         .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(AppTheme.surfaceSecondary.opacity(0.5))
@@ -167,5 +185,6 @@ struct FleetUtilizationDetailView: View {
 #Preview {
     NavigationStack {
         FleetUtilizationDetailView()
+            .environment(AppViewModel())
     }
 }

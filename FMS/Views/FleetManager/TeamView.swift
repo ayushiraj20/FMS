@@ -86,6 +86,7 @@ struct TeamView: View {
             }
             .sheet(isPresented: $viewModel.showAddMember) {
                 AddTeamMemberSheet(viewModel: viewModel)
+                    .registersSheetPresentation()
             }
             .confirmationDialog(
                 "Delete Team Member",
@@ -358,6 +359,41 @@ private struct DriverDetailView: View {
                         infoRow(icon: "phone.fill", label: "Phone", value: driver.phone)
                     }
                 }
+
+                NavigationLink {
+                    DriverManagerChatView(driverID: driver.id)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "message.fill")
+                            .font(.title3)
+                            .foregroundStyle(.white)
+                            .frame(width: 42, height: 42)
+                            .background(AppTheme.brand, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Message Driver")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text("Open direct dispatch chat")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
+                    }
+                    .padding(16)
+                    .background(AppTheme.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(AppTheme.border, lineWidth: 0.5)
+                    )
+                }
+                .buttonStyle(.plain)
 
                 // Vehicle Assignment (read-only)
                 GlassCard {

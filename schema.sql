@@ -99,9 +99,21 @@ create table if not exists profiles (
   title text not null,
   assigned_vehicle_id uuid null,
   is_password_reset_required boolean not null default false,
+  duty_status text not null default 'Off Duty' check (duty_status in ('On Duty', 'Off Duty')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Existing databases: add duty_status for live driver availability
+alter table profiles
+  add column if not exists duty_status text not null default 'Off Duty';
+
+alter table profiles
+  drop constraint if exists profiles_duty_status_check;
+
+alter table profiles
+  add constraint profiles_duty_status_check
+  check (duty_status in ('On Duty', 'Off Duty'));
 
 -- =========================
 -- VEHICLES

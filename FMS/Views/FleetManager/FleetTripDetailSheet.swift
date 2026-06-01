@@ -31,7 +31,10 @@ struct FleetTripDetailSheet: View {
                     ZStack {
                         Map(position: $cameraPosition) {
                             if let routePlan {
-                                TripRoutesMapContent(plan: routePlan)
+                                TripRoutesMapContent(
+                                    plan: routePlan,
+                                    showAlternatives: trip.status != .completed
+                                )
                             } else if let originCoordinate, let destinationCoordinate {
                                 MapPolyline(coordinates: [originCoordinate, destinationCoordinate])
                                     .stroke(AppTheme.brand, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
@@ -66,8 +69,10 @@ struct FleetTripDetailSheet: View {
                                 .clipShape(Capsule())
                                 .padding(.bottom, 12)
 
-                                TripRouteLegendView()
-                                    .padding(.bottom, 8)
+                                if trip.status != .completed {
+                                    TripRouteLegendView()
+                                        .padding(.bottom, 8)
+                                }
                             }
                         }
                     }
@@ -219,7 +224,10 @@ struct FleetTripDetailSheet: View {
             routePlan = plan
             withAnimation(.easeInOut(duration: 0.6)) {
                 if let plan {
-                    cameraPosition = TripRouteMapCamera.position(for: plan)
+                    let coordinates = trip.status == .completed
+                        ? plan.mainRouteCoordinates
+                        : plan.allRoutes.flatMap { $0 }
+                    cameraPosition = .region(FleetMapRegion.region(for: coordinates))
                 } else if let origin = originCoordinate, let dest = destinationCoordinate {
                     cameraPosition = .region(FleetMapRegion.region(for: [origin, dest]))
                 }

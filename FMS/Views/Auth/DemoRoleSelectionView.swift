@@ -6,12 +6,12 @@ struct DemoRoleSelectionView: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Explore Demo Roles")
+                Text(AppBranding.name)
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.textPrimary)
                     .padding(.top, 24)
 
-                Text("Open the same application as different personas and review the full end-to-end academic demo.")
+                Text("Sign in with a role-specific account from your organization to access \(AppBranding.name).")
                     .foregroundStyle(AppTheme.textSecondary)
 
                 if let err = appViewModel.authErrorMessage {

@@ -130,6 +130,7 @@ struct DefectReportsListView: View {
         .sheet(item: $selectedDefect) { defect in
             DefectReviewSheet(defect: defect)
                 .environment(appViewModel)
+                .registersSheetPresentation()
         }
         .animation(.easeInOut(duration: 0.25), value: isLoading)
     }
@@ -310,15 +311,29 @@ struct DefectCard: View {
 
                     if let imgs = defect.images, !imgs.isEmpty {
                         HStack(spacing: 8) {
-                            ForEach(imgs.prefix(3), id: \.self) { _ in
-                                Image(systemName: "photo.fill")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 40, height: 40)
-                                    .foregroundStyle(AppTheme.brand.opacity(0.3))
-                                    .padding(4)
-                                    .background(AppTheme.surfaceSecondary)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            ForEach(imgs.prefix(3), id: \.self) { imgURL in
+                                AsyncImage(url: URL(string: imgURL)) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 44, height: 44)
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    case .failure:
+                                        Image(systemName: "photo.fill")
+                                            .font(.title3)
+                                            .foregroundStyle(AppTheme.brand.opacity(0.3))
+                                            .frame(width: 44, height: 44)
+                                            .background(AppTheme.surfaceSecondary)
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    default:
+                                        ProgressView()
+                                            .frame(width: 44, height: 44)
+                                            .background(AppTheme.surfaceSecondary)
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    }
+                                }
                             }
                             if imgs.count > 3 {
                                 Text("+\(imgs.count - 3)")
@@ -475,14 +490,30 @@ struct DefectReviewSheet: View {
                                         isShowingImageDetail = true
                                     } label: {
                                         ZStack(alignment: .bottom) {
-                                            Image(systemName: "photo.fill")
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fit)
-                                                .frame(width: 120, height: 120)
-                                                .foregroundStyle(AppTheme.brand.opacity(0.3))
-                                                .padding(12)
-                                                .background(AppTheme.surfaceSecondary)
-                                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                            AsyncImage(url: URL(string: img)) { phase in
+                                                switch phase {
+                                                case .success(let image):
+                                                    image
+                                                        .resizable()
+                                                        .scaledToFill()
+                                                        .frame(width: 120, height: 120)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                                case .failure:
+                                                    Image(systemName: "photo.fill")
+                                                        .resizable()
+                                                        .aspectRatio(contentMode: .fit)
+                                                        .frame(width: 120, height: 120)
+                                                        .foregroundStyle(AppTheme.brand.opacity(0.3))
+                                                        .padding(12)
+                                                        .background(AppTheme.surfaceSecondary)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                                default:
+                                                    ProgressView()
+                                                        .frame(width: 120, height: 120)
+                                                        .background(AppTheme.surfaceSecondary)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                                }
+                                            }
 
                                             Text("Expand")
                                                 .font(.system(size: 10, weight: .bold))
@@ -744,19 +775,52 @@ struct DefectReviewSheet: View {
                 Spacer()
                 Button("Dismiss") { isShowingImageDetail = false }
                     .font(.headline)
+                    .foregroundStyle(AppTheme.brand)
                     .padding()
             }
             Spacer()
-            Image(systemName: "photo.fill")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .foregroundStyle(AppTheme.brand.opacity(0.4))
-                .padding()
-            Text("Defect Photo: \(selectedImageName ?? "")")
-                .font(.headline)
-                .foregroundStyle(AppTheme.textPrimary)
-                .padding()
+            if let urlString = selectedImageName, let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .padding()
+                    case .failure:
+                        VStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.largeTitle)
+                                .foregroundStyle(AppTheme.warning)
+                            Text("Failed to load image")
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                    default:
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .scaleEffect(1.5)
+                            Text("Loading photo…")
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                    }
+                }
+            } else {
+                VStack(spacing: 12) {
+                    Image(systemName: "photo.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity)
+                        .foregroundStyle(AppTheme.brand.opacity(0.4))
+                        .padding()
+                    Text("No image URL available")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            }
             Spacer()
         }
         .background(AppTheme.background.ignoresSafeArea())

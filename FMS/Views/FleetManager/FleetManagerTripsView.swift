@@ -110,9 +110,11 @@ struct FleetManagerTripsView: View {
         .searchable(text: $searchText, prompt: "Search trips by location...")
         .sheet(isPresented: $isPresentingAssignDriverTripModal) {
             AssignDriverTripView(service: appViewModel.service)
+                .registersSheetPresentation()
         }
         .fullScreenCover(item: $selectedTrip) { trip in
             FleetTripDetailSheet(trip: trip)
+                .registersSheetPresentation()
         }
         .refreshable {
             await appViewModel.service.syncWithDatabase()
@@ -191,10 +193,10 @@ struct FleetManagerTripsView: View {
                     
                     // Distance metric
                     VStack(spacing: 4) {
-                        Text("/ \\") // Mock icon resembling road perspective
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.gray)
-                        Text("123 km") // Mock distance
+                        Image(systemName: "road.lanes")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                        Text("\(Int(trip.distanceKM.rounded())) km")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(AppTheme.textPrimary)
                     }

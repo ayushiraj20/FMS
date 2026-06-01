@@ -41,6 +41,7 @@ struct ActiveVehiclesDetailView: View {
         .sheet(item: $selectedVehicle) { vehicle in
             let driverName = getDriverName(for: vehicle)
             VehicleDetailSheet(vehicle: vehicle, driverName: driverName)
+                .registersSheetPresentation()
         }
     }
 

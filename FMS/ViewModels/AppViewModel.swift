@@ -28,7 +28,7 @@ final class AppViewModel {
     var isAuthenticating = false
     var authErrorMessage: String?
 
-    var organizationName = "NorthStar Logistics"
+    var organizationName = ""
     var profileNotificationsEnabled = true
     var biometricUnlockEnabled = false
     var notifications: [AppNotification] = []
@@ -414,6 +414,12 @@ final class AppViewModel {
 
     // MARK: Profile Update
 
+    func refreshCurrentUser() {
+        if let user = currentUser, let matched = service.users.first(where: { $0.id == user.id }) {
+            currentUser = matched
+        }
+    }
+
     func updateProfile(
         name: String,
         phone: String,
@@ -634,6 +640,7 @@ final class AppViewModel {
                 
                 print("[AutoRefresh] Periodic synchronization starting...")
                 await service.syncWithDatabase()
+                refreshCurrentUser()
                 refreshSOSAlerts()
                 await loadNotifications()
             }

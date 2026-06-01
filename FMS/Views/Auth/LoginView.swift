@@ -32,7 +32,7 @@ struct LoginView: View {
                             }
                             .padding(.top, 40)
                             
-                            Text("Fleeto")
+                            Text(AppBranding.name)
                                 .font(.system(size: 28, weight: .bold, design: .rounded))
                                 .foregroundStyle(AppTheme.textPrimary)
                         }

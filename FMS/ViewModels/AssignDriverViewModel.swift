@@ -5,59 +5,67 @@ import Observation
 @MainActor
 final class AssignDriverViewModel {
     let service: MockDataService
-    
+    var organizationID: UUID?
+
     var selectedVehicle: Vehicle? = nil
     var selectedDriver: User? = nil
-    
-    // Status states for notifications/feedback
+
     var assignmentSuccessMessage: String? = nil
     var isShowingSuccessToast: Bool = false
-    
-    init(service: MockDataService) {
+
+    init(service: MockDataService, organizationID: UUID? = nil) {
         self.service = service
+        self.organizationID = organizationID
     }
-    
-    // Unassigned vehicles (assignedDriverID is nil)
+
     var unassignedVehicles: [Vehicle] {
-        service.vehicles.filter { $0.assignedDriverID == nil }
-    }
-    
-    // Unassigned drivers (role is driver, and not assigned to any vehicle)
-    var unassignedDrivers: [User] {
-        service.users.filter { user in
-            user.role == .driver && !service.vehicles.contains { $0.assignedDriverID == user.id }
+        service.vehicles.filter { vehicle in
+            if let organizationID, vehicle.organizationID != organizationID {
+                return false
+            }
+            return vehicle.assignedDriverID == nil
         }
     }
 
+    /// On-duty drivers with no scheduled or in-progress trip (from live profile + trip data).
+    var availableDriversForDispatch: [User] {
+        service.availableDriversForDispatch(organizationID: organizationID)
+    }
+
     var compatibleDriversForSelectedVehicle: [User] {
-        guard let selectedVehicle else { return unassignedDrivers }
-        return unassignedDrivers.filter { service.isDriver($0, compatibleWith: selectedVehicle) }
+        guard let selectedVehicle else { return [] }
+        return availableDriversForDispatch.filter { service.isDriver($0, compatibleWith: selectedVehicle) }
     }
 
     var smartMatchCount: Int {
-        guard selectedVehicle != nil else { return 0 }
-        return compatibleDriversForSelectedVehicle.isEmpty ? 0 : 1
+        guard let vehicle = selectedVehicle else { return 0 }
+        return compatibleDriversForSelectedVehicle.filter { service.canAssignVehicle(vehicle, to: $0) }.count
     }
-    
+
+    func canSelect(driver: User, for vehicle: Vehicle) -> Bool {
+        service.canAssignVehicle(vehicle, to: driver)
+    }
+
     func assignPair() {
         guard let vehicle = selectedVehicle, let driver = selectedDriver else { return }
         guard service.isDriver(driver, compatibleWith: vehicle) else {
             assignmentSuccessMessage = "\(driver.name) is not licensed for \(vehicle.vehicleType)."
             isShowingSuccessToast = true
-            Task {
-                try? await Task.sleep(for: .seconds(3))
-                isShowingSuccessToast = false
-            }
+            dismissToastLater()
             return
         }
-        
+        guard service.canAssignVehicle(vehicle, to: driver) else {
+            let assignedName = service.assignedVehicle(for: driver.id)?.displayName ?? "another vehicle"
+            assignmentSuccessMessage = "\(driver.name) is already assigned to \(assignedName). Unassign first or choose another driver."
+            isShowingSuccessToast = true
+            dismissToastLater()
+            return
+        }
+
         var updatedVehicle = vehicle
         updatedVehicle.assignedDriverID = driver.id
-        
-        // Update vehicle which syncs driver assignment
         service.updateVehicle(updatedVehicle)
-        
-        // Dispatch personal UUID-based notification to driver
+
         service.addNotification(
             userID: driver.id,
             roleTarget: nil,
@@ -65,56 +73,30 @@ final class AssignDriverViewModel {
             message: "You have been assigned to \(vehicle.displayName) (\(vehicle.plateNumber)).",
             category: .info
         )
-        
-        // Show Toast/Success feedback
+
         assignmentSuccessMessage = "Assigned \(driver.name.components(separatedBy: " ").first ?? driver.name) to \(vehicle.displayName)"
         isShowingSuccessToast = true
-        
-        // Clear Selections
         selectedVehicle = nil
         selectedDriver = nil
-        
-        // Auto-dismiss success toast after 3 seconds
-        Task {
-            try? await Task.sleep(for: .seconds(3))
-            isShowingSuccessToast = false
-        }
+        dismissToastLater()
     }
-    
+
     func smartMatchAll() {
         guard let vehicle = selectedVehicle else { return }
-        guard let driver = compatibleDriversForSelectedVehicle.first else {
-            assignmentSuccessMessage = "No compatible driver available for \(vehicle.plateNumber)."
+        guard let driver = compatibleDriversForSelectedVehicle.first(where: { canSelect(driver: $0, for: vehicle) }) else {
+            assignmentSuccessMessage = compatibleDriversForSelectedVehicle.isEmpty
+                ? "No on-duty drivers without trips are available for this vehicle type."
+                : "Eligible drivers are on duty but already paired with another vehicle."
             isShowingSuccessToast = true
-            Task {
-                try? await Task.sleep(for: .seconds(3))
-                isShowingSuccessToast = false
-            }
+            dismissToastLater()
             return
         }
-        
-        var updatedVehicle = vehicle
-        updatedVehicle.assignedDriverID = driver.id
-        
-        service.updateVehicle(updatedVehicle)
-        
-        // Dispatch personal notification to the driver
-        service.addNotification(
-            userID: driver.id,
-            roleTarget: nil,
-            title: "New Vehicle Assigned (Auto)",
-            message: "You have been auto-assigned to \(vehicle.displayName) (\(vehicle.plateNumber)).",
-            category: .info
-        )
-        
-        // Show Toast/Success feedback
-        assignmentSuccessMessage = "Smart matched \(driver.name.components(separatedBy: " ").first ?? driver.name) to \(vehicle.plateNumber)."
-        isShowingSuccessToast = true
-        
-        // Clear selection just in case
-        selectedVehicle = nil
-        selectedDriver = nil
-        
+
+        selectedDriver = driver
+        assignPair()
+    }
+
+    private func dismissToastLater() {
         Task {
             try? await Task.sleep(for: .seconds(3))
             isShowingSuccessToast = false

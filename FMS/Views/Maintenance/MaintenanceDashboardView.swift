@@ -54,7 +54,7 @@ struct MaintenanceDashboardView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: NotificationsView()) {
-                    Image(systemName: "bell.fill")
+                    NotificationToolbarIcon()
                 }
                 .accessibilityIdentifier("BELL_BUTTON")
             }
