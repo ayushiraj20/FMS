@@ -23,6 +23,7 @@ struct DriverShiftDetailView: View {
             set: { _ in
                 guard let user = currentUser else { return }
                 appViewModel.service.toggleDutyStatus(for: user.id)
+                appViewModel.refreshCurrentUser()
             }
         )
     }

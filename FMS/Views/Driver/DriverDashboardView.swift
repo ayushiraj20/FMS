@@ -140,7 +140,10 @@ struct DriverDashboardView: View {
                     .background(.ultraThinMaterial, in: Capsule())
                 }
                 .alert("Change Duty Status", isPresented: $driverVM.showDutyToggleAlert) {
-                    Button("Confirm") { appViewModel.service.toggleDutyStatus(for: user.id) }
+                    Button("Confirm") {
+                        appViewModel.service.toggleDutyStatus(for: user.id)
+                        appViewModel.refreshCurrentUser()
+                    }
                     Button("Cancel", role: .cancel) { }
                 } message: {
                     let newStatus = appViewModel.service.dutyStatus(for: user.id) == .onDuty ? "Off Duty" : "On Duty"
