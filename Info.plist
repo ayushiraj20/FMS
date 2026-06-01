@@ -4,5 +4,9 @@
 <dict>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>TrackNGo sends alerts when critical work orders become overdue and when fleet events need your attention.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TrackNGo uses the microphone so drivers can record voice messages to the fleet manager.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>TrackNGo converts your voice to text when you send a message to the fleet manager.</string>
 </dict>
 </plist>
