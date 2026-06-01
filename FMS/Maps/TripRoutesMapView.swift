@@ -5,17 +5,20 @@ import SwiftUI
 struct TripRoutesMapContent: MapContent {
     let plan: TripRoutePlan
     var showLabels: Bool = true
+    var showAlternatives: Bool = true
 
     var body: some MapContent {
         MapPolyline(coordinates: plan.mainRouteCoordinates)
             .stroke(.blue, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
 
-        ForEach(Array(plan.alternativeRouteCoordinates.enumerated()), id: \.offset) { index, route in
-            MapPolyline(coordinates: route)
-                .stroke(
-                    index == 0 ? Color.orange : Color.purple,
-                    style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round, dash: [8, 6])
-                )
+        if showAlternatives {
+            ForEach(Array(plan.alternativeRouteCoordinates.enumerated()), id: \.offset) { index, route in
+                MapPolyline(coordinates: route)
+                    .stroke(
+                        index == 0 ? Color.orange : Color.purple,
+                        style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round, dash: [8, 6])
+                    )
+            }
         }
 
         if showLabels {

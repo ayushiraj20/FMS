@@ -392,6 +392,27 @@ struct DriverDashboardView: View {
                 .background(DriverTheme.criticalRed, in: Capsule())
             }
             .buttonStyle(.plain)
+
+            NavigationLink {
+                DriverManagerChatView()
+                    .environment(appViewModel)
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "message.fill")
+                        .font(.title3)
+                    Text("Message Fleet Manager")
+                        .font(.system(.headline, design: .rounded).bold())
+                }
+                .foregroundStyle(DriverTheme.accent)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(DriverTheme.accent.opacity(0.22), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
     

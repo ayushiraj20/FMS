@@ -29,17 +29,23 @@ struct AIPredictionDashboardView: View {
         vehicles.map { vehicle in
             let kmToInterval = nextServiceKilometers(for: vehicle)
             let dailyKm = estimatedDailyKilometers(for: vehicle)
-            let daysByOdometer = max(0, Int(ceil(Double(kmToInterval) / dailyKm)))
-            let daysBySchedule = Calendar.current.dateComponents([.day], from: Date(), to: vehicle.nextServiceDate).day ?? daysByOdometer
+            let daysByOdometer = dailyKm > 0 ? max(0, Int(ceil(Double(kmToInterval) / dailyKm))) : Int.max
+            let dueDate = nextServiceDate(for: vehicle)
+            let daysBySchedule = max(0, Calendar.current.dateComponents([.day], from: Date(), to: dueDate).day ?? Int.max)
             let openOrders = workOrders.filter { $0.vehicleID == vehicle.id && $0.status != .completed }
             let recentDefects = defects.filter { $0.vehicleID == vehicle.id && !$0.isResolved }
             let daysToService = min(daysByOdometer, daysBySchedule)
+            let basis = kmToInterval <= 0 || daysByOdometer <= daysBySchedule
+                ? "10,000 km interval"
+                : "6-month interval"
 
             return MaintenancePrediction(
                 vehicle: vehicle,
                 kmToService: kmToInterval,
                 estimatedDailyKm: dailyKm,
                 daysToService: daysToService,
+                serviceDueDate: dueDate,
+                recommendationBasis: basis,
                 openWorkOrders: openOrders.count,
                 unresolvedDefects: recentDefects.count,
                 risk: maintenanceRisk(daysToService: daysToService, kmToService: kmToInterval, openOrders: openOrders, defects: recentDefects)
@@ -383,7 +389,7 @@ struct AIPredictionDashboardView: View {
                 Text(prediction.vehicle.displayName)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.textPrimary)
-                Text("\(prediction.kmToService) km / \(prediction.daysToService) day\(prediction.daysToService == 1 ? "" : "s") to service")
+                Text(maintenanceDetailText(for: prediction))
                     .font(.caption)
                     .foregroundStyle(AppTheme.textSecondary)
             }
@@ -451,19 +457,55 @@ struct AIPredictionDashboardView: View {
         return serviceInterval - travelledInInterval
     }
 
-    private func serviceIntervalKilometers(for vehicle: Vehicle) -> Int {
-        let vehicleType = vehicle.vehicleType.lowercased()
-        if vehicleType.contains("truck") || vehicle.model.lowercased().contains("heavy") { return 10_000 }
-        if vehicle.fuelType.lowercased().contains("electric") { return 15_000 }
-        return 12_000
+    private func serviceIntervalKilometers(for _: Vehicle) -> Int {
+        10_000
+    }
+
+    private func nextServiceDate(for vehicle: Vehicle) -> Date {
+        let lastCompletedWorkOrderDate = workOrders
+            .filter { $0.vehicleID == vehicle.id && $0.status == .completed }
+            .compactMap(\.completedDate)
+            .max()
+
+        let lastCompletedScheduleDate = appViewModel.service.maintenanceSchedules
+            .filter { $0.vehicleID == vehicle.id && $0.status == .completed }
+            .map(\.dueDate)
+            .max()
+
+        let lastServiceDate = [lastCompletedWorkOrderDate, lastCompletedScheduleDate]
+            .compactMap { $0 }
+            .max() ?? Calendar.current.date(byAdding: .month, value: -6, to: vehicle.nextServiceDate) ?? vehicle.nextServiceDate
+
+        let sixMonthDueDate = Calendar.current.date(byAdding: .month, value: 6, to: lastServiceDate) ?? vehicle.nextServiceDate
+        return min(vehicle.nextServiceDate, sixMonthDueDate)
     }
 
     private func estimatedDailyKilometers(for vehicle: Vehicle) -> Double {
-        let vehicleTrips = trips.filter { $0.vehicleID == vehicle.id && $0.distanceKM > 0 }
-        if !vehicleTrips.isEmpty {
-            return max(35, average(vehicleTrips.map(\.distanceKM)) * max(0.5, Double(vehicle.utilization) / 100.0))
+        let vehicleTrips = trips.filter {
+            $0.vehicleID == vehicle.id &&
+            $0.status == .completed &&
+            $0.distanceKM > 0
         }
-        return max(35, Double(vehicle.utilization) * 3.2)
+
+        if !vehicleTrips.isEmpty {
+            let sorted = vehicleTrips.sorted { $0.startDate < $1.startDate }
+            let firstDate = sorted.first?.startDate ?? Date()
+            let lastDate = sorted.last?.endDate ?? sorted.last?.startDate ?? firstDate
+            let activeDays = max(1, Calendar.current.dateComponents([.day], from: firstDate, to: lastDate).day ?? 1)
+            return vehicleTrips.reduce(0) { $0 + $1.distanceKM } / Double(activeDays)
+        }
+
+        let completedTrips = trips.filter { $0.status == .completed && $0.distanceKM > 0 }
+        return completedTrips.isEmpty ? 0 : average(completedTrips.map(\.distanceKM))
+    }
+
+    private func maintenanceDetailText(for prediction: MaintenancePrediction) -> String {
+        let dateText = prediction.serviceDueDate.formatted(date: .abbreviated, time: .omitted)
+        let dayText = prediction.daysToService == Int.max
+            ? "date-based"
+            : "\(prediction.daysToService) day\(prediction.daysToService == 1 ? "" : "s")"
+
+        return "\(prediction.kmToService) km or \(dayText) to service (\(prediction.recommendationBasis), due \(dateText))"
     }
 
     private func maintenanceRisk(
@@ -606,6 +648,8 @@ private struct MaintenancePrediction: Identifiable {
     let kmToService: Int
     let estimatedDailyKm: Double
     let daysToService: Int
+    let serviceDueDate: Date
+    let recommendationBasis: String
     let openWorkOrders: Int
     let unresolvedDefects: Int
     let risk: PredictionRisk

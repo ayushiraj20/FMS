@@ -7,6 +7,7 @@ struct DriverProfileView: View {
     
     @State private var showDefectSheet = false
     @State private var showChatSheet = false
+    @State private var showManagerChatSheet = false
     @State private var showLogoutAlert = false
 
     // Edit fields
@@ -73,6 +74,10 @@ struct DriverProfileView: View {
                     Button(action: { showChatSheet = true }) {
                         settingsRow(icon: "wrench.and.screwdriver.fill", iconBg: Color.purple, title: "Maintenance Chat")
                     }
+
+                    Button(action: { showManagerChatSheet = true }) {
+                        settingsRow(icon: "message.fill", iconBg: DriverTheme.accent, title: "Fleet Manager Chat")
+                    }
                     
                     Button(action: { }) {
                         settingsRow(icon: "info.circle.fill", iconBg: Color.gray, title: "About")
@@ -131,6 +136,17 @@ struct DriverProfileView: View {
                 }
             } else {
                 MaintenanceChatView().environment(appViewModel)
+            }
+        }
+        .sheet(isPresented: $showManagerChatSheet) {
+            NavigationStack {
+                DriverManagerChatView()
+                    .environment(appViewModel)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { showManagerChatSheet = false }
+                        }
+                    }
             }
         }
         .alert("Log Out", isPresented: $showLogoutAlert) {

@@ -328,6 +328,27 @@ struct VehicleDocument: Identifiable, Codable, Hashable {
     }
 }
 
+struct FleetUtilizationSummary: Hashable {
+    let totalVehicles: Int
+    let activeVehicles: Int
+    let idleVehicles: Int
+    let maintenanceVehicles: Int
+    let averageUtilization: Int
+    let totalTripDistance: Double
+    let averageTripDistance: Double
+    let completedTrips: Int
+    let activeTrips: Int
+
+    var activePercent: Int { percent(activeVehicles) }
+    var idlePercent: Int { percent(idleVehicles) }
+    var maintenancePercent: Int { percent(maintenanceVehicles) }
+
+    private func percent(_ value: Int) -> Int {
+        guard totalVehicles > 0 else { return 0 }
+        return Int((Double(value) / Double(totalVehicles) * 100).rounded())
+    }
+}
+
 struct Trip: Identifiable, Codable, Hashable {
     let id: UUID
     var driverID: UUID
