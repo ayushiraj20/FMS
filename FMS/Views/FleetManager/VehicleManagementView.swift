@@ -49,6 +49,7 @@ struct VehicleManagementView: View {
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $viewModel.isPresentingForm) {
             VehicleFormSheet(viewModel: viewModel)
+                .registersSheetPresentation()
         }
         .confirmationDialog(
             "Delete Vehicle",
@@ -306,6 +307,7 @@ private struct VehicleFormSheet: View {
             }
             .sheet(isPresented: $showDriverPicker) {
                 driverPickerSheet
+                    .registersSheetPresentation()
             }
             .photosPicker(isPresented: $viewModel.isPresentingImagePicker, selection: $selectedPhotoItem, matching: .images)
             .onChange(of: selectedPhotoItem) { _, newItem in
@@ -774,12 +776,15 @@ private struct VehicleDetailView: View {
         }
         .sheet(isPresented: $showEditSheet) {
             VehicleFormSheet(viewModel: viewModel)
+                .registersSheetPresentation()
         }
         .sheet(isPresented: $viewModel.isPresentingDocumentSheet) {
             DocumentUploadSheet(viewModel: viewModel, vehicleID: vehicleID)
+                .registersSheetPresentation()
         }
         .sheet(item: $selectedDocumentForPreview) { document in
             DocumentPreviewSheet(document: document, viewModel: viewModel)
+                .registersSheetPresentation()
         }
         .sheet(item: $activeSheet) { sheet in
             NavigationStack {
@@ -823,6 +828,7 @@ private struct VehicleDetailView: View {
                 }
             }
             .presentationDetents([.medium, .large])
+            .registersSheetPresentation()
         }
     }
 

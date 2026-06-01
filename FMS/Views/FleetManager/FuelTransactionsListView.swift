@@ -63,6 +63,7 @@ struct FuelTransactionsListView: View {
                 transaction: tx,
                 fuelVM: fuelVM
             )
+            .registersSheetPresentation()
         }
     }
 

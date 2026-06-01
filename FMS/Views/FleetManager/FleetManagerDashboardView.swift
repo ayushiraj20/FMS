@@ -81,7 +81,7 @@ struct FleetManagerDashboardView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: NotificationsView()) {
-                    Image(systemName: "bell.fill")
+                    NotificationToolbarIcon()
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.identity)
@@ -90,6 +90,7 @@ struct FleetManagerDashboardView: View {
         .task {
             await appViewModel.service.syncWithDatabase()
             await viewModel.load()
+            await appViewModel.loadNotifications()
             sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
@@ -105,13 +106,11 @@ struct FleetManagerDashboardView: View {
             sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
-        .sheet(
-            isPresented:
-            $showBroadcast
-        ) {
-
+        .sheet(isPresented: $showBroadcast) {
             BroadcastComposeView()
+                .registersSheetPresentation()
         }
+        .hidesTabBarWhileSheet(isPresented: showBroadcast)
     }
     
     // MARK: - Header Section
@@ -580,30 +579,6 @@ struct FleetManagerDashboardView: View {
         }
     }
     
-    private var notificationBadge: some View {
-        ZStack {
-            Image(systemName: "bell.fill")
-                .font(.title3)
-                .foregroundStyle(AppTheme.textPrimary)
-                
-            if appViewModel.unreadNotificationsCount > 0 {
-                Text(appViewModel.unreadNotificationsCount > 10 ? "10+" : "\(appViewModel.unreadNotificationsCount)")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, appViewModel.unreadNotificationsCount > 10 ? 4 : 0)
-                    .frame(minWidth: 18, minHeight: 18)
-                    .background(AppTheme.error)
-                    .clipShape(Capsule())
-                    .overlay(
-                        Capsule().stroke(Color.white, lineWidth: 1.5)
-                    )
-                    .offset(x: 10, y: -10)
-                    .zIndex(1)
-            }
-        }
-        .frame(width: 44, height: 44)
-    }
-
     // MARK: - Premium SOS Overlay Banner Helper
     private func emergencyAlertBanner(for alert: SOSAlert) -> some View {
         return GlassCard {

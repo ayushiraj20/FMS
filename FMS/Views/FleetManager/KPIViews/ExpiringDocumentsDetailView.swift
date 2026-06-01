@@ -49,6 +49,7 @@ struct ExpiringDocumentsDetailView: View {
         .sheet(item: $selectedDocument) { doc in
             let vehicle = appViewModel.service.vehicle(for: doc.vehicleID)
             DocumentDetailSheet(document: doc, vehicle: vehicle)
+                .registersSheetPresentation()
         }
     }
 

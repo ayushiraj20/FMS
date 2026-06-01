@@ -444,11 +444,8 @@ final class VehicleManagementViewModel {
         let localURL = saveImageLocally(image, vehicleID: activeVehicleID, type: type)
         
         guard SupabaseConfig.isConfigured else {
-            // Local mockup fallback URL: save to local file URL so it persists and loads instantly!
-            if let localURL = localURL {
+            if let localURL {
                 documentImageURLs[type] = localURL.absoluteString
-            } else {
-                documentImageURLs[type] = "mock-local://vehicle-documents/\(activeVehicleID.uuidString)/\(type.rawValue).jpg"
             }
             return
         }

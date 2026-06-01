@@ -107,6 +107,7 @@ struct UserManagementView: View {
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $viewModel.isPresentingCreateUser) {
             CreateUserSheet(viewModel: viewModel)
+                .registersSheetPresentation()
         }
     }
 

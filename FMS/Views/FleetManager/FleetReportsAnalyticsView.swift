@@ -62,8 +62,10 @@ struct FleetReportsAnalyticsView: View {
         .sheet(isPresented: $showShareSheet, onDismiss: { generatedPDFURL = nil }) {
             if let generatedPDFURL {
                 ShareSheet(items: [generatedPDFURL])
+                    .registersSheetPresentation()
             }
         }
+        .hidesTabBarWhileSheet(isPresented: showShareSheet)
     }
 
     private var header: some View {
@@ -77,10 +79,10 @@ struct FleetReportsAnalyticsView: View {
                         .background(AppTheme.brand, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Fleet Reports & Analytics")
+                        Text("\(AppBranding.name) Reports")
                             .font(.title3.weight(.bold))
                             .foregroundStyle(AppTheme.textPrimary)
-                        Text("Generated from live vehicles, trips, fuel, work orders, inventory, and compliance documents.")
+                        Text("Professional PDF export with charts, built from live vehicles, trips, fuel, work orders, inventory, and compliance.")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)

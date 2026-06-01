@@ -86,6 +86,7 @@ struct TeamView: View {
             }
             .sheet(isPresented: $viewModel.showAddMember) {
                 AddTeamMemberSheet(viewModel: viewModel)
+                    .registersSheetPresentation()
             }
             .confirmationDialog(
                 "Delete Team Member",

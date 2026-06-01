@@ -28,7 +28,7 @@ final class AppViewModel {
     var isAuthenticating = false
     var authErrorMessage: String?
 
-    var organizationName = "NorthStar Logistics"
+    var organizationName = ""
     var profileNotificationsEnabled = true
     var biometricUnlockEnabled = false
     var notifications: [AppNotification] = []

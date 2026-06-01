@@ -76,6 +76,7 @@ struct MaintenanceTabContentView: View {
         .sheet(isPresented: $showAddSheet) {
             AddMaintenanceMemberSheet(service: appViewModel.service,
                                      orgID: appViewModel.currentOrganization?.id)
+                .registersSheetPresentation()
         }
     }
 
