@@ -304,22 +304,34 @@ private struct DriverRowCard: View {
     }
 }
 
-// MARK: - Driver Detail View (read-only, no assign/unassign)
+// MARK: - Driver Detail View
 private struct DriverDetailView: View {
     let driver: User
     let service: MockDataService
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var showEditSheet = false
+    @State private var showDeleteConfirmation = false
+    @State private var isDeleted = false
+
+    private var currentDriver: User {
+        service.users.first { $0.id == driver.id } ?? driver
+    }
 
     private var assignedVehicle: Vehicle? {
-        service.vehicles.first { $0.assignedDriverID == driver.id }
+        guard !isDeleted else { return nil }
+        return service.vehicles.first { $0.assignedDriverID == currentDriver.id }
     }
 
     private var activeTrip: Trip? {
-        service.trips.first { $0.driverID == driver.id && $0.status == .inProgress }
+        guard !isDeleted else { return nil }
+        return service.trips.first { $0.driverID == currentDriver.id && $0.status == .inProgress }
     }
 
     private var tripHistory: [Trip] {
-        service.trips
-            .filter { $0.driverID == driver.id && $0.status != .inProgress }
+        guard !isDeleted else { return [] }
+        return service.trips
+            .filter { $0.driverID == currentDriver.id && $0.status != .inProgress }
             .sorted { ($0.startDate) > ($1.startDate) }
     }
 
@@ -337,31 +349,31 @@ private struct DriverDetailView: View {
                         Circle()
                             .fill(AppTheme.brand.opacity(0.12))
                             .frame(width: 80, height: 80)
-                        Text(driver.name.prefix(1).uppercased())
+                        Text(currentDriver.name.prefix(1).uppercased())
                             .font(.system(size: 32, weight: .bold))
                             .foregroundStyle(AppTheme.brand)
                     }
-                    Text(driver.name)
+                    Text(currentDriver.name)
                         .font(.title2.weight(.bold))
                         .foregroundStyle(AppTheme.textPrimary)
-                    Text(driver.title)
+                    Text(currentDriver.title)
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.textSecondary)
-                    RoleBadgeView(role: driver.role)
+                    RoleBadgeView(role: currentDriver.role)
                 }
                 .padding(.top, 8)
 
                 // Contact Info
                 GlassCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        infoRow(icon: "envelope.fill", label: "Email", value: driver.email)
+                        infoRow(icon: "envelope.fill", label: "Email", value: currentDriver.email)
                         Divider()
-                        infoRow(icon: "phone.fill", label: "Phone", value: driver.phone)
+                        infoRow(icon: "phone.fill", label: "Phone", value: currentDriver.phone)
                     }
                 }
 
                 NavigationLink {
-                    DriverManagerChatView(driverID: driver.id)
+                    DriverManagerChatView(driverID: currentDriver.id)
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "message.fill")
@@ -506,6 +518,48 @@ private struct DriverDetailView: View {
         .background(AppTheme.background)
         .navigationTitle("Driver Details")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    showEditSheet = true
+                } label: {
+                    Image(systemName: "pencil.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(AppTheme.brand)
+                        .font(.title3)
+                }
+
+                Button(role: .destructive) {
+                    showDeleteConfirmation = true
+                } label: {
+                    Image(systemName: "trash.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(AppTheme.error)
+                        .font(.title3)
+                }
+            }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            EditCrewMemberSheet(member: currentDriver, service: service)
+                .registersSheetPresentation()
+        }
+        .confirmationDialog(
+            "Delete Driver",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                let userToDelete = currentDriver
+                isDeleted = true
+                service.deleteUser(userToDelete)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    dismiss()
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete \(currentDriver.name)? This action cannot be undone.")
+        }
     }
 
     private func infoRow(icon: String, label: String, value: String) -> some View {
@@ -579,6 +633,144 @@ private struct DriverDetailView: View {
         case .scheduled:  return Color(hex: "#00a2ff")
         case .inProgress: return AppTheme.brand
         }
+    }
+}
+
+// MARK: - Edit Crew Member Sheet (shared by Driver & Maintenance)
+private struct EditCrewMemberSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let member: User
+    let service: MockDataService
+
+    @State private var editName: String
+    @State private var editEmail: String
+    @State private var editPhone: String
+    @State private var editTitle: String
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    init(member: User, service: MockDataService) {
+        self.member = member
+        self.service = service
+        _editName = State(wrappedValue: member.name)
+        _editEmail = State(wrappedValue: member.email)
+        _editPhone = State(wrappedValue: member.phone)
+        _editTitle = State(wrappedValue: member.title)
+    }
+
+    private var canSave: Bool {
+        !editName.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !editEmail.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !editPhone.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !editTitle.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !isSaving
+    }
+
+    private var hasChanges: Bool {
+        editName != member.name ||
+        editEmail != member.email ||
+        editPhone != member.phone ||
+        editTitle != member.title
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Profile") {
+                    // Avatar preview
+                    HStack {
+                        Spacer()
+                        ZStack {
+                            Circle()
+                                .fill(AppTheme.brand.opacity(0.12))
+                                .frame(width: 64, height: 64)
+                            Text(editName.prefix(1).uppercased())
+                                .font(.system(size: 26, weight: .bold))
+                                .foregroundStyle(AppTheme.brand)
+                        }
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+
+                    TextField("Full Name", text: $editName)
+                        .disabled(isSaving)
+
+                    LabeledContent("Role") {
+                        Text(member.role.rawValue)
+                            .foregroundStyle(AppTheme.brand)
+                    }
+
+                    TextField("Job Title", text: $editTitle)
+                        .disabled(isSaving)
+                }
+
+                Section("Contact") {
+                    TextField("Email", text: $editEmail)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.emailAddress)
+                        .disabled(isSaving)
+
+                    TextField("Phone", text: $editPhone)
+                        .keyboardType(.phonePad)
+                        .disabled(isSaving)
+                }
+
+                if let error = errorMessage {
+                    Section {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(AppTheme.error)
+                            Text(error)
+                                .font(.footnote)
+                                .foregroundStyle(AppTheme.error)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Edit Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isSaving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        saveChanges()
+                    } label: {
+                        if isSaving {
+                            ProgressView().tint(AppTheme.brand)
+                        } else {
+                            Text("Save")
+                        }
+                    }
+                    .disabled(!canSave || !hasChanges)
+                }
+            }
+        }
+    }
+
+    private func saveChanges() {
+        errorMessage = nil
+        isSaving = true
+
+        // Duplicate email check (skip if email unchanged)
+        if editEmail.lowercased() != member.email.lowercased(),
+           service.users.contains(where: { $0.email.lowercased() == editEmail.lowercased() }) {
+            errorMessage = "An account with this email already exists."
+            isSaving = false
+            return
+        }
+
+        var updatedUser = member
+        updatedUser.name = editName.trimmingCharacters(in: .whitespaces)
+        updatedUser.email = editEmail.trimmingCharacters(in: .whitespaces)
+        updatedUser.phone = editPhone.trimmingCharacters(in: .whitespaces)
+        updatedUser.title = editTitle.trimmingCharacters(in: .whitespaces)
+
+        service.updateUser(updatedUser)
+        isSaving = false
+        dismiss()
     }
 }
 
