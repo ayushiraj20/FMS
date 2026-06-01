@@ -740,6 +740,29 @@ final class MockDataService {
                     addNotification(userID: techID, roleTarget: nil, title: "New Repair Message", message: alertMsg, category: .maintenance)
                 }
             }
+        } else if let receiverID, workOrderID == nil {
+            let sender = users.first { $0.id == senderID }
+            let receiver = users.first { $0.id == receiverID }
+            let senderName = sender?.name ?? "Someone"
+            let preview = message.count > 120 ? String(message.prefix(117)) + "…" : message
+
+            if sender?.role == .driver, receiver?.role == .fleetManager {
+                addNotification(
+                    userID: receiverID,
+                    roleTarget: nil,
+                    title: "Voice message from driver",
+                    message: "\(senderName): \(preview)",
+                    category: .info
+                )
+            } else if sender?.role == .fleetManager, receiver?.role == .driver {
+                addNotification(
+                    userID: receiverID,
+                    roleTarget: nil,
+                    title: "Message from fleet manager",
+                    message: "\(senderName): \(preview)",
+                    category: .info
+                )
+            }
         }
     }
 
