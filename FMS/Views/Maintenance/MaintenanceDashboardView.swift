@@ -44,20 +44,23 @@ struct MaintenanceDashboardView: View {
                 .accessibilityIdentifier("PROFILE_BUTTON")
             }
             ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 4) {
+                HStack(spacing: 12) {
                     NavigationLink(destination: BroadcastInboxView()) {
                         Image(systemName: "megaphone.fill")
-                            .padding(10)
+                            .imageScale(.large)
+                            .frame(width: 32, height: 32)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("BROADCAST_BUTTON")
                     
                     NavigationLink(destination: NotificationsView()) {
-                        NotificationToolbarIcon()
+                        MaintenanceNotificationToolbarIcon()
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("BELL_BUTTON")
                 }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
                 .foregroundStyle(maintenanceAccent)
                 .glassEffect(.identity)
             }
@@ -474,6 +477,39 @@ private struct MaintenanceAssignedOrderPreviewCard: View {
         case .high: Color(hex: "#FF9500")
         case .critical: Color.dynamic(light: "#BA1A1A", dark: "#FF8989")
         }
+    }
+}
+
+private struct MaintenanceNotificationToolbarIcon: View {
+    @Environment(AppViewModel.self) private var appViewModel
+    
+    var body: some View {
+        let unreadCount = appViewModel.unreadNotificationsCount
+        
+        ZStack(alignment: .topTrailing) {
+            Image(systemName: "bell.fill")
+                .imageScale(.large)
+                .frame(width: 32, height: 32)
+            
+            if unreadCount > 0 {
+                Text(unreadCount > 99 ? "99+" : "\(unreadCount)")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .padding(.horizontal, unreadCount > 9 ? 5 : 4)
+                    .frame(minWidth: 16, minHeight: 16)
+                    .background(Capsule().fill(Color.red))
+                    .overlay(Capsule().stroke(Color.white, lineWidth: 1.2))
+                    .offset(x: 4, y: -2)
+                    .accessibilityHidden(true)
+            }
+        }
+        .accessibilityLabel(
+            unreadCount > 0
+            ? "Notifications, \(unreadCount) unread"
+            : "Notifications"
+        )
     }
 }
 

@@ -33,16 +33,7 @@ struct MaintenanceReportsView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("Reports")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task { await generateReport() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .disabled(isLoading)
-            }
-        }
+
         .task {
             if report == nil {
                 await generateReport()
@@ -56,35 +47,19 @@ struct MaintenanceReportsView: View {
     private var header: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "doc.text.fill")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 46, height: 46)
-                        .background(Color(hex: "#FF5A1F"), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Maintenance Report")
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                        Text(currentUser == nil ? "Workshop summary across active fleet work." : "Assigned work, overdue jobs, vehicle risk, and estimated repair cost.")
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer()
-                }
+                Text("Maintenance Report")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(AppTheme.textPrimary)
 
                 HStack(spacing: 12) {
                     Button {
                         Task { await generateReport() }
                     } label: {
-                        Label("Generate Report", systemImage: "doc.badge.gearshape.fill")
+                        Text("Generate Report")
                             .lineLimit(1)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color(hex: "#FF5A1F"))
+                    .tint(AppTheme.brand)
                     .disabled(isLoading)
 
                     if let generatedAt {

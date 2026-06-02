@@ -323,12 +323,6 @@ struct MaintenanceWorkOrdersView: View {
                     }
                     .foregroundStyle(Color.secondary)
                 }
-                
-                // MARK: iOS Navigation Chevron
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(AppTheme.brand)
-                    .padding(.leading, 2)
             }
             .padding(16)
             .background(
