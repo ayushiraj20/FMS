@@ -2,31 +2,30 @@ import SwiftUI
 
 struct NotificationToolbarIcon: View {
   @Environment(AppViewModel.self) private var appViewModel
-  var color: Color = .primary
 
   var body: some View {
     let unreadCount = appViewModel.unreadNotificationsCount
 
-    ZStack(alignment: .center) {
+    ZStack(alignment: .topTrailing) {
       Image(systemName: "bell.fill")
-        .foregroundStyle(color)
-        .font(.system(size: 18))
+        .padding(.top, 8)
+        .padding(.trailing, 4)
 
       if unreadCount > 0 {
         Text(unreadCount > 99 ? "99+" : "\(unreadCount)")
-          .font(.system(size: 8, weight: .bold))
+          .font(.system(size: 9, weight: .bold))
           .foregroundStyle(.white)
           .lineLimit(1)
-          .minimumScaleFactor(0.7)
-          .padding(.horizontal, unreadCount > 9 ? 3 : 0)
-          .frame(minWidth: 14, minHeight: 14)
+          .minimumScaleFactor(0.8)
+          .padding(.horizontal, unreadCount > 9 ? 5 : 4)
+          .frame(minWidth: 12, minHeight: 14)
           .background(Capsule().fill(Color.red))
           .overlay(Capsule().stroke(Color.white, lineWidth: 1.2))
-          .offset(x: 8, y: -8)
+          .offset(x: 2, y: 2)
           .accessibilityHidden(true)
       }
     }
-    .frame(width: 44, height: 44)
+    .padding(2)
     .accessibilityLabel(
       unreadCount > 0
         ? "Notifications, \(unreadCount) unread"

@@ -101,37 +101,14 @@ struct MaintenanceWorkOrdersView: View {
     // MARK: - Subviews
     
     private var filterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(MaintenanceOrderProgressFilter.allCases) { filter in
-                    if selectedFilter == filter {
-                        Button {
-                            selectedFilter = filter
-                        } label: {
-                            Text(filter.title)
-                                .font(.system(.subheadline, design: .rounded).weight(.medium))
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.capsule)
-                        .tint(ordersAccent)
-                        .foregroundStyle(.white)
-                    } else {
-                        Button {
-                            selectedFilter = filter
-                        } label: {
-                            Text(filter.title)
-                                .font(.system(.subheadline, design: .rounded).weight(.medium))
-                        }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
-                        .tint(.secondary)
-                        .foregroundStyle(.primary)
-                    }
-                }
+        Picker("Filter", selection: $selectedFilter) {
+            ForEach(MaintenanceOrderProgressFilter.allCases) { filter in
+                Text(filter.title).tag(filter)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
         }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
     }
     
     private var ordersList: some View {
@@ -182,7 +159,7 @@ struct MaintenanceWorkOrdersView: View {
         .background(Color.clear)
     }
     
-    private var ordersAccent: Color { Color(hex: "#FF5A1F") }
+    private var ordersAccent: Color { Color(hex: "#FF9500") }
     private var warmSecondaryText: Color { Color.dynamic(light: "#715B54", dark: "#D7B8AC") }
     
 
@@ -310,14 +287,22 @@ struct MaintenanceWorkOrdersView: View {
                     
                     // MARK: Footer: scheduled time + status
                     HStack(spacing: 8) {
-                        Label(order.scheduledDate.formatted(date: .omitted, time: .shortened), systemImage: "clock")
-                            .font(.system(.caption, design: .rounded).weight(.semibold))
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                                .foregroundStyle(AppTheme.brand)
+                            Text(order.scheduledDate.formatted(date: .omitted, time: .shortened))
+                        }
+                        .font(.system(.caption, design: .rounded).weight(.semibold))
                         
                         Spacer()
                         
-                        Label(order.status.rawValue.uppercased(), systemImage: statusIcon)
-                            .font(.system(.caption, design: .rounded).weight(.bold))
-                            .foregroundStyle(statusColor)
+                        HStack(spacing: 4) {
+                            Image(systemName: statusIcon)
+                                .foregroundStyle(AppTheme.brand)
+                            Text(order.status.rawValue.uppercased())
+                                .foregroundStyle(statusColor)
+                        }
+                        .font(.system(.caption, design: .rounded).weight(.bold))
                     }
                     .foregroundStyle(Color.secondary)
                 }
@@ -325,7 +310,7 @@ struct MaintenanceWorkOrdersView: View {
                 // MARK: iOS Navigation Chevron
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color(.tertiaryLabel))
+                    .foregroundStyle(AppTheme.brand)
                     .padding(.leading, 2)
             }
             .padding(16)
@@ -353,7 +338,7 @@ struct MaintenanceWorkOrdersView: View {
             switch order.priority {
             case .low:      return AppTheme.success
             case .medium:   return Color.orange
-            case .high:     return Color(hex: "#FF5A1F")
+            case .high:     return Color(hex: "#FF9500")
             case .critical: return Color.red
             }
         }
@@ -362,7 +347,7 @@ struct MaintenanceWorkOrdersView: View {
             switch order.priority {
             case .low:      return AppTheme.success.opacity(0.12)
             case .medium:   return Color.orange.opacity(0.12)
-            case .high:     return Color(hex: "#FF5A1F").opacity(0.12)
+            case .high:     return Color(hex: "#FF9500").opacity(0.12)
             case .critical: return Color.red.opacity(0.12)
             }
         }
@@ -408,7 +393,7 @@ struct MaintenanceWorkOrdersView: View {
         }
         
         private var vehicle: Vehicle? { appViewModel.service.vehicle(for: workOrder.vehicleID) }
-        private var accent: Color { Color(hex: "#FF5A1F") }
+        private var accent: Color { Color(hex: "#FF9500") }
         private var dangerAccent: Color { Color(hex: "#D70B1B") }
         private var cardBackground: Color { Color.dynamic(light: "#FFFFFF", dark: "#1B1C22") }
         private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
@@ -444,12 +429,6 @@ struct MaintenanceWorkOrdersView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Image(systemName: "ellipsis")
-                        .foregroundStyle(detailText)
-                }
-            }
             .sheet(isPresented: $isShowingLabourSheet) {
                 LabourEntrySheet(hours: $labourHours, minutes: $labourMinutes)
                     .presentationDetents([.height(300), .medium])
@@ -472,8 +451,9 @@ struct MaintenanceWorkOrdersView: View {
         }
         
         private var heroCard: some View {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top) {
+            GlassCard {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top) {
                     Text("\(workOrder.priority.rawValue.uppercased()) PRIORITY")
                         .font(.system(.caption2, design: .rounded).monospaced().weight(.bold))
                         .foregroundStyle(workOrder.isOverdue ? .white : AppTheme.warning)
@@ -496,12 +476,16 @@ struct MaintenanceWorkOrdersView: View {
                         .padding(.vertical, 6)
                             .background(Color.red, in: Capsule())
                     } else {
-                        Text(selectedStatus.displayTitle.uppercased())
-                            .font(.system(.caption2, design: .rounded).monospaced().weight(.bold))
-                            .foregroundStyle(statusColor)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(statusColor.opacity(0.12), in: Capsule())
+                        HStack(spacing: 4) {
+                            Image(systemName: selectedStatus.detailIcon)
+                                .font(.system(.caption2, design: .rounded).bold())
+                            Text(selectedStatus.displayTitle.uppercased())
+                                .font(.system(.caption2, design: .rounded).monospaced().weight(.bold))
+                        }
+                        .foregroundStyle(statusColor)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(statusColor.opacity(0.12), in: Capsule())
                     }
                 }
                 
@@ -518,22 +502,7 @@ struct MaintenanceWorkOrdersView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(18)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.regularMaterial)
-            )
-            .glassEffect(.regular, in: .rect(cornerRadius: 16))
-            .overlay(alignment: .topTrailing) {
-                Image(systemName: workOrder.isOverdue
-                      ? "exclamationmark.clock.fill"
-                      : selectedStatus.detailIcon)
-                    .font(.system(size: 52))
-                    .foregroundStyle(statusColor.opacity(0.18))
-                    .padding(.trailing, 12)
-                    .padding(.top, 10)
+                }
             }
         }
         
@@ -555,23 +524,32 @@ struct MaintenanceWorkOrdersView: View {
                         .background(Color(uiColor: .tertiarySystemGroupedBackground))
                         .clipShape(Capsule())
                     
-                    HStack(spacing: 8) {
-                        ForEach(Self.progressStatuses, id: \.self) { status in
-                            Button {
-                                selectedStatus = status
-                            } label: {
-                                Text(status.displayTitle)
-                                    .font(.system(.caption, design: .rounded).weight(.bold))
-                                    .foregroundStyle(selectedStatus == status ? Color.white : .secondary)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 34)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .fill(selectedStatus == status ? AnyShapeStyle(accent) : AnyShapeStyle(.ultraThinMaterial))
-                                    )
-                                    .glassEffect(selectedStatus == status ? .identity : .regular.interactive(), in: .rect(cornerRadius: 8))
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Self.progressStatuses, id: \.self) { status in
+                                let isSelected = selectedStatus == status
+                                if isSelected {
+                                    Button {
+                                        selectedStatus = status
+                                    } label: {
+                                        Text(status.displayTitle)
+                                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .buttonBorderShape(.capsule)
+                                    .tint(accent)
+                                } else {
+                                    Button {
+                                        selectedStatus = status
+                                    } label: {
+                                        Text(status.displayTitle)
+                                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .buttonBorderShape(.capsule)
+                                    .tint(.secondary)
+                                }
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                     
@@ -648,7 +626,7 @@ struct MaintenanceWorkOrdersView: View {
                         Spacer()
                         Text("\(labourTotalText) hrs")
                             .font(.system(.subheadline, design: .rounded).weight(.bold))
-                            .foregroundStyle(Color(hex: "#FF5A1F"))
+                            .foregroundStyle(Color(hex: "#FF9500"))
                     }
                     .padding(12)
                     .background(
@@ -992,13 +970,9 @@ struct MaintenanceWorkOrdersView: View {
         }
         
         var body: some View {
-            content
-                .padding(18)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.regularMaterial)
-                )
-                .glassEffect(.regular, in: .rect(cornerRadius: 16))
+            GlassCard {
+                content
+            }
         }
     }
     
@@ -1135,7 +1109,7 @@ struct MaintenanceWorkOrdersView: View {
         @State private var showInStockOnly = true
         @State private var draftQuantities: [UUID: Int] = [:]
 
-        private var accent: Color { Color(hex: "#FF5A1F") }
+        private var accent: Color { Color(hex: "#FF9500") }
 
         private var categories: [String] {
             ["All"] + Array(Set(parts.map(\.category))).sorted()
@@ -1291,7 +1265,7 @@ struct MaintenanceWorkOrdersView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(sender)
                     .font(.system(.caption2, design: .rounded).weight(.bold))
-                    .foregroundStyle(Color(hex: "#FF5A1F"))
+                    .foregroundStyle(Color(hex: "#FF9500"))
                 Text(message)
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(.primary)
@@ -1306,7 +1280,7 @@ struct MaintenanceWorkOrdersView: View {
             .overlay(alignment: .leading) {
                 if highlighted {
                     Rectangle()
-                        .fill(Color(hex: "#FF5A1F"))
+                        .fill(Color(hex: "#FF9500"))
                         .frame(width: 3)
                 }
             }

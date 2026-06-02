@@ -58,16 +58,41 @@ struct DefectReportsListView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            Picker("Filter defect reports", selection: $filterTab) {
-                ForEach(FilterOption.allCases) { option in
-                    Text("\(option.rawValue) \(defectCount(for: option))")
-                        .tag(option)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+
+                    ForEach(FilterOption.allCases) { option in
+
+                        Button {
+
+                            withAnimation(.snappy(duration: 0.18)) {
+                                filterTab = option
+                            }
+
+                        } label: {
+
+                            Text("\(option.rawValue) \(defectCount(for: option))")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(
+                                    filterTab == option
+                                    ? .white
+                                    : AppTheme.textPrimary
+                                )
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 12)
+                                .background(
+                                    filterTab == option
+                                    ? Color("AccentColor")
+                                    : AppTheme.surfaceSecondary,
+                                    in: Capsule()
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
+                .padding(.horizontal,20)
+                .padding(.vertical,10)
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
-            .tint(AppTheme.brand)
 
             if !appViewModel.service.defects.isEmpty {
                 defectIssueChart
@@ -860,4 +885,13 @@ struct DefectReviewSheet: View {
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
+}
+
+
+#Preview {
+    NavigationStack {
+        DefectReportsListView()
+            .environment(AppViewModel())
+    }
+
 }
