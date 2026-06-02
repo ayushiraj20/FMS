@@ -31,6 +31,11 @@ final class MockDataService {
     var tripRoutePlansByTripID: [UUID: TripRoutePlan] = [:]
     var routeGeofenceAlertStates: [UUID: RouteGeofenceAlertState] = [:]
 
+    /// IDs of users that have been locally deleted but may not yet be
+    /// removed from the remote database. syncWithDatabase filters these out
+    /// so a slow or failed Supabase delete doesn't resurrect the user.
+    private var deletedUserIDs: Set<UUID> = []
+
     init() {
         organizations = []
         users = []
@@ -117,7 +122,9 @@ final class MockDataService {
             self.organizations = orgs
         }
         if let usersList = try? await SupabaseService.shared.fetchProfiles(), !usersList.isEmpty {
-            self.users = usersList
+            // Filter out any users that were locally deleted but may
+            // not yet be removed on the remote side.
+            self.users = usersList.filter { !deletedUserIDs.contains($0.id) }
             applyDutyStatusesFromProfiles()
         }
         if let vehiclesList = try? await SupabaseService.shared.fetchVehicles(), !vehiclesList.isEmpty {
@@ -849,14 +856,20 @@ final class MockDataService {
     }
 
     func deleteUser(_ user: User) {
+        // 1. Track the ID so syncWithDatabase never brings this user back
+        deletedUserIDs.insert(user.id)
+
+        // 2. Remove from the local array immediately for instant UI update
         users.removeAll { $0.id == user.id }
-        
+
+        // 3. Fire-and-forget Supabase delete
         if SupabaseConfig.isConfigured {
             Task {
                 do {
                     try await SupabaseService.shared.deleteProfile(user)
+                    print("[Sync] Profile deleted from Supabase: \(user.name)")
                 } catch {
-                    print("Supabase deleteProfile error: \(error)")
+                    print("[Sync] deleteProfile FAILED for \(user.name): \(error)")
                 }
             }
         }
