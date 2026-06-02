@@ -3,7 +3,7 @@ import SwiftUI
 struct PendingVehiclesView: View {
     @Environment(AppViewModel.self) private var appViewModel
 
-    private var accent: Color { Color(hex: "#FF5A1F") }
+    private var accent: Color { Color(hex: "#FF9500") }
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
     private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
 
@@ -80,7 +80,7 @@ struct PendingVehiclesView: View {
 
             // List the pending work orders for this vehicle
             ForEach(orders) { order in
-                NavigationLink(destination: MaintenanceWorkOrdersView.MaintenanceWorkOrderDetailView(workOrder: order).environment(appViewModel)) {
+                NavigationLink(destination: MaintenanceWorkOrdersView.MaintenanceWorkOrderDetailView(workOrder: order).environment(appViewModel).hideTabBarOnPush()) {
                     HStack(spacing: 10) {
                         Circle()
                             .fill(priorityColor(order.priority))
@@ -122,7 +122,7 @@ struct PendingVehiclesView: View {
         switch priority {
         case .low:      Color.dynamic(light: "#1E5BE4", dark: "#7EA5FF")
         case .medium:   Color.dynamic(light: "#8F4E00", dark: "#FFB874")
-        case .high:     Color(hex: "#FF5A1F")
+        case .high:     Color(hex: "#FF9500")
         case .critical: Color.dynamic(light: "#BA1A1A", dark: "#FF8989")
         }
     }

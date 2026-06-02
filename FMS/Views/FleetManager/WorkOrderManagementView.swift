@@ -75,7 +75,7 @@ struct WorkOrderManagementView: View {
         ) {
             statCard(title: "Scheduled", value: "\(scheduledCount)", icon: "calendar.badge.clock", color: AppTheme.brand)
 
-            NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
+            NavigationLink(destination: DefectReportsListView().environment(appViewModel).hideTabBarOnPush()) {
                 statCard(
                     title: "Open Defects",
                     value: "\(openDefects)",
@@ -149,7 +149,7 @@ struct WorkOrderManagementView: View {
                         quickChip(icon: "calendar.badge.plus", title: "Schedule")
                     }
 
-                    NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
+                    NavigationLink(destination: DefectReportsListView().environment(appViewModel).hideTabBarOnPush()) {
                         quickChip(icon: "exclamationmark.triangle", title: "Defects")
                     }
 
@@ -268,7 +268,9 @@ struct WorkOrderManagementView: View {
                             WorkOrderChatView(
                                 workOrderID: order.id,
                                 onManage: { viewModel.prepareEditOrder(order) }
-                            ).environment(appViewModel)
+                            )
+                            .environment(appViewModel)
+                            .hideTabBarOnPush()
                         ) {
                             workOrderCard(order)
                         }

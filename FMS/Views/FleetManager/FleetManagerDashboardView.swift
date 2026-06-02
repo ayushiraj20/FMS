@@ -71,13 +71,13 @@ struct FleetManagerDashboardView: View {
                     AvatarView(name: appViewModel.currentUser?.name ?? "FM", size: 36)
                 }
                 .buttonStyle(.plain)
-                .glassEffect(.identity)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showBroadcast = true
                 } label: {
                     Image(systemName: "megaphone.fill")
+                        .foregroundStyle(Color("AccentColor"))
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.identity)
@@ -85,6 +85,7 @@ struct FleetManagerDashboardView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: NotificationsView()) {
                     NotificationToolbarIcon()
+                        .foregroundStyle(Color("AccentColor"))
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.identity)
@@ -223,7 +224,7 @@ struct FleetManagerDashboardView: View {
                     Spacer()
                     
                     NavigationLink(destination: PriorityAlertDetailView(category: "Critical", count: criticalCount)) {
-                        alertIconItem(icon: "bell.badge.fill", categoryColor: Color(red: 1, green: 0.45, blue: 0.1), count: criticalCount, label: "Critical")
+                        alertIconItem(icon: criticalCount > 0 ? "bell.badge.fill" : "bell.fill", categoryColor: Color(red: 1, green: 0.45, blue: 0.1), count: criticalCount, label: "Critical")
                     }
                     .buttonStyle(.plain)
                     
@@ -466,6 +467,7 @@ struct FleetManagerDashboardView: View {
 
             NavigationLink(destination: FleetReportsAnalyticsView()) {
                 quickLink(title: "Reports & Analytics", subtitle: "Generate maintenance, fuel, inventory, compliance, and routing reports", icon: "doc.text.fill")
+                
             }
         }
     }
@@ -562,9 +564,12 @@ struct FleetManagerDashboardView: View {
                     Text(title)
                         .foregroundStyle(AppTheme.textPrimary)
                         .font(.subheadline.weight(.semibold))
+
                     Text(subtitle)
                         .foregroundStyle(AppTheme.textSecondary)
                         .font(.caption)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
                 Spacer()

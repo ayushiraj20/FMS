@@ -70,7 +70,7 @@ struct CompletedTripsView: View {
                 } else {
                     LazyVStack(spacing: 16) {
                         ForEach(completedTrips) { trip in
-                            NavigationLink(destination: TripDetailView(trip: trip)) {
+                            NavigationLink(destination: TripDetailView(trip: trip).hideTabBarOnPush()) {
                                 completedTripCard(trip)
                             }
                             .buttonStyle(.plain)

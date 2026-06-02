@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PastPartOrdersView: View {
     @Environment(AppViewModel.self) private var appViewModel
-    private var accent: Color { Color(hex: "#FF5A1F") }
+    private var accent: Color { Color(hex: "#FF9500") }
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
     private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
 
@@ -158,7 +158,7 @@ struct NewPartOrderSheet: View {
     @State private var estimatedDays = 3
     @State private var notes = ""
 
-    private var accent: Color { Color(hex: "#FF5A1F") }
+    private var accent: Color { Color(hex: "#FF9500") }
 
     var body: some View {
         Form {

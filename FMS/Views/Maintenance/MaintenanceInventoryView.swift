@@ -17,7 +17,7 @@ struct MaintenanceInventoryView: View {
     @State private var showingAddPart = false
     @State private var partToEdit: SparePart?
 
-    private var accent: Color { Color(hex: "#FF5A1F") }
+    private var accent: Color { Color(hex: "#FF9500") }
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
     private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
 
@@ -138,16 +138,16 @@ struct MaintenanceInventoryView: View {
                 title: "Total Parts",
                 value: "\(parts.reduce(0) { $0 + $1.quantity })",
                 subtitle: "\(parts.count) types",
-                iconBg: Color.blue.opacity(0.15),
-                iconColor: .blue
+                iconBg: accent.opacity(0.15),
+                iconColor: accent
             )
             gridCard(
                 icon: "exclamationmark.triangle.fill",
                 title: "Low Stock",
                 value: "\(parts.filter { $0.isLowStock || $0.isOutOfStock }.count)",
                 subtitle: "Need attention",
-                iconBg: Color.red.opacity(0.15),
-                iconColor: .red
+                iconBg: accent.opacity(0.15),
+                iconColor: accent
             )
         }
     }
@@ -362,7 +362,7 @@ private struct SparePartRow: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
-    private var accent: Color { Color(hex: "#FF5A1F") }
+    private var accent: Color { Color(hex: "#FF9500") }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -460,7 +460,7 @@ struct AddEditSparePartSheet: View {
         "battery.100", "thermometer", "gear"
     ]
 
-    private var accent: Color { Color(hex: "#FF5A1F") }
+    private var accent: Color { Color(hex: "#FF9500") }
     private var isEditing: Bool { existingPart != nil }
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&

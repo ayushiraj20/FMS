@@ -161,14 +161,16 @@ struct VehicleManagementView: View {
             .background(VehicleStudioTheme.softFill)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             
-            Picker("Filter Vehicles", selection: $viewModel.selectedStatusFilter) {
-                Text("All (\(viewModel.allCount))").tag(VehicleStatus?.none)
-                Text("Active (\(viewModel.activeCount))").tag(VehicleStatus?.some(.active))
-                Text("Transit (\(viewModel.inTransitCount))").tag(VehicleStatus?.some(.inService))
-                Text("Idle (\(viewModel.idleCount))").tag(VehicleStatus?.some(.idle))
-                Text("Service (\(viewModel.maintenanceCount))").tag(VehicleStatus?.some(.outOfService))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    filterChip(title: "All", count: viewModel.allCount, status: nil, icon: "car.2.fill")
+                    filterChip(title: "Active", count: viewModel.activeCount, status: .active, icon: "checkmark.circle.fill")
+                    filterChip(title: "Transit", count: viewModel.inTransitCount, status: .inService, icon: "arrow.triangle.turn.up.right.circle.fill")
+                    filterChip(title: "Idle", count: viewModel.idleCount, status: .idle, icon: "pause.circle.fill")
+                    filterChip(title: "Service", count: viewModel.maintenanceCount, status: .outOfService, icon: "wrench.and.screwdriver.fill")
+                }
+                .padding(.vertical, 2)
             }
-            .pickerStyle(.segmented)
         }
     }
 
@@ -203,7 +205,7 @@ struct VehicleManagementView: View {
             } else {
                 VStack(spacing: 12) {
                     ForEach(displayedVehicles) { vehicle in
-                        NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id)) {
+                        NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id).hideTabBarOnPush()) {
                             VehicleRowView(viewModel: viewModel, vehicle: vehicle)
                         }
                         .buttonStyle(.plain)
@@ -1441,6 +1443,7 @@ private struct VehicleFilterChip: View {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.caption.weight(.bold))
+                    .foregroundStyle(isSelected ? .white : Color.accentColor)
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                 Text("\(count)")

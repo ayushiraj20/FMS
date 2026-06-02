@@ -21,7 +21,7 @@ struct CompleteWorkOrderView: View {
         self.partName = partName
     }
 
-    private var accent: Color { Color(hex: "#FF5A1F") }
+    private var accent: Color { Color(hex: "#FF9500") }
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
     private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
     private var cardBackground: Color { Color.dynamic(light: "#FFFFFF", dark: "#1B1C22") }
@@ -194,7 +194,7 @@ struct CompleteWorkOrderView: View {
                 .frame(height: 58)
                 .background(
                     LinearGradient(
-                        colors: [Color(hex: "#FF5A1F"), Color(hex: "#D93A00")],
+                        colors: [Color(hex: "#FF9500"), Color(hex: "#D93A00")],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
@@ -212,7 +212,7 @@ struct CompleteWorkOrderView: View {
             LinearGradient(
                 colors: [
                     Color.dynamic(light: "#30343C", dark: "#0B1014"),
-                    Color(hex: "#FF5A1F").opacity(0.28)
+                    Color(hex: "#FF9500").opacity(0.28)
                 ],
                 startPoint: .leading,
                 endPoint: .trailing
