@@ -33,17 +33,14 @@ struct MaintenanceDashboardView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 NavigationLink(destination: ProfileSettingsView()) {
-                    ZStack {
-                        Circle()
-                            .fill(maintenanceAccent)
-                            .frame(width: 30, height: 30)
-                        Text(userInitials)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
+                    AvatarView(
+                        name: currentUser?.name ?? "User",
+                        size: 36,
+                        customColor: maintenanceAccent
+                    )
                 }
                 .buttonStyle(.plain)
-                .buttonBorderShape(.circle)
+                .glassEffect(.identity)
                 .accessibilityIdentifier("PROFILE_BUTTON")
             }
             ToolbarItem(placement: .topBarTrailing) {

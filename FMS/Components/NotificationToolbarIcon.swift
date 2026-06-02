@@ -6,23 +6,22 @@ struct NotificationToolbarIcon: View {
   var body: some View {
     let unreadCount = appViewModel.unreadNotificationsCount
 
-    ZStack(alignment: .topTrailing) {
+    ZStack(alignment: .center) {
       Image(systemName: "bell.fill")
 
       if unreadCount > 0 {
         Text(unreadCount > 99 ? "99+" : "\(unreadCount)")
-          .font(.system(size: 9, weight: .bold))
+          .font(.system(size: 11, weight: .semibold, design: .rounded))
           .foregroundStyle(.white)
-          .lineLimit(1)
-          .minimumScaleFactor(0.7)
-          .padding(.horizontal, unreadCount > 9 ? 4 : 0)
+          .padding(.horizontal, 4)
           .frame(minWidth: 16, minHeight: 16)
-          .background(Capsule().fill(Color.red))
+          .background(Color(uiColor: .systemRed), in: Capsule())
           .overlay(Capsule().stroke(Color.white, lineWidth: 1.5))
-          .offset(x: 8, y: -8)
+          .offset(x: 10, y: -10)
           .accessibilityHidden(true)
       }
     }
+    .frame(width: 24, height: 24)
     .padding(10)
     .accessibilityLabel(
       unreadCount > 0
