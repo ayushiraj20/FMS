@@ -466,6 +466,7 @@ struct FleetManagerDashboardView: View {
 
             NavigationLink(destination: FleetReportsAnalyticsView()) {
                 quickLink(title: "Reports & Analytics", subtitle: "Generate maintenance, fuel, inventory, compliance, and routing reports", icon: "doc.text.fill")
+                
             }
         }
     }
@@ -562,9 +563,12 @@ struct FleetManagerDashboardView: View {
                     Text(title)
                         .foregroundStyle(AppTheme.textPrimary)
                         .font(.subheadline.weight(.semibold))
+
                     Text(subtitle)
                         .foregroundStyle(AppTheme.textSecondary)
                         .font(.caption)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
                 Spacer()
