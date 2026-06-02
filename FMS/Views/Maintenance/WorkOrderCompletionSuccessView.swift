@@ -8,7 +8,7 @@ struct WorkOrderCompletionSuccessView: View {
     let vehicle: Vehicle?
     let timeLogged: String
 
-    private var accent: Color { Color(hex: "#FF5A1F") }
+    private var accent: Color { Color(hex: "#FF9500") }
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
     private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
 

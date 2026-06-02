@@ -217,7 +217,7 @@ struct HelpSupportView: View {
         case .driver:
             return Color(hex: "FD5D23")
         case .maintenance:
-            return Color(hex: "#FF5A1F")
+            return Color(hex: "#FF9500")
         }
     }
     

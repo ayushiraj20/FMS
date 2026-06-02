@@ -92,7 +92,7 @@ private struct AddMaintenanceScheduleSheet: View {
     @State private var serviceType = ""
     @State private var dueDate = Date()
 
-    private var accent: Color { Color(hex: "#FF5A1F") }
+    private var accent: Color { Color(hex: "#FF9500") }
 
     var body: some View {
         Form {

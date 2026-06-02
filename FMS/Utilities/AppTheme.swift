@@ -3,8 +3,8 @@ import UIKit
 
 enum AppTheme {
     // MARK: - Brand Colors
-    static let brand = Color.dynamic(light: "#FF6B35", dark: "#FF8A50")
-    static let brandDark = Color.dynamic(light: "#E55A2B", dark: "#FF6B35")
+    static let brand = Color(hex: "#FF9500")
+    static let brandDark = Color(hex: "#FF9500")
 
     // MARK: - Backgrounds
     static let background = Color.dynamic(light: "#FFFFFF", dark: "#000000")
@@ -43,7 +43,7 @@ enum AppTheme {
     // MARK: - Gradients
     static let gradient = LinearGradient(
         colors: [
-            Color.dynamic(light: "#FF6B35", dark: "#FF8A50"),
+            Color(hex: "#FF9500"),
             Color.dynamic(light: "#FF8A50", dark: "#FFAB76")
         ],
         startPoint: .topLeading,
@@ -69,11 +69,7 @@ enum AppTheme {
 // MARK: - Driver Theme (Adaptive Light/Dark — Orange Accent)
 enum DriverTheme {
     // Primary orange accent — the single brand color
-    static let accent = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark
-            ? UIColor(red: 1.0, green: 0.56, blue: 0.24, alpha: 1.0)   // #FF8F3D
-            : UIColor(red: 1.0, green: 0.478, blue: 0.184, alpha: 1.0) // #FF7A2F
-    })
+    static let accent = Color(hex: "#FF9500")
 
     // Base background is system native (white in light, dark in dark)
     static let background = Color(UIColor.systemBackground)
@@ -131,7 +127,7 @@ enum DriverTheme {
 
     static let accentGradient = LinearGradient(
         colors: [
-            Color(hex: "#FF7A2F"),
+            Color(hex: "#FF9500"),
             Color(hex: "#FF9F5A")
         ],
         startPoint: .topLeading,
