@@ -443,12 +443,6 @@ struct MaintenanceWorkOrdersView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Image(systemName: "ellipsis")
-                        .foregroundStyle(detailText)
-                }
-            }
             .sheet(isPresented: $isShowingLabourSheet) {
                 LabourEntrySheet(hours: $labourHours, minutes: $labourMinutes)
                     .presentationDetents([.height(300), .medium])
@@ -495,12 +489,16 @@ struct MaintenanceWorkOrdersView: View {
                         .padding(.vertical, 6)
                             .background(Color.red, in: Capsule())
                     } else {
-                        Text(selectedStatus.displayTitle.uppercased())
-                            .font(.system(.caption2, design: .rounded).monospaced().weight(.bold))
-                            .foregroundStyle(statusColor)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(statusColor.opacity(0.12), in: Capsule())
+                        HStack(spacing: 4) {
+                            Image(systemName: selectedStatus.detailIcon)
+                                .font(.system(.caption2, design: .rounded).bold())
+                            Text(selectedStatus.displayTitle.uppercased())
+                                .font(.system(.caption2, design: .rounded).monospaced().weight(.bold))
+                        }
+                        .foregroundStyle(statusColor)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(statusColor.opacity(0.12), in: Capsule())
                     }
                 }
                 
@@ -525,15 +523,6 @@ struct MaintenanceWorkOrdersView: View {
                     .fill(.regularMaterial)
             )
             .glassEffect(.regular, in: .rect(cornerRadius: 16))
-            .overlay(alignment: .topTrailing) {
-                Image(systemName: workOrder.isOverdue
-                      ? "exclamationmark.clock.fill"
-                      : selectedStatus.detailIcon)
-                    .font(.system(size: 52))
-                    .foregroundStyle(statusColor.opacity(0.18))
-                    .padding(.trailing, 12)
-                    .padding(.top, 10)
-            }
         }
         
         private var progressCard: some View {
