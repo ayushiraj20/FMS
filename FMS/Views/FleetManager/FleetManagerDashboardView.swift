@@ -78,6 +78,7 @@ struct FleetManagerDashboardView: View {
                     showBroadcast = true
                 } label: {
                     Image(systemName: "megaphone.fill")
+                        .foregroundStyle(Color("AccentColor"))
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.identity)
@@ -85,6 +86,7 @@ struct FleetManagerDashboardView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: NotificationsView()) {
                     NotificationToolbarIcon()
+                        .foregroundStyle(Color("AccentColor"))
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.identity)
