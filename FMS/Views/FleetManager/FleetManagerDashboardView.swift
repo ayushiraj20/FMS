@@ -71,7 +71,6 @@ struct FleetManagerDashboardView: View {
                     AvatarView(name: appViewModel.currentUser?.name ?? "FM", size: 36)
                 }
                 .buttonStyle(.plain)
-                .glassEffect(.identity)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
