@@ -17,30 +17,31 @@ struct BroadcastInboxView: View {
     BroadcastService.shared
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack {
-                if broadcastService.isLoading {
-                    ProgressView("Loading broadcasts...")
-                        .frame(maxWidth: .infinity, minHeight: 200)
-                        .padding(.top, 40)
-                } else if broadcastService.messages.isEmpty {
-                    ContentUnavailableView(
-                        "No Broadcasts",
-                        systemImage: "megaphone.fill",
-                        description: Text("Fleet manager messages will appear here")
-                    )
-                    .frame(maxWidth: .infinity, minHeight: 400)
-                } else {
-                    LazyVStack(spacing: 16) {
-                        ForEach(broadcastService.messages) { message in
-                            BroadcastRowView(message: message)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
+        List {
+            if broadcastService.isLoading && broadcastService.messages.isEmpty {
+                ProgressView("Loading broadcasts...")
+                    .frame(maxWidth: .infinity, minHeight: 200)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            } else if broadcastService.messages.isEmpty {
+                ContentUnavailableView(
+                    "No Broadcasts",
+                    systemImage: "megaphone.fill",
+                    description: Text("Fleet manager messages will appear here")
+                )
+                .frame(maxWidth: .infinity, minHeight: 400)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            } else {
+                ForEach(broadcastService.messages) { message in
+                    BroadcastRowView(message: message)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
             }
         }
+        .listStyle(.plain)
         .background(DriverTheme.background.ignoresSafeArea())
         .refreshable {
             await loadBroadcasts()

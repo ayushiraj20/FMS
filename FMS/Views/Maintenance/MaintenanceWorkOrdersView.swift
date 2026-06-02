@@ -101,37 +101,14 @@ struct MaintenanceWorkOrdersView: View {
     // MARK: - Subviews
     
     private var filterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(MaintenanceOrderProgressFilter.allCases) { filter in
-                    if selectedFilter == filter {
-                        Button {
-                            selectedFilter = filter
-                        } label: {
-                            Text(filter.title)
-                                .font(.system(.subheadline, design: .rounded).weight(.medium))
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.capsule)
-                        .tint(ordersAccent)
-                        .foregroundStyle(.white)
-                    } else {
-                        Button {
-                            selectedFilter = filter
-                        } label: {
-                            Text(filter.title)
-                                .font(.system(.subheadline, design: .rounded).weight(.medium))
-                        }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
-                        .tint(.secondary)
-                        .foregroundStyle(.primary)
-                    }
-                }
+        Picker("Filter", selection: $selectedFilter) {
+            ForEach(MaintenanceOrderProgressFilter.allCases) { filter in
+                Text(filter.title).tag(filter)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
         }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
     }
     
     private var ordersList: some View {
@@ -309,14 +286,22 @@ struct MaintenanceWorkOrdersView: View {
                     
                     // MARK: Footer: scheduled time + status
                     HStack(spacing: 8) {
-                        Label(order.scheduledDate.formatted(date: .omitted, time: .shortened), systemImage: "clock")
-                            .font(.system(.caption, design: .rounded).weight(.semibold))
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                                .foregroundStyle(AppTheme.brand)
+                            Text(order.scheduledDate.formatted(date: .omitted, time: .shortened))
+                        }
+                        .font(.system(.caption, design: .rounded).weight(.semibold))
                         
                         Spacer()
                         
-                        Label(order.status.rawValue.uppercased(), systemImage: statusIcon)
-                            .font(.system(.caption, design: .rounded).weight(.bold))
-                            .foregroundStyle(statusColor)
+                        HStack(spacing: 4) {
+                            Image(systemName: statusIcon)
+                                .foregroundStyle(AppTheme.brand)
+                            Text(order.status.rawValue.uppercased())
+                                .foregroundStyle(statusColor)
+                        }
+                        .font(.system(.caption, design: .rounded).weight(.bold))
                     }
                     .foregroundStyle(Color.secondary)
                 }
@@ -324,7 +309,7 @@ struct MaintenanceWorkOrdersView: View {
                 // MARK: iOS Navigation Chevron
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color(.tertiaryLabel))
+                    .foregroundStyle(AppTheme.brand)
                     .padding(.leading, 2)
             }
             .padding(16)
