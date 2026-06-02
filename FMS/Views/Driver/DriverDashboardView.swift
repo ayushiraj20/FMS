@@ -59,17 +59,19 @@ struct DriverDashboardView: View {
                     .glassEffect(.identity)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: BroadcastInboxView()) {
-                        Image(systemName: "megaphone.fill")
+                    HStack(spacing: 4) {
+                        NavigationLink(destination: BroadcastInboxView()) {
+                            Image(systemName: "megaphone.fill")
+                                .padding(10)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        NavigationLink(destination: NotificationsView()) {
+                            NotificationToolbarIcon()
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                    .glassEffect(.identity)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: NotificationsView()) {
-                        NotificationToolbarIcon()
-                    }
-                    .buttonStyle(.plain)
+                    .foregroundStyle(DriverTheme.accent)
                     .glassEffect(.identity)
                 }
             }

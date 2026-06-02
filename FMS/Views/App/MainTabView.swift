@@ -139,6 +139,18 @@ private struct DriverTabView: View {
         }
         .toolbar(sheetPresentationDepth > 0 ? .hidden : .automatic, for: .tabBar)
         .tabBarSheetDepthTracking($sheetPresentationDepth)
+        .task {
+            driverVM.enableBackgroundGeofenceMonitoring(
+                service: appViewModel.service,
+                user: appViewModel.currentUser
+            )
+            driverVM.startLiveTracking()
+            await appViewModel.service.prefetchRoutePlansForActiveTrips()
+        }
+        .onDisappear {
+            driverVM.stopLiveTracking()
+            driverVM.disableBackgroundGeofenceMonitoring()
+        }
     }
 }
 
@@ -225,7 +237,7 @@ private struct MaintenanceTabView: View {
         }
 
         .tint(
-            Color(hex: "#FF5A1F")
+            Color(hex: "#FF9500")
         )
         .toolbar(sheetPresentationDepth > 0 ? .hidden : .automatic, for: .tabBar)
         .tabBarSheetDepthTracking($sheetPresentationDepth)

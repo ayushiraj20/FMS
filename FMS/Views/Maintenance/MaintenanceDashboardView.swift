@@ -33,30 +33,33 @@ struct MaintenanceDashboardView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 NavigationLink(destination: ProfileSettingsView()) {
-                    ZStack {
-                        Circle()
-                            .fill(maintenanceAccent)
-                            .frame(width: 30, height: 30)
-                        Text(userInitials)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
+                    AvatarView(
+                        name: currentUser?.name ?? "User",
+                        size: 36,
+                        customColor: maintenanceAccent
+                    )
                 }
                 .buttonStyle(.plain)
-                .buttonBorderShape(.circle)
+                .glassEffect(.identity)
                 .accessibilityIdentifier("PROFILE_BUTTON")
             }
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: BroadcastInboxView()) {
-                    Image(systemName: "megaphone.fill")
+                HStack(spacing: 4) {
+                    NavigationLink(destination: BroadcastInboxView()) {
+                        Image(systemName: "megaphone.fill")
+                            .padding(10)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("BROADCAST_BUTTON")
+                    
+                    NavigationLink(destination: NotificationsView()) {
+                        NotificationToolbarIcon()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("BELL_BUTTON")
                 }
-                .accessibilityIdentifier("BROADCAST_BUTTON")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: NotificationsView()) {
-                    NotificationToolbarIcon()
-                }
-                .accessibilityIdentifier("BELL_BUTTON")
+                .foregroundStyle(maintenanceAccent)
+                .glassEffect(.identity)
             }
         }
         .task {
@@ -220,7 +223,7 @@ struct MaintenanceDashboardView: View {
         return initials.isEmpty ? "MS" : initials.uppercased()
     }
 
-    private var maintenanceAccent: Color { Color(hex: "#FF5A1F") }
+    private var maintenanceAccent: Color { Color(hex: "#FF9500") }
     private var warmPrimaryText: Color { Color.dynamic(light: "#1F2024", dark: "#F2E8E4") }
     private var warmSecondaryText: Color { Color.dynamic(light: "#715B54", dark: "#D7B8AC") }
     private var noticeColor: Color { activeAssignedOrders.isEmpty ? AppTheme.success : maintenanceAccent.opacity(0.9) }
@@ -322,7 +325,7 @@ private struct MaintenancePriorityOrderCard: View {
 
                 Text(order.title)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color(hex: "#FF5A1F"))
+                    .foregroundStyle(Color(hex: "#FF9500"))
                     .lineLimit(2)
 
                 Text(order.details)
@@ -400,7 +403,7 @@ private struct MaintenanceSchedulePreviewCard: View {
 
             Text(schedule.status.rawValue)
                 .font(.caption2.weight(.bold))
-                .foregroundStyle(schedule.status == .overdue ? Color(hex: "#FF5A1F") : AppTheme.brand)
+                .foregroundStyle(schedule.status == .overdue ? Color(hex: "#FF9500") : AppTheme.brand)
         }
         .frame(width: 200, alignment: .leading)
         .frame(minHeight: 110, alignment: .leading)
@@ -468,7 +471,7 @@ private struct MaintenanceAssignedOrderPreviewCard: View {
         switch order.priority {
         case .low: AppTheme.success
         case .medium: AppTheme.brand
-        case .high: Color(hex: "#FF5A1F")
+        case .high: Color(hex: "#FF9500")
         case .critical: Color.dynamic(light: "#BA1A1A", dark: "#FF8989")
         }
     }

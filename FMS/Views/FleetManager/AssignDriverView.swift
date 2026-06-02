@@ -14,26 +14,8 @@ struct AssignDriverView: View {
             ZStack(alignment: .bottom) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        // Top Bar Row
-                        HStack {
-                            Button {
-                                dismiss()
-                            } label: {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundStyle(AppTheme.brand)
-                                    .contentShape(Rectangle())
-                            }
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 10)
-
                         // Title
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Assign Driver")
-                                .font(.largeTitle.weight(.bold))
-                                .foregroundStyle(AppTheme.textPrimary)
                             Text("Pair vehicles with on-duty drivers who have no active trip")
                                 .font(.subheadline)
                                 .foregroundStyle(AppTheme.textSecondary)
@@ -117,16 +99,24 @@ struct AssignDriverView: View {
                 }
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
+//        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("Assign Driver")
+        .navigationBarTitleDisplayMode(.large)
+
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedVehicle)
+
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedDriver)
+
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.isShowingSuccessToast)
+
         .refreshable {
             await appViewModel.service.syncWithDatabase()
         }
+
         .onAppear {
             viewModel.organizationID = appViewModel.currentOrganization?.id
         }
+
         .onChange(of: appViewModel.currentOrganization?.id) { _, newValue in
             viewModel.organizationID = newValue
         }

@@ -16,12 +16,12 @@ struct DriverVehicleTripDetailView: View {
                 
                 HStack(spacing: 16) {
                     if let trip = activeTrip {
-                        NavigationLink(destination: TripDetailView(trip: trip)) {
+                        NavigationLink(destination: TripDetailView(trip: trip).hideTabBarOnPush()) {
                             actionButton(icon: "video.fill", title: "Live View")
                         }
                         .buttonStyle(.plain)
                         
-                        NavigationLink(destination: TripDetailView(trip: trip)) {
+                        NavigationLink(destination: TripDetailView(trip: trip).hideTabBarOnPush()) {
                             actionButton(icon: "map.fill", title: "Trip Map")
                         }
                         .buttonStyle(.plain)
@@ -35,21 +35,6 @@ struct DriverVehicleTripDetailView: View {
                         }.buttonStyle(.plain)
                     }
                 }
-                
-                Button {
-                    driverVM.showToastMessage("Dispatch Ping sent to Fleet Manager")
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "antenna.radiowaves.left.and.right")
-                        Text("Ping Dispatcher")
-                    }
-                    .font(.system(.headline, design: .rounded).bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 60)
-                    .background(DriverTheme.accent, in: Capsule())
-                }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)

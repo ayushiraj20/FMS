@@ -16,8 +16,8 @@ struct AssignDriverTripView: View {
     @State private var routeDetails: String = ""
     @State private var notes: String = ""
     @State private var distanceStr: String = ""
-    @State private var startDate: Date = Date().addingTimeInterval(3600)
-    @State private var endDate: Date = Date().addingTimeInterval(3600 * 5)
+    @State private var startDate: Date = Date().addingTimeInterval(7200)
+    @State private var endDate: Date = Date().addingTimeInterval(7200 * 3)
     @State private var cargoType: CargoType = .generalGoods
 
     // Map & Location Search
@@ -103,12 +103,6 @@ struct AssignDriverTripView: View {
             }
             .background(AppTheme.background.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-            }
         }
     }
 
@@ -284,12 +278,12 @@ struct AssignDriverTripView: View {
                                         .foregroundStyle(AppTheme.textPrimary)
                                     Spacer()
                                     DatePicker("", selection: $startDate,
-                                               in: Date().addingTimeInterval(3600)...,
+                                               in: Date().addingTimeInterval(7200)...,
                                                displayedComponents: [.date])
                                         .labelsHidden()
                                         .tint(AppTheme.brand)
                                     DatePicker("", selection: $startDate,
-                                               in: Date().addingTimeInterval(3600)...,
+                                               in: Date().addingTimeInterval(7200)...,
                                                displayedComponents: [.hourAndMinute])
                                         .labelsHidden()
                                         .tint(AppTheme.brand)
@@ -318,7 +312,7 @@ struct AssignDriverTripView: View {
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 10)
 
-                                Text("Trip must be assigned at least 1 hour before start")
+                                Text("Trip must be scheduled at least 2 hours from now")
                                     .font(.caption)
                                     .foregroundStyle(AppTheme.textSecondary)
                                     .padding(.horizontal, 16)
@@ -356,31 +350,48 @@ struct AssignDriverTripView: View {
             }
 
             // Next Step CTA
-            Button {
-                guard !tripStartLocation.isEmpty && !tripDestination.isEmpty else { return }
-                currentStep = .selectVehicle
-            } label: {
-                HStack(spacing: 8) {
-                    if routeCalculated {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 15))
+            VStack(spacing: 0) {
+                Divider()
+                Button {
+                    guard !tripStartLocation.isEmpty && !tripDestination.isEmpty else { return }
+                    currentStep = .selectVehicle
+                } label: {
+                    HStack(spacing: 8) {
+                        if routeCalculated {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 15))
+                        }
+                        Text(routeCalculated ? "Continue — \(Int(locationService.routeDistanceKM)) km route" : "Select Vehicle")
                     }
-                    Text(routeCalculated ? "Continue — \(Int(locationService.routeDistanceKM)) km route" : "Select Driver")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(
+                                (tripStartLocation.isEmpty || tripDestination.isEmpty)
+                                ? Color(.systemGray4)
+                                : AppTheme.brand
+                            )
+                    )
+                    .shadow(color: (tripStartLocation.isEmpty || tripDestination.isEmpty) ? .clear : AppTheme.brand.opacity(0.3), radius: 8, y: 4)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
                 }
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    (tripStartLocation.isEmpty || tripDestination.isEmpty)
-                    ? Color(.systemGray4)
-                    : AppTheme.brand
-                )
+                .disabled(tripStartLocation.isEmpty || tripDestination.isEmpty)
             }
-            .disabled(tripStartLocation.isEmpty || tripDestination.isEmpty)
+            .background(.ultraThinMaterial)
         }
         .ignoresSafeArea(edges: .top)
         .navigationTitle("Add New Trip")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+        }
     }
 
     // MARK: - Location Search Field
@@ -542,9 +553,17 @@ struct AssignDriverTripView: View {
         if let assignmentRoutePlan {
             routeCalculated = true
             distanceStr = String(format: "%.1f", assignmentRoutePlan.mainDistanceKM)
+            // Auto-set end date: start + ETA + 2hr buffer
+            let etaSeconds = locationService.routeETAMinutes * 60
+            let bufferSeconds: Double = 7200 // 2 hour buffer
+            endDate = startDate.addingTimeInterval(etaSeconds + bufferSeconds)
         } else if locationService.routeDistanceKM > 0 {
             routeCalculated = true
             distanceStr = String(format: "%.1f", locationService.routeDistanceKM)
+            // Auto-set end date: start + ETA + 2hr buffer
+            let etaSeconds = locationService.routeETAMinutes * 60
+            let bufferSeconds: Double = 7200 // 2 hour buffer
+            endDate = startDate.addingTimeInterval(etaSeconds + bufferSeconds)
 
             // Fit map to show the entire route
             withAnimation(.easeInOut(duration: 0.8)) {
@@ -1034,12 +1053,13 @@ struct AssignDriverTripView: View {
 
     // MARK: - Validation
     private var isFormValid: Bool {
-        let oneHourFromNow = Date().addingTimeInterval(3600)
+        // The 2-hour buffer is enforced by the DatePicker minimum.
+        // At confirm time, just ensure the start is still in the future.
         return selectedDriver != nil &&
         selectedVehicle != nil &&
         !tripStartLocation.trimmingCharacters(in: .whitespaces).isEmpty &&
         !tripDestination.trimmingCharacters(in: .whitespaces).isEmpty &&
-        startDate >= oneHourFromNow &&
+        startDate > Date() &&
         selectedPairIsCompatible
     }
 
@@ -1051,8 +1071,8 @@ struct AssignDriverTripView: View {
     // MARK: - Handler
     private func handleAssignment() {
         guard let driver = selectedDriver, let vehicle = selectedVehicle else { return }
-        guard startDate >= Date().addingTimeInterval(3600) else {
-            validationMessage = "Trips must be assigned at least 1 hour before the start time."
+        guard startDate > Date() else {
+            validationMessage = "Trip start time must be in the future."
             return
         }
         guard service.isDriver(driver, compatibleWith: vehicle) else {

@@ -20,7 +20,7 @@ struct MaintenanceCalendarView: View {
     private let columns = Array(repeating: GridItem(.flexible()), count: 7)
     private let weekdays = ["S", "M", "T", "W", "T", "F", "S"]
     
-    private var ordersAccent: Color { Color(hex: "#FF5A1F") }
+    private var ordersAccent: Color { Color(hex: "#FF9500") }
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
     private var warmSecondaryText: Color { Color.dynamic(light: "#715B54", dark: "#D7B8AC") }
     
@@ -153,6 +153,7 @@ struct MaintenanceCalendarView: View {
                             NavigationLink {
                                 MaintenanceWorkOrdersView.MaintenanceWorkOrderDetailView(workOrder: order)
                                     .environment(appViewModel)
+                                    .hideTabBarOnPush()
                             } label: {
                                 MaintenanceWorkOrdersView.MaintenanceWorkOrderCard(
                                     order: order,
