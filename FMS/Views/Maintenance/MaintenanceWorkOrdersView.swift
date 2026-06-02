@@ -181,7 +181,7 @@ struct MaintenanceWorkOrdersView: View {
         .background(Color.clear)
     }
     
-    private var ordersAccent: Color { Color(hex: "#FF5A1F") }
+    private var ordersAccent: Color { Color(hex: "#FF9500") }
     private var warmSecondaryText: Color { Color.dynamic(light: "#715B54", dark: "#D7B8AC") }
     
 
@@ -352,7 +352,7 @@ struct MaintenanceWorkOrdersView: View {
             switch order.priority {
             case .low:      return AppTheme.success
             case .medium:   return Color.orange
-            case .high:     return Color(hex: "#FF5A1F")
+            case .high:     return Color(hex: "#FF9500")
             case .critical: return Color.red
             }
         }
@@ -361,7 +361,7 @@ struct MaintenanceWorkOrdersView: View {
             switch order.priority {
             case .low:      return AppTheme.success.opacity(0.12)
             case .medium:   return Color.orange.opacity(0.12)
-            case .high:     return Color(hex: "#FF5A1F").opacity(0.12)
+            case .high:     return Color(hex: "#FF9500").opacity(0.12)
             case .critical: return Color.red.opacity(0.12)
             }
         }
@@ -407,7 +407,7 @@ struct MaintenanceWorkOrdersView: View {
         }
         
         private var vehicle: Vehicle? { appViewModel.service.vehicle(for: workOrder.vehicleID) }
-        private var accent: Color { Color(hex: "#FF5A1F") }
+        private var accent: Color { Color(hex: "#FF9500") }
         private var dangerAccent: Color { Color(hex: "#D70B1B") }
         private var cardBackground: Color { Color.dynamic(light: "#FFFFFF", dark: "#1B1C22") }
         private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
@@ -636,7 +636,7 @@ struct MaintenanceWorkOrdersView: View {
                         Spacer()
                         Text("\(labourTotalText) hrs")
                             .font(.system(.subheadline, design: .rounded).weight(.bold))
-                            .foregroundStyle(Color(hex: "#FF5A1F"))
+                            .foregroundStyle(Color(hex: "#FF9500"))
                     }
                     .padding(12)
                     .background(
@@ -1123,7 +1123,7 @@ struct MaintenanceWorkOrdersView: View {
         @State private var showInStockOnly = true
         @State private var draftQuantities: [UUID: Int] = [:]
 
-        private var accent: Color { Color(hex: "#FF5A1F") }
+        private var accent: Color { Color(hex: "#FF9500") }
 
         private var categories: [String] {
             ["All"] + Array(Set(parts.map(\.category))).sorted()
@@ -1279,7 +1279,7 @@ struct MaintenanceWorkOrdersView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(sender)
                     .font(.system(.caption2, design: .rounded).weight(.bold))
-                    .foregroundStyle(Color(hex: "#FF5A1F"))
+                    .foregroundStyle(Color(hex: "#FF9500"))
                 Text(message)
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(.primary)
@@ -1294,7 +1294,7 @@ struct MaintenanceWorkOrdersView: View {
             .overlay(alignment: .leading) {
                 if highlighted {
                     Rectangle()
-                        .fill(Color(hex: "#FF5A1F"))
+                        .fill(Color(hex: "#FF9500"))
                         .frame(width: 3)
                 }
             }

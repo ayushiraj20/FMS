@@ -61,7 +61,7 @@ struct MaintenanceReportsView: View {
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(width: 46, height: 46)
-                        .background(Color(hex: "#FF5A1F"), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .background(Color(hex: "#FF9500"), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Maintenance Report")
@@ -81,9 +81,12 @@ struct MaintenanceReportsView: View {
                         Task { await generateReport() }
                     } label: {
                         Label("Generate Report", systemImage: "doc.badge.gearshape.fill")
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color(hex: "#FF5A1F"))
+                    .buttonBorderShape(.capsule)
+                    .tint(Color(hex: "#FF9500"))
                     .disabled(isLoading)
 
                     if let generatedAt {
@@ -101,10 +104,11 @@ struct MaintenanceReportsView: View {
     private func reportContent(_ report: MaintenanceReportSummary) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                maintenanceMetric("Assigned", "\(report.totalWorkOrders)", "\(report.openWorkOrders) open", "list.clipboard.fill", .blue)
-                maintenanceMetric("Critical", "\(report.criticalWorkOrders)", "\(report.overdueWorkOrders) overdue", "exclamationmark.triangle.fill", report.criticalWorkOrders > 0 ? AppTheme.error : AppTheme.success)
-                maintenanceMetric("Completed", "\(report.completedWorkOrders)", "Closed jobs", "checkmark.seal.fill", AppTheme.success)
-                maintenanceMetric("Est. Cost", currency(report.totalEstimatedCost), "Avg \(currency(report.averageEstimatedCost))", "indianrupeesign.circle.fill", AppTheme.warning)
+                let accent = Color(hex: "#FF9500")
+                maintenanceMetric("Assigned", "\(report.totalWorkOrders)", "\(report.openWorkOrders) open", "list.clipboard.fill", accent)
+                maintenanceMetric("Critical", "\(report.criticalWorkOrders)", "\(report.overdueWorkOrders) overdue", "exclamationmark.triangle.fill", accent)
+                maintenanceMetric("Completed", "\(report.completedWorkOrders)", "Closed jobs", "checkmark.seal.fill", accent)
+                maintenanceMetric("Est. Cost", currency(report.totalEstimatedCost), "Avg \(currency(report.averageEstimatedCost))", "indianrupeesign.circle.fill", accent)
             }
 
             GlassCard {
