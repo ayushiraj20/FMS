@@ -23,6 +23,7 @@ struct NotificationToolbarIcon: View {
           .accessibilityHidden(true)
       }
     }
+    .padding(10)
     .accessibilityLabel(
       unreadCount > 0
         ? "Notifications, \(unreadCount) unread"

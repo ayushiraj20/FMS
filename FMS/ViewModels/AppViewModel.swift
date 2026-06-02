@@ -3,6 +3,8 @@ import SwiftUI
 import Supabase
 import Observation
 import AudioToolbox
+import AVFoundation
+import UIKit
 
 enum RootFlowState {
     case splash
@@ -35,6 +37,11 @@ final class AppViewModel {
     let service = MockDataService()
     let supabase = SupabaseService.shared
 
+    @ObservationIgnored
+    private var lastProcessedURL: URL? = nil
+    @ObservationIgnored
+    private var lastProcessedURLTime: Date? = nil
+
     // SOS alert state for the Fleet Manager dashboard overlay
     var activeEmergencyAlert: SOSAlert? = nil
 
@@ -55,6 +62,13 @@ final class AppViewModel {
     @ObservationIgnored private var sosPostgresChangeSubscription: Any? = nil
     @ObservationIgnored private var autoRefreshTask: Task<Void, Never>? = nil
 
+    // Continuous SOS alarm
+    @ObservationIgnored private var sosAlarmTimer: Timer?
+    @ObservationIgnored private var sosAlarmPlayer: AVAudioPlayer?
+    // SOS alert IDs that have already triggered the alarm in this session — prevents
+    // realtime replays (e.g. on reconnect) from re-firing audio/haptic.
+    @ObservationIgnored private var alarmedSOSAlertIDs: Set<UUID> = []
+
     init() {
         // Register local observer for offline real-time compatibility
         NotificationCenter.default.addObserver(
@@ -73,14 +87,7 @@ final class AppViewModel {
                     
                     // Show emergency banner if this user is a Fleet Manager and status is ACTIVE
                     if self.currentUser?.role == .fleetManager && alert.status == "ACTIVE" {
-                        withAnimation(.spring()) {
-                            self.activeEmergencyAlert = alert
-                        }
-                        
-                        // Audio & Vibration Alert
-                        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-                        AudioServicesPlaySystemSound(1005)
-                        UINotificationFeedbackGenerator().notificationOccurred(.error)
+                        self.presentActiveSOSAlert(alert)
                     }
                 }
             }
@@ -384,6 +391,54 @@ final class AppViewModel {
         isAuthenticating = false
     }
 
+    // MARK: - Deep Link Handling
+
+    func handleDeepLink(_ url: URL) async {
+        print("📥 Received deep link URL: \(url.absoluteString)")
+        
+        // Deduplicate rapid consecutive triggers for identical URLs (SwiftUI onOpenURL double-firing bug)
+        if let lastURL = lastProcessedURL, lastURL == url,
+           let lastTime = lastProcessedURLTime, Date().timeIntervalSince(lastTime) < 2.0 {
+            print("⏭️ Ignoring duplicate deep link call (triggered within 2 seconds)")
+            return
+        }
+        
+        lastProcessedURL = url
+        lastProcessedURLTime = Date()
+        
+        guard SupabaseConfig.isConfigured else { return }
+        
+        isAuthenticating = true
+        authErrorMessage = nil
+        
+        do {
+            print("🔑 Exchanging link for session...")
+            let session = try await SupabaseService.shared.handleSessionFromURL(url)
+            let authUser = session.user
+            print("✅ Successfully authenticated user ID: \(authUser.id)")
+            
+            await service.syncWithDatabase()
+            
+            if let matchedUser = service.users.first(where: { $0.id == authUser.id }) {
+                currentUser = matchedUser
+                organizationName = service.organizations.first(where: { $0.id == matchedUser.organizationID })?.name ?? organizationName
+                
+                print("🔄 Transitioning flowState to .forcePasswordReset")
+                withAnimation(.spring()) {
+                    flowState = .forcePasswordReset
+                }
+            } else {
+                print("⚠️ User profile not found in profiles table")
+                authErrorMessage = "Could not find profile for authenticated user."
+            }
+        } catch {
+            print("❌ Failed to parse session from deep link: \(error)")
+            authErrorMessage = "Failed to process reset link: \(error.localizedDescription)"
+        }
+        
+        isAuthenticating = false
+    }
+
     // MARK: Logout
 
     func logout() {
@@ -470,9 +525,70 @@ final class AppViewModel {
         currentUser = user
     }
 
+    // MARK: - SOS Presentation & Alarm
+
+    /// Single entry point for showing an ACTIVE alert. Dedupes against alarmedSOSAlertIDs so
+    /// realtime replays after reconnect don't re-fire audio/haptic.
+    func presentActiveSOSAlert(_ alert: SOSAlert) {
+        let firstTime = !alarmedSOSAlertIDs.contains(alert.id)
+        alarmedSOSAlertIDs.insert(alert.id)
+
+        withAnimation(.spring()) {
+            self.activeEmergencyAlert = alert
+        }
+
+        guard firstTime else { return }
+        startSOSAlarm()
+    }
+
+    private func startSOSAlarm() {
+        // Configure audio session so the alarm plays even when the device is in silent mode.
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .default, options: [.duckOthers])
+        try? session.setActive(true, options: [])
+
+        if sosAlarmPlayer == nil,
+           let url = Bundle.main.url(forResource: "sos_alarm", withExtension: "caf")
+            ?? Bundle.main.url(forResource: "sos_alarm", withExtension: "wav")
+            ?? Bundle.main.url(forResource: "sos_alarm", withExtension: "mp3") {
+            sosAlarmPlayer = try? AVAudioPlayer(contentsOf: url)
+            sosAlarmPlayer?.numberOfLoops = -1
+            sosAlarmPlayer?.volume = 1.0
+        }
+
+        if let player = sosAlarmPlayer {
+            player.prepareToPlay()
+            player.play()
+        } else {
+            // No bundled file — fall back to the system alarm sound on a repeating timer.
+            AudioServicesPlaySystemSound(1304)
+        }
+
+        sosAlarmTimer?.invalidate()
+        sosAlarmTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                if self?.sosAlarmPlayer == nil {
+                    AudioServicesPlaySystemSound(1304)
+                    AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+                }
+            }
+        }
+    }
+
+    private func stopSOSAlarm() {
+        sosAlarmTimer?.invalidate()
+        sosAlarmTimer = nil
+        sosAlarmPlayer?.stop()
+        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+    }
+
     // MARK: - SOS Realtime Subscription
     func subscribeToSOSAlerts() {
-        guard SupabaseConfig.isConfigured else { return }
+        guard SupabaseConfig.isConfigured else {
+            print("[SOS] Realtime subscription skipped — SupabaseConfig.isConfigured == false. Cross-device SOS alerts will not arrive in this build.")
+            return
+        }
         
         unsubscribeSOSAlerts()
         
@@ -493,18 +609,11 @@ final class AppViewModel {
                         self.service.sosAlerts.insert(alert, at: 0)
                         
                         if self.currentUser?.role == .fleetManager && alert.status == "ACTIVE" {
-                            withAnimation(.spring()) {
-                                self.activeEmergencyAlert = alert
-                            }
-                            
-                            // Audio & Vibration Alert
-                            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-                            AudioServicesPlaySystemSound(1005)
-                            UINotificationFeedbackGenerator().notificationOccurred(.error)
-                            
+                            self.presentActiveSOSAlert(alert)
                             NotificationScheduler.scheduleBroadcastAlert(
                                 title: "🚨 ACTIVE EMERGENCY: \(alert.driverName)",
-                                body: "Vehicle: \(alert.vehicleNumber) | Emergency: \(alert.emergencyType). Tap to respond."
+                                body: "Vehicle: \(alert.vehicleNumber) | Emergency: \(alert.emergencyType). Tap to respond.",
+                                timeSensitive: true
                             )
                         }
                     }
@@ -534,11 +643,10 @@ final class AppViewModel {
                             withAnimation(.spring()) {
                                 self.activeEmergencyAlert = nil
                             }
+                            self.stopSOSAlarm()
                         }
                     } else if self.currentUser?.role == .fleetManager {
-                        withAnimation(.spring()) {
-                            self.activeEmergencyAlert = alert
-                        }
+                        self.presentActiveSOSAlert(alert)
                     }
                 } catch {
                     print("SOS Realtime update decode error: \(error)")
@@ -572,13 +680,12 @@ final class AppViewModel {
         guard currentUser?.role == .fleetManager else { return }
         let dismissed = dismissedSOSAlertIDs
         if let firstActive = service.sosAlerts.first(where: { $0.status == "ACTIVE" && !dismissed.contains($0.id) }) {
-            withAnimation(.spring()) {
-                self.activeEmergencyAlert = firstActive
-            }
+            presentActiveSOSAlert(firstActive)
         } else {
             withAnimation(.spring()) {
                 self.activeEmergencyAlert = nil
             }
+            stopSOSAlarm()
         }
     }
 
@@ -593,6 +700,7 @@ final class AppViewModel {
                 activeEmergencyAlert = nil
             }
         }
+        stopSOSAlarm()
         // Also mark as CLOSED in Supabase
         if SupabaseConfig.isConfigured,
            let alert = service.sosAlerts.first(where: { $0.id == alertID }) {
