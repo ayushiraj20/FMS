@@ -33,45 +33,38 @@ private struct FleetManagerTabView: View {
     @State private var sheetPresentationDepth = 0
 
     var body: some View {
-
-        TabView {
-            NavigationStack {
+        NavigationStack {
+            TabView {
                 FleetManagerDashboardView()
-            }
-            .tabItem {
-                Label("Dashboard", systemImage: "square.grid.2x2.fill")
-            }
+                    .tabItem {
+                        Label("Dashboard", systemImage: "square.grid.2x2.fill")
+                    }
 
-            NavigationStack {
                 FleetManagerTripsView()
-            }
-            .tabItem {
-                Label("Trips", systemImage: "truck.box.fill")
-            }
+                    .tabItem {
+                        Label("Trips", systemImage: "truck.box.fill")
+                    }
 
-            NavigationStack {
                 VehicleManagementView(
                     service: appViewModel.service,
                     currentOrgID: appViewModel.currentOrganization?.id
                 )
-            }
-            .tabItem {
-                Label("Vehicles", systemImage: "car.2.fill")
-            }
+                .tabItem {
+                    Label("Vehicles", systemImage: "car.2.fill")
+                }
 
-            NavigationStack {
                 TeamView(
                     service: appViewModel.service,
                     currentOrgID: appViewModel.currentOrganization?.id
                 )
+                .tabItem {
+                    Label("Crew", systemImage: "person.2.fill")
+                }
             }
-            .tabItem {
-                Label("Crew", systemImage: "person.2.fill")
-            }
+            .tint(Color("AccentColor"))
+            .toolbar(sheetPresentationDepth > 0 ? .hidden : .automatic, for: .tabBar)
+            .tabBarSheetDepthTracking($sheetPresentationDepth)
         }
-        .tint(Color("AccentColor"))
-        .toolbar(sheetPresentationDepth > 0 ? .hidden : .automatic, for: .tabBar)
-        .tabBarSheetDepthTracking($sheetPresentationDepth)
     }
 }
 
@@ -86,59 +79,56 @@ private struct DriverTabView: View {
     private var driverVM = DriverViewModel()
 
     var body: some View {
+        NavigationStack {
+            TabView(
+                selection:
+                $driverVM.selectedTab
+            ) {
 
-        TabView(
-            selection:
-            $driverVM.selectedTab
-        ) {
-
-            NavigationStack {
                 DriverDashboardView()
-            }
-            .tabItem {
-                Label(
-                    "Dashboard",
-                    systemImage:
-                    "house.fill"
-                )
-            }
-            .tag(0)
+                    .tabItem {
+                        Label(
+                            "Dashboard",
+                            systemImage:
+                            "house.fill"
+                        )
+                    }
+                    .tag(0)
 
-            NavigationStack {
                 DriverTripTabView()
-            }
-            .tabItem {
-                Label(
-                    "Trip",
-                    systemImage:
-                    "truck.box.fill"
-                )
-            }
-            .tag(1)
+                    .tabItem {
+                        Label(
+                            "Trip",
+                            systemImage:
+                            "truck.box.fill"
+                        )
+                    }
+                    .tag(1)
 
-        }
-        .tint(
-            DriverTheme.accent
-        )
-        .environment(
-            driverVM
-        )
-        .fullScreenCover(
-            isPresented:
-            $driverVM.showSOSSheet
-        ) {
+            }
+            .tint(
+                DriverTheme.accent
+            )
+            .environment(
+                driverVM
+            )
+            .fullScreenCover(
+                isPresented:
+                $driverVM.showSOSSheet
+            ) {
 
-            SOSSheetView()
-                .environment(
-                    appViewModel
-                )
-                .environment(
-                    driverVM
-                )
-                .registersSheetPresentation()
+                SOSSheetView()
+                    .environment(
+                        appViewModel
+                    )
+                    .environment(
+                        driverVM
+                    )
+                    .registersSheetPresentation()
+            }
+            .toolbar(sheetPresentationDepth > 0 ? .hidden : .automatic, for: .tabBar)
+            .tabBarSheetDepthTracking($sheetPresentationDepth)
         }
-        .toolbar(sheetPresentationDepth > 0 ? .hidden : .automatic, for: .tabBar)
-        .tabBarSheetDepthTracking($sheetPresentationDepth)
     }
 }
 
@@ -150,85 +140,76 @@ private struct MaintenanceTabView: View {
     @State private var sheetPresentationDepth = 0
 
     var body: some View {
+        NavigationStack {
+            TabView(
+                selection:
+                $selectedTab
+            ) {
 
-        TabView(
-            selection:
-            $selectedTab
-        ) {
-
-            NavigationStack {
                 MaintenanceDashboardView()
-            }
-            .tabItem {
-                Label(
-                    "Dashboard",
-                    systemImage:
-                    "wrench.adjustable.fill"
-                )
-            }
-            .tag(0)
+                    .tabItem {
+                        Label(
+                            "Dashboard",
+                            systemImage:
+                            "wrench.adjustable.fill"
+                        )
+                    }
+                    .tag(0)
 
-            NavigationStack {
                 MaintenanceWorkOrdersView()
-            }
-            .tabItem {
-                Label(
-                    "Orders",
-                    systemImage:
-                    "list.clipboard.fill"
-                )
-            }
-            .tag(1)
+                    .tabItem {
+                        Label(
+                            "Orders",
+                            systemImage:
+                            "list.clipboard.fill"
+                        )
+                    }
+                    .tag(1)
 
-            NavigationStack {
                 MaintenanceInventoryView()
-            }
-            .tabItem {
-                Label(
-                    "Inventory",
-                    systemImage:
-                    "shippingbox.fill"
-                )
-            }
-            .tag(2)
+                    .tabItem {
+                        Label(
+                            "Inventory",
+                            systemImage:
+                            "shippingbox.fill"
+                        )
+                    }
+                    .tag(2)
 
-            NavigationStack {
                 MaintenanceReportsView()
+                    .tabItem {
+                        Label(
+                            "Reports",
+                            systemImage:
+                            "doc.text.fill"
+                        )
+                    }
+                    .tag(3)
             }
-            .tabItem {
-                Label(
-                    "Reports",
-                    systemImage:
-                    "doc.text.fill"
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for:
+                    .maintenanceDashboardRequested
                 )
+            ) { _ in
+
+                selectedTab = 0
             }
-            .tag(3)
-        }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for:
+                    .maintenanceOrdersRequested
+                )
+            ) { _ in
 
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for:
-                .maintenanceDashboardRequested
+                selectedTab = 1
+            }
+            .tint(
+                Color(hex: "#FF5A1F")
             )
-        ) { _ in
-
-            selectedTab = 0
+            .toolbar(sheetPresentationDepth > 0 ? .hidden : .automatic, for: .tabBar)
+            .tabBarSheetDepthTracking($sheetPresentationDepth)
         }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for:
-                .maintenanceOrdersRequested
-            )
-        ) { _ in
-
-            selectedTab = 1
-        }
-
-        .tint(
-            Color(hex: "#FF5A1F")
-        )
-        .toolbar(sheetPresentationDepth > 0 ? .hidden : .automatic, for: .tabBar)
-        .tabBarSheetDepthTracking($sheetPresentationDepth)
     }
 }
 
