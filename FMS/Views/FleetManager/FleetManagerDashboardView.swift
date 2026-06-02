@@ -59,7 +59,7 @@ struct FleetManagerDashboardView: View {
                     )
             }
             .buttonStyle(.plain)
-            .padding(.trailing, 20)
+            .padding(.trailing, 24)
             .padding(.bottom, 24)
         }
         .background(AppTheme.background)
