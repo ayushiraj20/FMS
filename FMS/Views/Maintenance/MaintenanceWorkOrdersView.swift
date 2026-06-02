@@ -450,8 +450,9 @@ struct MaintenanceWorkOrdersView: View {
         }
         
         private var heroCard: some View {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top) {
+            GlassCard {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top) {
                     Text("\(workOrder.priority.rawValue.uppercased()) PRIORITY")
                         .font(.system(.caption2, design: .rounded).monospaced().weight(.bold))
                         .foregroundStyle(workOrder.isOverdue ? .white : AppTheme.warning)
@@ -500,14 +501,8 @@ struct MaintenanceWorkOrdersView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
+                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(18)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.regularMaterial)
-            )
-            .glassEffect(.regular, in: .rect(cornerRadius: 16))
         }
         
         private var progressCard: some View {
@@ -528,23 +523,32 @@ struct MaintenanceWorkOrdersView: View {
                         .background(Color(uiColor: .tertiarySystemGroupedBackground))
                         .clipShape(Capsule())
                     
-                    HStack(spacing: 8) {
-                        ForEach(Self.progressStatuses, id: \.self) { status in
-                            Button {
-                                selectedStatus = status
-                            } label: {
-                                Text(status.displayTitle)
-                                    .font(.system(.caption, design: .rounded).weight(.bold))
-                                    .foregroundStyle(selectedStatus == status ? Color.white : .secondary)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 34)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .fill(selectedStatus == status ? AnyShapeStyle(accent) : AnyShapeStyle(.ultraThinMaterial))
-                                    )
-                                    .glassEffect(selectedStatus == status ? .identity : .regular.interactive(), in: .rect(cornerRadius: 8))
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Self.progressStatuses, id: \.self) { status in
+                                let isSelected = selectedStatus == status
+                                if isSelected {
+                                    Button {
+                                        selectedStatus = status
+                                    } label: {
+                                        Text(status.displayTitle)
+                                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .buttonBorderShape(.capsule)
+                                    .tint(accent)
+                                } else {
+                                    Button {
+                                        selectedStatus = status
+                                    } label: {
+                                        Text(status.displayTitle)
+                                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .buttonBorderShape(.capsule)
+                                    .tint(.secondary)
+                                }
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                     
@@ -965,13 +969,9 @@ struct MaintenanceWorkOrdersView: View {
         }
         
         var body: some View {
-            content
-                .padding(18)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.regularMaterial)
-                )
-                .glassEffect(.regular, in: .rect(cornerRadius: 16))
+            GlassCard {
+                content
+            }
         }
     }
     
