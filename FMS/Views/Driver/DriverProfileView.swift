@@ -108,18 +108,6 @@ struct DriverProfileView: View {
         }
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(isEditing ? "Save" : "Edit") {
-                    withAnimation {
-                        if isEditing { saveFields() } else { loadFields() }
-                        isEditing.toggle()
-                    }
-                }
-                .font(.system(.headline, design: .rounded).bold())
-                .foregroundStyle(DriverTheme.accent)
-            }
-        }
         .onAppear(perform: loadFields)
         .sheet(isPresented: $showDefectSheet) {
             DefectReportView().environment(appViewModel)

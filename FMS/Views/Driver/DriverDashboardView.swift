@@ -231,7 +231,7 @@ struct DriverDashboardView: View {
                     }
                 }
                 .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
             .buttonStyle(.plain)
@@ -263,11 +263,12 @@ struct DriverDashboardView: View {
                         .foregroundStyle(DriverTheme.textSecondary)
                 }
                 .padding()
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
             .buttonStyle(.plain)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: - Active Trip Widget (iOS 26 Style)
