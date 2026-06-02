@@ -30,14 +30,9 @@ extension MockDataService {
         if let cached = tripRoutePlansByTripID[trip.id] {
             return cached
         }
-        if let persisted = decodeRoutePlan(from: trip.routeDetails), persisted.tripID == trip.id {
-            tripRoutePlansByTripID[trip.id] = persisted
-            return persisted
-        }
         guard trip.hasRoutableEndpoints else { return nil }
         guard let plan = await TripRoutePlanningService.planRoutes(for: trip) else { return nil }
         tripRoutePlansByTripID[trip.id] = plan
-        persistRoutePlan(plan, for: trip.id)
         return plan
     }
 
@@ -49,34 +44,19 @@ extension MockDataService {
     }
 
     func reloadTripRoutePlansFromStoredTrips() {
-        for trip in trips {
-            if let persisted = decodeRoutePlan(from: trip.routeDetails) {
-                tripRoutePlansByTripID[trip.id] = persisted
-            }
-        }
+        // Route plans are cached in-memory via tripRoutePlansByTripID and
+        // regenerated on demand by tripRoutePlan(for:). No-op retained for callers.
     }
 
     func tripWithRoutePlanAttached(_ trip: Trip) async -> Trip {
         guard trip.hasRoutableEndpoints else { return trip }
-        if let cached = tripRoutePlansByTripID[trip.id] {
-            return tripWithEncodedRoutePlan(trip, plan: cached)
-        }
-        if let persisted = decodeRoutePlan(from: trip.routeDetails) {
-            tripRoutePlansByTripID[trip.id] = persisted
+        if tripRoutePlansByTripID[trip.id] != nil {
             return trip
         }
-        guard let plan = await TripRoutePlanningService.planRoutes(for: trip) else { return trip }
-        tripRoutePlansByTripID[trip.id] = plan
-        return tripWithEncodedRoutePlan(trip, plan: plan)
-    }
-
-    private func tripWithEncodedRoutePlan(_ trip: Trip, plan: TripRoutePlan) -> Trip {
-        var updated = trip
-        if let data = try? JSONEncoder().encode(plan),
-           let json = String(data: data, encoding: .utf8) {
-            updated.routeDetails = "route-plan:\(json)"
+        if let plan = await TripRoutePlanningService.planRoutes(for: trip) {
+            tripRoutePlansByTripID[trip.id] = plan
         }
-        return updated
+        return trip
     }
 
     func routeGeofenceBreaches(
@@ -149,9 +129,8 @@ extension MockDataService {
 
         switch status {
         case .onAlternativeRoute(let index):
-            let shouldAlert = state.lastStatus != status
-                || state.lastAlternativeAlertAt.map { now.timeIntervalSince($0) >= 30 } != false
-            if shouldAlert {
+            let cooldownElapsed = state.lastAlternativeAlertAt.map { now.timeIntervalSince($0) >= 30 } ?? true
+            if cooldownElapsed {
                 sendAlternativeRouteAlert(
                     location: location,
                     trip: trip,
@@ -163,12 +142,17 @@ extension MockDataService {
                     lastAlternativeAlertAt: now,
                     lastBreachAlertAt: state.lastBreachAlertAt
                 )
+            } else if state.lastStatus != status {
+                routeGeofenceAlertStates[vehicle.id] = RouteGeofenceAlertState(
+                    lastStatus: status,
+                    lastAlternativeAlertAt: state.lastAlternativeAlertAt,
+                    lastBreachAlertAt: state.lastBreachAlertAt
+                )
             }
 
         case .outsideCorridor:
-            let shouldAlert = state.lastStatus != status
-                || state.lastBreachAlertAt.map { now.timeIntervalSince($0) >= 30 } != false
-            if shouldAlert {
+            let cooldownElapsed = state.lastBreachAlertAt.map { now.timeIntervalSince($0) >= 30 } ?? true
+            if cooldownElapsed {
                 let breach = TripRouteGeofenceBreach(
                     location: location,
                     trip: trip,
@@ -181,6 +165,12 @@ extension MockDataService {
                     lastStatus: status,
                     lastAlternativeAlertAt: state.lastAlternativeAlertAt,
                     lastBreachAlertAt: now
+                )
+            } else if state.lastStatus != status {
+                routeGeofenceAlertStates[vehicle.id] = RouteGeofenceAlertState(
+                    lastStatus: status,
+                    lastAlternativeAlertAt: state.lastAlternativeAlertAt,
+                    lastBreachAlertAt: state.lastBreachAlertAt
                 )
             }
 
@@ -299,22 +289,6 @@ extension MockDataService {
         return max(0, nearest - Self.routeCorridorToleranceMeters)
     }
 
-    private func persistRoutePlan(_ plan: TripRoutePlan, for tripID: UUID) {
-        guard let index = trips.firstIndex(where: { $0.id == tripID }) else { return }
-        if let data = try? JSONEncoder().encode(plan),
-           let json = String(data: data, encoding: .utf8) {
-            trips[index].routeDetails = "route-plan:\(json)"
-        }
-    }
-
-    private func decodeRoutePlan(from routeDetails: String?) -> TripRoutePlan? {
-        guard let routeDetails,
-              routeDetails.hasPrefix("route-plan:"),
-              let data = routeDetails.dropFirst("route-plan:".count).data(using: .utf8) else {
-            return nil
-        }
-        return try? JSONDecoder().decode(TripRoutePlan.self, from: data)
-    }
 }
 
 struct TripRouteGeofenceStatusBanner: View {

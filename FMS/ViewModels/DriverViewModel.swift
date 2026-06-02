@@ -44,6 +44,10 @@ final class DriverViewModel {
     var currentLocation: CLLocationCoordinate2D?
     var isTracking = false
 
+    // Background geofence monitoring
+    @ObservationIgnored private weak var geofenceService: MockDataService?
+    @ObservationIgnored private var geofenceUser: User?
+
     func load() async {
         guard isLoading else { return }
         try? await Task.sleep(for: .seconds(0.35))
@@ -57,6 +61,9 @@ final class DriverViewModel {
         sosTriggered = false
         sosConfirmed = false
         showSOSSheet = true
+
+        // Begin location acquisition immediately so triggerSOS has a fix by the time the countdown ends.
+        primeLocationForSOS()
 
         sosTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -78,6 +85,25 @@ final class DriverViewModel {
         showSOSSheet = false
         sosTriggered = false
         sosConfirmed = false
+        sosDescription = ""
+        selectedEmergencyType = "Accident"
+    }
+
+    private func primeLocationForSOS() {
+        // Ensure CL updates are running so we have a fix by the time the 5s countdown ends.
+        if !isTracking {
+            startLiveTracking()
+        }
+        switch locationManager.authorizationStatus {
+        case .notDetermined:
+            locationManager.requestWhenInUseAuthorization()
+        case .authorizedWhenInUse, .authorizedAlways:
+            locationManager.requestLocation()
+        case .denied, .restricted:
+            print("[SOS] Location permission denied; alert will be sent without coordinates. ⚠️")
+        @unknown default:
+            break
+        }
     }
 
     func triggerSOS(service: MockDataService, user: User?) {
@@ -96,27 +122,32 @@ final class DriverViewModel {
         }
         let vehicleID = vehicle.id
 
-        // Request location permissions if not already determined
-        if locationManager.authorizationStatus == .notDetermined {
-            locationManager.requestWhenInUseAuthorization()
-        }
-
-        // Get exact coordinates if authorized, otherwise fallback gracefully to Mumbai
-        var finalLat = 19.0760
-        var finalLng = 72.8777
-
-        if locationManager.authorizationStatus == .authorizedWhenInUse || 
-           locationManager.authorizationStatus == .authorizedAlways {
-            if let loc = locationManager.location {
-                finalLat = loc.coordinate.latitude
-                finalLng = loc.coordinate.longitude
-                print("CoreLocation: Resolved exact driver location -> (\(finalLat), \(finalLng)) ✅")
-            } else {
-                print("CoreLocation: Location authorized but coordinates unavailable. Falling back to default. ⚠️")
-            }
+        // Prefer the live-tracking coordinate (refreshed every 10m by startLiveTracking),
+        // then the location manager's last known fix, and only fall back if neither is available.
+        let resolvedCoordinate: CLLocationCoordinate2D?
+        if let live = currentLocation {
+            resolvedCoordinate = live
+        } else if let cached = locationManager.location?.coordinate {
+            resolvedCoordinate = cached
         } else {
-            print("CoreLocation: Location permissions not authorized. Falling back to default. ⚠️")
+            resolvedCoordinate = nil
         }
+
+        let finalLat = resolvedCoordinate?.latitude ?? 0
+        let finalLng = resolvedCoordinate?.longitude ?? 0
+        let gpsAvailable = resolvedCoordinate != nil
+
+        if gpsAvailable {
+            print("[SOS] Resolved coordinates -> (\(finalLat), \(finalLng)) ✅")
+        } else {
+            print("[SOS] No GPS fix available; alert flagged as location-unknown. ⚠️")
+        }
+
+        let descriptionParts: [String?] = [
+            gpsAvailable ? nil : "⚠️ NO GPS FIX — last known location unavailable.",
+            sosDescription.isEmpty ? nil : sosDescription
+        ]
+        let combinedDescription = descriptionParts.compactMap { $0 }.joined(separator: " ")
 
         service.triggerSOS(
             driverID: user.id,
@@ -124,7 +155,7 @@ final class DriverViewModel {
             latitude: finalLat,
             longitude: finalLng,
             emergencyType: selectedEmergencyType,
-            description: sosDescription.isEmpty ? nil : sosDescription
+            description: combinedDescription.isEmpty ? nil : combinedDescription
         )
 
         // Show confirmed after brief delay
@@ -281,6 +312,8 @@ final class DriverViewModel {
                 } else {
                     self.currentSpeed = 0.0
                 }
+
+                self.evaluateActiveTripGeofence(coordinate: location.coordinate)
             }
         }
         self.locationDelegate = delegate
@@ -291,6 +324,39 @@ final class DriverViewModel {
         locationManager.startUpdatingLocation()
         isTracking = true
         print("[GPS] Live tracking started ✅")
+    }
+
+    func enableBackgroundGeofenceMonitoring(service: MockDataService, user: User?) {
+        geofenceService = service
+        geofenceUser = user
+    }
+
+    func disableBackgroundGeofenceMonitoring() {
+        geofenceService = nil
+        geofenceUser = nil
+    }
+
+    private func evaluateActiveTripGeofence(coordinate: CLLocationCoordinate2D) {
+        guard let service = geofenceService, let user = geofenceUser else { return }
+        guard let vehicle = service.vehicles.first(where: { $0.assignedDriverID == user.id }),
+              let trip = service.trips.first(where: {
+                  $0.vehicleID == vehicle.id && $0.driverID == user.id && $0.status == .inProgress
+              }) else { return }
+
+        let manager = service.users.first {
+            $0.role == .fleetManager && $0.organizationID == user.organizationID
+        }
+
+        Task { [trip, vehicle, user, manager] in
+            await service.processRouteGeofenceUpdate(
+                trip: trip,
+                vehicle: vehicle,
+                driver: user,
+                coordinate: coordinate,
+                locality: trip.destination,
+                manager: manager
+            )
+        }
     }
 
     func stopLiveTracking() {
