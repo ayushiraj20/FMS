@@ -47,7 +47,7 @@ struct FleetManagerDashboardView: View {
             }
             
             // MARK: - FAB
-            NavigationLink(destination: AIPredictionDashboardView()) {
+            NavigationLink(destination: AIPredictionDashboardView().hideTabBarOnPush()) {
                 Image(systemName: "sparkles")
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(.white)
@@ -67,7 +67,7 @@ struct FleetManagerDashboardView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                NavigationLink(destination: ProfileSettingsView()) {
+                NavigationLink(destination: ProfileSettingsView().hideTabBarOnPush()) {
                     AvatarView(name: appViewModel.currentUser?.name ?? "FM", size: 36)
                 }
                 .buttonStyle(.plain)
@@ -83,7 +83,7 @@ struct FleetManagerDashboardView: View {
                 .glassEffect(.identity)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: NotificationsView()) {
+                NavigationLink(destination: NotificationsView().hideTabBarOnPush()) {
                     NotificationToolbarIcon()
                 }
                 .buttonStyle(.plain)
@@ -132,7 +132,7 @@ struct FleetManagerDashboardView: View {
     private var kpiGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
             ForEach(viewModel.stats(service: appViewModel.service)) { stat in
-                NavigationLink(destination: destinationView(for: stat)) {
+                NavigationLink(destination: destinationView(for: stat).hideTabBarOnPush()) {
                     StatCardView(stat: stat)
                 }
                 .buttonStyle(.plain)
@@ -206,7 +206,7 @@ struct FleetManagerDashboardView: View {
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
                     Spacer()
-                    NavigationLink(destination: PriorityAlertsListView()) {
+                    NavigationLink(destination: PriorityAlertsListView().hideTabBarOnPush()) {
                         Text("See All")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(AppTheme.brand)
@@ -215,21 +215,21 @@ struct FleetManagerDashboardView: View {
                 }
                 
                 HStack {
-                    NavigationLink(destination: PriorityAlertDetailView(category: "SOS Alerts", count: sosCount)) {
+                    NavigationLink(destination: PriorityAlertDetailView(category: "SOS Alerts", count: sosCount).hideTabBarOnPush()) {
                         alertIconItem(icon: "exclamationmark.triangle.fill", categoryColor: Color(red: 1, green: 0.25, blue: 0.3), count: sosCount, label: "SOS Alerts")
                     }
                     .buttonStyle(.plain)
                     
                     Spacer()
                     
-                    NavigationLink(destination: PriorityAlertDetailView(category: "Critical", count: criticalCount)) {
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Critical", count: criticalCount).hideTabBarOnPush()) {
                         alertIconItem(icon: "bell.badge.fill", categoryColor: Color(red: 1, green: 0.45, blue: 0.1), count: criticalCount, label: "Critical")
                     }
                     .buttonStyle(.plain)
                     
                     Spacer()
                     
-                    NavigationLink(destination: PriorityAlertDetailView(category: "Maintenance", count: maintenanceCount)) {
+                    NavigationLink(destination: PriorityAlertDetailView(category: "Maintenance", count: maintenanceCount).hideTabBarOnPush()) {
                         alertIconItem(icon: "wrench.and.screwdriver.fill", categoryColor: Color(red: 0.35, green: 0.6, blue: 1), count: maintenanceCount, label: "Maintenance")
                     }
                     .buttonStyle(.plain)
@@ -293,7 +293,7 @@ struct FleetManagerDashboardView: View {
                     .font(.title3.weight(.bold))
                     .foregroundStyle(AppTheme.textPrimary)
                 Spacer()
-                NavigationLink(destination: FleetMapFullView(service: appViewModel.service, manager: appViewModel.currentUser)) {
+                NavigationLink(destination: FleetMapFullView(service: appViewModel.service, manager: appViewModel.currentUser).hideTabBarOnPush()) {
                     Text("See All")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.brand)
@@ -329,7 +329,7 @@ struct FleetManagerDashboardView: View {
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
                     Spacer()
-                    NavigationLink(destination: FleetUtilizationDetailView()) {
+                    NavigationLink(destination: FleetUtilizationDetailView().hideTabBarOnPush()) {
                         Text("See All")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(AppTheme.brand)
@@ -456,15 +456,15 @@ struct FleetManagerDashboardView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(title: "Quick Access", subtitle: "Navigate to key management modules")
             
-            NavigationLink(destination: AssignDriverView(service: appViewModel.service, organizationID: appViewModel.currentOrganization?.id)) {
+            NavigationLink(destination: AssignDriverView(service: appViewModel.service, organizationID: appViewModel.currentOrganization?.id).hideTabBarOnPush()) {
                 quickLink(title: "Assign Driver", subtitle: "Pair available vehicles & drivers", icon: "person.badge.key.fill")
             }
             
-            NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
+            NavigationLink(destination: DefectReportsListView().environment(appViewModel).hideTabBarOnPush()) {
                 quickLink(title: "Defect Reports", subtitle: "Review & approve driver defect reports", icon: "exclamationmark.triangle.fill")
             }
 
-            NavigationLink(destination: FleetReportsAnalyticsView()) {
+            NavigationLink(destination: FleetReportsAnalyticsView().hideTabBarOnPush()) {
                 quickLink(title: "Reports & Analytics", subtitle: "Generate maintenance, fuel, inventory, compliance, and routing reports", icon: "doc.text.fill")
             }
         }
@@ -475,7 +475,7 @@ struct FleetManagerDashboardView: View {
     private var pendingDefectBanner: some View {
         let pendingCount = appViewModel.service.defects.filter { $0.status == .pending }.count
         if pendingCount > 0 {
-            NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
+            NavigationLink(destination: DefectReportsListView().environment(appViewModel).hideTabBarOnPush()) {
                 HStack(spacing: 14) {
                     ZStack {
                         Circle()

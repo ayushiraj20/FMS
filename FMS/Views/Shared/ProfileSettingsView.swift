@@ -123,11 +123,11 @@ struct ProfileSettingsView: View {
                     // Links Card
                     GlassCard {
                         VStack(spacing: 16) {
-                            NavigationLink(destination: AppSettingsView()) {
+                            NavigationLink(destination: AppSettingsView().hideTabBarOnPush()) {
                                 linkRow(icon: "gearshape.fill", title: "Settings")
                             }
                             Divider().background(AppTheme.border).padding(.leading, 40)
-                            NavigationLink(destination: HelpSupportView()) {
+                            NavigationLink(destination: HelpSupportView().hideTabBarOnPush()) {
                                 linkRow(icon: "questionmark.circle.fill", title: "Help & Support")
                             }
                         }

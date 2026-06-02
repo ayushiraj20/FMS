@@ -32,7 +32,7 @@ struct MaintenanceDashboardView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                NavigationLink(destination: ProfileSettingsView()) {
+                NavigationLink(destination: ProfileSettingsView().hideTabBarOnPush()) {
                     ZStack {
                         Circle()
                             .fill(maintenanceAccent)
@@ -47,13 +47,13 @@ struct MaintenanceDashboardView: View {
                 .accessibilityIdentifier("PROFILE_BUTTON")
             }
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: BroadcastInboxView()) {
+                NavigationLink(destination: BroadcastInboxView().hideTabBarOnPush()) {
                     Image(systemName: "megaphone.fill")
                 }
                 .accessibilityIdentifier("BROADCAST_BUTTON")
             }
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: NotificationsView()) {
+                NavigationLink(destination: NotificationsView().hideTabBarOnPush()) {
                     NotificationToolbarIcon()
                 }
                 .accessibilityIdentifier("BELL_BUTTON")
@@ -117,7 +117,7 @@ struct MaintenanceDashboardView: View {
             GridItem(.flexible(), spacing: 10)
         ], spacing: 10) {
             // 1st Card: Critical
-            NavigationLink(destination: MaintenanceWorkOrdersView(showOnlyCritical: true)) {
+            NavigationLink(destination: MaintenanceWorkOrdersView(showOnlyCritical: true).hideTabBarOnPush()) {
                 MaintenanceMetricCard(
                     icon: "exclamationmark.triangle.fill",
                     title: "Critical",
@@ -128,7 +128,7 @@ struct MaintenanceDashboardView: View {
             .buttonStyle(.plain)
             
             // 2nd Card: Work In Progress
-            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .inProgress, isLockedFilter: true)) {
+            NavigationLink(destination: MaintenanceWorkOrdersView(initialFilter: .inProgress, isLockedFilter: true).hideTabBarOnPush()) {
                 MaintenanceMetricCard(
                     icon: "wrench.and.screwdriver.fill",
                     title: "In Progress",
@@ -139,7 +139,7 @@ struct MaintenanceDashboardView: View {
             .buttonStyle(.plain)
             
             // 3rd Card: Pending Vehicles needing maintenance
-            NavigationLink(destination: PendingVehiclesView()) {
+            NavigationLink(destination: PendingVehiclesView().hideTabBarOnPush()) {
                 MaintenanceMetricCard(
                     icon: "car.side.fill",
                     title: "Pending Vehicles",
@@ -150,7 +150,7 @@ struct MaintenanceDashboardView: View {
             .buttonStyle(.plain)
             
             // 4th Card: Past Part Orders (shortage parts ordered)
-            NavigationLink(destination: PastPartOrdersView()) {
+            NavigationLink(destination: PastPartOrdersView().hideTabBarOnPush()) {
                 MaintenanceMetricCard(
                     icon: "clock.arrow.circlepath",
                     title: "Past Orders",

@@ -153,6 +153,7 @@ struct MaintenanceCalendarView: View {
                             NavigationLink {
                                 MaintenanceWorkOrdersView.MaintenanceWorkOrderDetailView(workOrder: order)
                                     .environment(appViewModel)
+                                    .hideTabBarOnPush()
                             } label: {
                                 MaintenanceWorkOrdersView.MaintenanceWorkOrderCard(
                                     order: order,

@@ -163,7 +163,7 @@ private struct DriversTabView: View {
                     } else {
                         LazyVStack(spacing: 12) {
                             ForEach(drivers) { driver in
-                                NavigationLink(destination: DriverDetailView(driver: driver, service: viewModel.service)) {
+                                NavigationLink(destination: DriverDetailView(driver: driver, service: viewModel.service).hideTabBarOnPush()) {
                                     DriverRowCard(driver: driver, service: viewModel.service)
                                 }
                                 .buttonStyle(.plain)
@@ -374,6 +374,7 @@ private struct DriverDetailView: View {
 
                 NavigationLink {
                     DriverManagerChatView(driverID: currentDriver.id)
+                        .hideTabBarOnPush()
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "message.fill")

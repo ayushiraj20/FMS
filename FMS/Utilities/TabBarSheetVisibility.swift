@@ -22,6 +22,11 @@ extension View {
         toolbar(isPresented ? .hidden : .automatic, for: .tabBar)
     }
 
+    /// Hides the tab bar when this view is pushed onto a NavigationStack.
+    func hideTabBarOnPush() -> some View {
+        toolbar(.hidden, for: .tabBar)
+    }
+
     /// Call on the root content inside every `.sheet` / `.fullScreenCover`.
     func registersSheetPresentation() -> some View {
         modifier(TabBarSheetPresentationModifier())

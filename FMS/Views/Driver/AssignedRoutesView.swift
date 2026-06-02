@@ -21,7 +21,7 @@ struct AssignedRoutesView: View {
                 } else {
                     LazyVStack(spacing: 16) {
                         ForEach(assignedTrips) { trip in
-                            NavigationLink(destination: TripDetailView(trip: trip)) {
+                            NavigationLink(destination: TripDetailView(trip: trip).hideTabBarOnPush()) {
                                 routeCard(trip)
                             }
                             .buttonStyle(.plain)

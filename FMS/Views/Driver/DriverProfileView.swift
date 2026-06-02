@@ -51,6 +51,7 @@ struct DriverProfileView: View {
                 Section(header: Text("Activity").font(.footnote.bold()).foregroundStyle(DriverTheme.textSecondary)) {
                     NavigationLink {
                         DriverSafetyView().environment(appViewModel).environment(driverVM)
+                            .hideTabBarOnPush()
                     } label: {
                         settingsRow(
                             icon: "shield.checkerboard",

@@ -203,7 +203,7 @@ struct VehicleManagementView: View {
             } else {
                 VStack(spacing: 12) {
                     ForEach(displayedVehicles) { vehicle in
-                        NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id)) {
+                        NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id).hideTabBarOnPush()) {
                             VehicleRowView(viewModel: viewModel, vehicle: vehicle)
                         }
                         .buttonStyle(.plain)

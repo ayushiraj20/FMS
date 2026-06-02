@@ -736,6 +736,7 @@ struct DefectReviewSheet: View {
                     NavigationLink(
                         destination: WorkOrderChatView(workOrderID: wo.id)
                             .environment(appViewModel)
+                            .hideTabBarOnPush()
                     ) {
                         HStack {
                             Image(systemName: "bubble.left.and.bubble.right.fill")
