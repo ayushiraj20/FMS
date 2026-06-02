@@ -61,7 +61,7 @@ struct MaintenanceReportsView: View {
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(width: 46, height: 46)
-                        .background(Color(hex: "#FF9500"), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .background(Color(hex: "#FF5A1F"), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Maintenance Report")
@@ -76,25 +76,28 @@ struct MaintenanceReportsView: View {
                     Spacer()
                 }
 
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     Button {
                         Task { await generateReport() }
                     } label: {
                         Label("Generate Report", systemImage: "doc.badge.gearshape.fill")
                             .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .tint(Color(hex: "#FF9500"))
+                    .tint(Color(hex: "#FF5A1F"))
                     .disabled(isLoading)
 
                     if let generatedAt {
-                        Text(generatedAt.formatted(date: .abbreviated, time: .shortened))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(AppTheme.textSecondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("Last Generated")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
+                            Text(generatedAt.formatted(date: .abbreviated, time: .shortened))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
                     }
                 }
             }
@@ -104,11 +107,10 @@ struct MaintenanceReportsView: View {
     private func reportContent(_ report: MaintenanceReportSummary) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                let accent = Color(hex: "#FF9500")
-                maintenanceMetric("Assigned", "\(report.totalWorkOrders)", "\(report.openWorkOrders) open", "list.clipboard.fill", accent)
-                maintenanceMetric("Critical", "\(report.criticalWorkOrders)", "\(report.overdueWorkOrders) overdue", "exclamationmark.triangle.fill", accent)
-                maintenanceMetric("Completed", "\(report.completedWorkOrders)", "Closed jobs", "checkmark.seal.fill", accent)
-                maintenanceMetric("Est. Cost", currency(report.totalEstimatedCost), "Avg \(currency(report.averageEstimatedCost))", "indianrupeesign.circle.fill", accent)
+                maintenanceMetric("Assigned", "\(report.totalWorkOrders)", "\(report.openWorkOrders) open", "list.clipboard.fill", .blue)
+                maintenanceMetric("Critical", "\(report.criticalWorkOrders)", "\(report.overdueWorkOrders) overdue", "exclamationmark.triangle.fill", report.criticalWorkOrders > 0 ? AppTheme.error : AppTheme.success)
+                maintenanceMetric("Completed", "\(report.completedWorkOrders)", "Closed jobs", "checkmark.seal.fill", AppTheme.success)
+                maintenanceMetric("Est. Cost", currency(report.totalEstimatedCost), "Avg \(currency(report.averageEstimatedCost))", "indianrupeesign.circle.fill", AppTheme.warning)
             }
 
             GlassCard {

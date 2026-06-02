@@ -91,22 +91,28 @@ struct FleetReportsAnalyticsView: View {
                     Spacer()
                 }
 
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     Button {
                         Task { await generateReport(exportPDF: true) }
                     } label: {
                         Label("Generate Report", systemImage: "doc.badge.gearshape.fill")
+                            .lineLimit(1)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.brand)
                     .disabled(isLoading)
 
                     if let snapshot {
-                        Text(snapshot.generatedAt.formatted(date: .abbreviated, time: .shortened))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(AppTheme.textSecondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("Last Generated")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
+                            Text(snapshot.generatedAt.formatted(date: .abbreviated, time: .shortened))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
                     }
                 }
             }
