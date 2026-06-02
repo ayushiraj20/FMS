@@ -224,7 +224,7 @@ struct FleetManagerDashboardView: View {
                     Spacer()
                     
                     NavigationLink(destination: PriorityAlertDetailView(category: "Critical", count: criticalCount)) {
-                        alertIconItem(icon: "bell.badge.fill", categoryColor: Color(red: 1, green: 0.45, blue: 0.1), count: criticalCount, label: "Critical")
+                        alertIconItem(icon: criticalCount > 0 ? "bell.badge.fill" : "bell.fill", categoryColor: Color(red: 1, green: 0.45, blue: 0.1), count: criticalCount, label: "Critical")
                     }
                     .buttonStyle(.plain)
                     
