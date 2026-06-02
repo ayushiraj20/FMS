@@ -43,6 +43,11 @@ struct FMSApp: App {
                 .environment(
                     appViewModel
                 )
+                .onOpenURL { url in
+                    Task {
+                        await appViewModel.handleDeepLink(url)
+                    }
+                }
 
                 .onAppear {
 

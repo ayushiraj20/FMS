@@ -155,6 +155,7 @@ struct MaintenanceWorkOrdersView: View {
                         NavigationLink {
                             MaintenanceWorkOrderDetailView(workOrder: order)
                                 .environment(appViewModel)
+                                .hideTabBarOnPush()
                         } label: {
                             EmptyView()
                         }
@@ -789,7 +790,7 @@ struct MaintenanceWorkOrdersView: View {
                         }
                     }
                     
-                    NavigationLink(destination: WorkOrderChatView(workOrderID: workOrder.id).environment(appViewModel)) {
+                    NavigationLink(destination: WorkOrderChatView(workOrderID: workOrder.id).environment(appViewModel).hideTabBarOnPush()) {
                         Text("Open Coordination Chat")
                             .font(.system(.subheadline, design: .rounded).weight(.bold))
                             .foregroundStyle(.primary)

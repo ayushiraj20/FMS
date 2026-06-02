@@ -16,12 +16,12 @@ struct DriverVehicleTripDetailView: View {
                 
                 HStack(spacing: 16) {
                     if let trip = activeTrip {
-                        NavigationLink(destination: TripDetailView(trip: trip)) {
+                        NavigationLink(destination: TripDetailView(trip: trip).hideTabBarOnPush()) {
                             actionButton(icon: "video.fill", title: "Live View")
                         }
                         .buttonStyle(.plain)
                         
-                        NavigationLink(destination: TripDetailView(trip: trip)) {
+                        NavigationLink(destination: TripDetailView(trip: trip).hideTabBarOnPush()) {
                             actionButton(icon: "map.fill", title: "Trip Map")
                         }
                         .buttonStyle(.plain)

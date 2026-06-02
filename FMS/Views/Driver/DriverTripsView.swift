@@ -70,7 +70,7 @@ struct CompletedTripsView: View {
                 } else {
                     LazyVStack(spacing: 16) {
                         ForEach(completedTrips) { trip in
-                            NavigationLink(destination: TripDetailView(trip: trip)) {
+                            NavigationLink(destination: TripDetailView(trip: trip).hideTabBarOnPush()) {
                                 completedTripCard(trip)
                             }
                             .buttonStyle(.plain)
@@ -257,13 +257,7 @@ struct ActiveTripMapView: View {
         .task {
             await loadRoutePlan()
         }
-        .onAppear {
-            driverVM.startLiveTracking()
-        }
-        .onDisappear {
-            driverVM.stopLiveTracking()
-        }
-        .onChange(of: driverVM.currentLocation?.latitude) { _, _ in
+        .onChange(of: locationChangeKey(driverVM.currentLocation)) { _, _ in
             evaluateRouteCompliance()
         }
         .sheet(isPresented: $showReportSheet) {
@@ -280,6 +274,11 @@ struct ActiveTripMapView: View {
             cameraPosition = .region(FleetMapRegion.region(for: [originCoordinate, destinationCoordinate]))
         }
         evaluateRouteCompliance()
+    }
+
+    private func locationChangeKey(_ coordinate: CLLocationCoordinate2D?) -> String {
+        guard let coordinate else { return "nil" }
+        return "\(coordinate.latitude),\(coordinate.longitude)"
     }
 
     private func evaluateRouteCompliance() {

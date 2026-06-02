@@ -51,7 +51,7 @@ struct MaintenanceTabContentView: View {
                                     destination: MaintenanceMemberDetailView(
                                         member: member,
                                         service: appViewModel.service
-                                    )
+                                    ).hideTabBarOnPush()
                                 ) {
                                     maintenanceMemberCard(member)
                                 }

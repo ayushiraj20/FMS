@@ -80,7 +80,7 @@ struct PendingVehiclesView: View {
 
             // List the pending work orders for this vehicle
             ForEach(orders) { order in
-                NavigationLink(destination: MaintenanceWorkOrdersView.MaintenanceWorkOrderDetailView(workOrder: order).environment(appViewModel)) {
+                NavigationLink(destination: MaintenanceWorkOrdersView.MaintenanceWorkOrderDetailView(workOrder: order).environment(appViewModel).hideTabBarOnPush()) {
                     HStack(spacing: 10) {
                         Circle()
                             .fill(priorityColor(order.priority))

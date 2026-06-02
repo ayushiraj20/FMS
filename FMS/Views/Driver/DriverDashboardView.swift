@@ -48,6 +48,7 @@ struct DriverDashboardView: View {
                         DriverProfileView()
                             .environment(appViewModel)
                             .environment(driverVM)
+                            .hideTabBarOnPush()
                     } label: {
                         AvatarView(
                             name: currentUser?.name ?? "Driver",
@@ -59,15 +60,18 @@ struct DriverDashboardView: View {
                     .glassEffect(.identity)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: BroadcastInboxView()) {
+                    NavigationLink(destination: BroadcastInboxView().hideTabBarOnPush()) {
                         Image(systemName: "megaphone.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(Color("AccentColor"))
+                            .frame(width: 44, height: 44)
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.identity)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: NotificationsView()) {
-                        NotificationToolbarIcon()
+                    NavigationLink(destination: NotificationsView().hideTabBarOnPush()) {
+                        NotificationToolbarIcon(color: Color("AccentColor"))
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.identity)
@@ -199,6 +203,7 @@ struct DriverDashboardView: View {
                     DriverVehicleTripDetailView()
                         .environment(appViewModel)
                         .environment(driverVM)
+                        .hideTabBarOnPush()
                 }
             } label: {
                 VStack(alignment: .leading, spacing: 8) {
@@ -237,6 +242,7 @@ struct DriverDashboardView: View {
                 DriverShiftDetailView()
                     .environment(appViewModel)
                     .environment(driverVM)
+                    .hideTabBarOnPush()
             } label: {
                 VStack(spacing: 12) {
                     Text("Shift Progress")
@@ -396,6 +402,7 @@ struct DriverDashboardView: View {
             NavigationLink {
                 DriverManagerChatView()
                     .environment(appViewModel)
+                    .hideTabBarOnPush()
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "message.fill")

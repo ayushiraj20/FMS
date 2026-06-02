@@ -59,7 +59,8 @@ enum NotificationScheduler {
 
     static func scheduleBroadcastAlert(
         title: String,
-        body: String
+        body: String,
+        timeSensitive: Bool = false
     ) {
 
         let content =
@@ -68,6 +69,9 @@ enum NotificationScheduler {
         content.title = title
         content.body = body
         content.sound = .default
+        if timeSensitive {
+            content.interruptionLevel = .timeSensitive
+        }
 
         let request =
         UNNotificationRequest(
