@@ -2,11 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.trackngo.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fleeto</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>TrackNGo sends alerts when critical work orders become overdue and when fleet events need your attention.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>TrackNGo uses the microphone so drivers can record voice messages to the fleet manager.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>TrackNGo converts your voice to text when you send a message to the fleet manager.</string>
 </dict>
 </plist>

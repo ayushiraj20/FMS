@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 struct FleetManagerDashboardView: View {
     @Environment(AppViewModel.self) private var appViewModel
@@ -6,6 +7,8 @@ struct FleetManagerDashboardView: View {
     @State private var selectedStat: KPIStat?
     @State private var showBroadcast = false
     @State private var isFlashingSOS = false
+    @State private var showResolveConfirmation = false
+    @State private var pendingResolveAlertID: UUID?
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -572,110 +575,257 @@ struct FleetManagerDashboardView: View {
         }
     }
     
-    // MARK: - Premium SOS Overlay Banner Helper
+    // MARK: - SOS Emergency Banner
     private func emergencyAlertBanner(for alert: SOSAlert) -> some View {
-        return GlassCard {
-            HStack(spacing: 16) {
-                // Pulsing red danger indicator
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 14, height: 14)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.red, lineWidth: 4)
-                            .scaleEffect(isFlashingSOS ? 2.0 : 1.0)
-                            .opacity(isFlashingSOS ? 0.0 : 1.0)
-                    )
-                    .onAppear {
-                        withAnimation(.easeOut(duration: 1.2).repeatForever(autoreverses: false)) {
-                            isFlashingSOS = true
-                        }
-                    }
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Text("🚨 ACTIVE EMERGENCY")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.red, in: Capsule())
-                        
-                        Text(alert.emergencyType.uppercased())
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.red)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
-                            Text("Driver:")
-                                .font(.caption.bold())
-                                .foregroundStyle(AppTheme.textSecondary)
-                            Text(alert.driverName)
-                                .font(.subheadline.bold())
-                                .foregroundStyle(AppTheme.textPrimary)
-                        }
-                        
-                        HStack(spacing: 4) {
-                            Text("Vehicle:")
-                                .font(.caption.bold())
-                                .foregroundStyle(AppTheme.textSecondary)
-                            Text(alert.vehicleNumber)
-                                .font(.subheadline.bold())
-                                .foregroundStyle(AppTheme.textPrimary)
-                        }
-                        
-                        HStack(spacing: 4) {
-                            Text("Location:")
-                                .font(.caption.bold())
-                                .foregroundStyle(AppTheme.textSecondary)
-                            Text("Live GPS (\(alert.latitude), \(alert.longitude))")
-                                .font(.caption.bold())
-                                .foregroundStyle(AppTheme.brand)
-                        }
-                        
-                        HStack(spacing: 4) {
-                            Text("Time:")
-                                .font(.caption.bold())
-                                .foregroundStyle(AppTheme.textSecondary)
-                            Text(alert.createdAt, style: .time)
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                    }
-                }
-                
-                Spacer()
-                
-                VStack(spacing: 8) {
-                    NavigationLink(destination: PriorityAlertDetailView(category: "SOS Alerts", count: 1)) {
-                        Text("Show Location")
-                            .font(.caption.bold())
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.red, in: RoundedRectangle(cornerRadius: 6))
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Button {
-                        // Persist dismissal – this ID will never trigger the banner again,
-                        // even after app restart or re-login.
-                        appViewModel.dismissSOSAlert(alert.id)
-                    } label: {
-                        Text("Resolve")
-                            .font(.caption.bold())
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.green, in: RoundedRectangle(cornerRadius: 6))
-                    }
-                    .buttonStyle(.plain)
-                }
+        EmergencyAlertBanner(
+            alert: alert,
+            driverPhone: appViewModel.service.users.first { $0.id == alert.driverID }?.phone,
+            isFlashing: isFlashingSOS,
+            onResolve: {
+                pendingResolveAlertID = alert.id
+                showResolveConfirmation = true
             }
-            .padding(.vertical, 6)
+        )
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                isFlashingSOS = true
+            }
         }
-        .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity))
+        .confirmationDialog(
+            "Mark this emergency as resolved?",
+            isPresented: $showResolveConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Mark Resolved", role: .destructive) {
+                if let id = pendingResolveAlertID {
+                    appViewModel.dismissSOSAlert(id)
+                }
+                pendingResolveAlertID = nil
+            }
+            Button("Keep Active", role: .cancel) {
+                pendingResolveAlertID = nil
+            }
+        } message: {
+            Text("The alarm will stop and the banner will be dismissed. The alert will be marked CLOSED.")
+        }
+        .transition(.asymmetric(
+            insertion: .move(edge: .top).combined(with: .opacity),
+            removal: .opacity
+        ))
+    }
+}
+
+// MARK: - Emergency Alert Banner Component
+
+private struct EmergencyAlertBanner: View {
+    let alert: SOSAlert
+    let driverPhone: String?
+    let isFlashing: Bool
+    let onResolve: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var hasValidGPS: Bool {
+        !(alert.latitude == 0 && alert.longitude == 0) &&
+        alert.latitude.isFinite && alert.longitude.isFinite
+    }
+
+    private var elapsedText: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: alert.createdAt, relativeTo: Date())
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            header
+            driverBlock
+            if let description = alert.description, !description.isEmpty {
+                Text(description)
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            actionRow
+            footer
+        }
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [Color.red.opacity(0.95), Color(red: 0.65, green: 0.05, blue: 0.05)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Color.white.opacity(isFlashing ? 0.55 : 0.2), lineWidth: 1.5)
+        )
+        .shadow(color: Color.red.opacity(isFlashing ? 0.55 : 0.25), radius: isFlashing ? 22 : 10, y: 6)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Active emergency from \(alert.driverName), vehicle \(alert.vehicleNumber), \(alert.emergencyType), \(elapsedText)")
+    }
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.6), lineWidth: 2)
+                    .frame(width: 26, height: 26)
+                    .scaleEffect(isFlashing ? 1.8 : 1.0)
+                    .opacity(isFlashing ? 0.0 : 0.9)
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(6)
+                    .background(Color.white.opacity(0.15), in: Circle())
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("ACTIVE EMERGENCY")
+                    .font(.caption.weight(.heavy))
+                    .tracking(0.8)
+                    .foregroundStyle(.white)
+                Text(alert.emergencyType.uppercased())
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+
+            Spacer()
+
+            Label(elapsedText, systemImage: "clock.fill")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.white.opacity(0.15), in: Capsule())
+        }
+    }
+
+    private var driverBlock: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(alert.driverName)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Image(systemName: "truck.box.fill")
+                        .font(.caption)
+                    Text(alert.vehicleNumber)
+                        .font(.subheadline.weight(.semibold))
+                }
+                .foregroundStyle(.white.opacity(0.9))
+            }
+            Spacer()
+        }
+    }
+
+    private var actionRow: some View {
+        HStack(spacing: 8) {
+            actionButton(
+                title: "Call",
+                systemImage: "phone.fill",
+                isEnabled: driverPhone != nil
+            ) {
+                guard let phone = driverPhone,
+                      let url = URL(string: "tel://\(phone.filter { "0123456789+".contains($0) })") else { return }
+                UIApplication.shared.open(url)
+            }
+
+            actionButton(
+                title: "Text",
+                systemImage: "message.fill",
+                isEnabled: driverPhone != nil
+            ) {
+                guard let phone = driverPhone,
+                      let url = URL(string: "sms:\(phone.filter { "0123456789+".contains($0) })") else { return }
+                UIApplication.shared.open(url)
+            }
+
+            actionButton(
+                title: "Map",
+                systemImage: "map.fill",
+                isEnabled: hasValidGPS
+            ) {
+                openInMaps()
+            }
+        }
+    }
+
+    private func actionButton(
+        title: String,
+        systemImage: String,
+        isEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: systemImage)
+                    .font(.title3)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                Color.white.opacity(isEnabled ? 0.18 : 0.08),
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(isEnabled ? 0.3 : 0.1), lineWidth: 1)
+            )
+            .opacity(isEnabled ? 1 : 0.5)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .accessibilityLabel("\(title) driver")
+    }
+
+    private var footer: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: hasValidGPS ? "location.fill" : "location.slash.fill")
+                Text(hasValidGPS
+                     ? String(format: "%.4f, %.4f", alert.latitude, alert.longitude)
+                     : "Location unavailable")
+                    .font(.caption.weight(.medium))
+                    .monospacedDigit()
+            }
+            .foregroundStyle(.white.opacity(0.85))
+
+            Spacer()
+
+            Button(action: onResolve) {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("Resolve")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.18), in: Capsule())
+                .overlay(Capsule().stroke(Color.white.opacity(0.3), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Mark emergency as resolved")
+        }
+    }
+
+    private func openInMaps() {
+        guard hasValidGPS else { return }
+        let location = CLLocation(latitude: alert.latitude, longitude: alert.longitude)
+        let item = MKMapItem(location: location, address: nil as MKAddress?)
+        item.name = "🚨 \(alert.driverName) — \(alert.vehicleNumber)"
+        item.openInMaps(launchOptions: [
+            MKLaunchOptionsMapTypeKey: NSNumber(value: MKMapType.standard.rawValue)
+        ])
     }
 }
 

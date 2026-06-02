@@ -11,6 +11,15 @@ final class SupabaseService {
         self.client = SupabaseClient(supabaseURL: SupabaseConfig.url, supabaseKey: SupabaseConfig.key)
     }
     
+    // MARK: - Password Reset
+    func resetPassword(email: String) async throws {
+        try await client.auth.resetPasswordForEmail(email, redirectTo: URL(string: "fleeto://reset-callback"))
+    }
+
+    func handleSessionFromURL(_ url: URL) async throws -> Session {
+        return try await client.auth.session(from: url)
+    }
+
     // Organizations
     func fetchOrganizations() async throws -> [Organization] {
         let orgs: [Organization] = try await client.from("organizations").select().execute().value

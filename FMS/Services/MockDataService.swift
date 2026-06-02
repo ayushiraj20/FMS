@@ -1727,7 +1727,7 @@ final class MockDataService {
         }
         
         // 3. Create notification for assigned driver
-        let routesNote = trip.routeDetails?.hasPrefix("route-plan:") == true
+        let routesNote = tripRoutePlansByTripID[trip.id] != nil
             ? " Open Trips to view the main route and alternate paths on the map."
             : ""
         let notificationMsg = "You have been assigned vehicle \(vehicle.plateNumber) for \(origin) to \(destination). Start: \(startDate.formatted(date: .abbreviated, time: .shortened)).\(routesNote)"
