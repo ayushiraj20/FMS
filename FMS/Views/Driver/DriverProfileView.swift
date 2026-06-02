@@ -88,19 +88,24 @@ struct DriverProfileView: View {
                 
                 // Log Out Row
                 Section {
-                    Button(role: .destructive) {
+                    Button {
                         showLogoutAlert = true
                     } label: {
-                        HStack {
-                            Spacer()
+                        HStack(spacing: 8) {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
-                            Text("Log Out")
-                                .font(.system(.subheadline, design: .rounded).bold())
-                            Spacer()
+                            Text("Logout")
+                                .font(.system(size: 15, weight: .bold))
                         }
-                        .foregroundStyle(DriverTheme.criticalRed)
+                        .foregroundStyle(AppTheme.error)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(AppTheme.surfaceSecondary)
+                        )
                     }
-                    .listRowBackground(DriverTheme.criticalRed.opacity(0.1))
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
             }
             .listStyle(.insetGrouped)
