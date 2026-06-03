@@ -310,6 +310,7 @@ create table if not exists "fuelTransactions" (
   "driverID" uuid references profiles(id) on delete set null,
   "tripID" uuid references trips(id) on delete set null,
   "manualAmount" numeric(12,2) null,
+  "litres" numeric(12,3) null,
   "odometerReading" integer null,
   "receiptImageUrl" text null,
   "timestamp" timestamptz not null default now(),
@@ -563,6 +564,7 @@ create table if not exists "fuelTransactions" (
   "driverID" uuid references profiles(id) on delete set null,
   "tripID" uuid references trips(id) on delete set null,
   "manualAmount" numeric(12,2) null,
+  "litres" numeric(12,3) null,
   "odometerReading" integer null,
   "receiptImageUrl" text null,
   "timestamp" timestamptz not null default now(),
@@ -573,6 +575,9 @@ create table if not exists "fuelTransactions" (
 
 create index if not exists idx_fuel_transactions_vehicle_id on "fuelTransactions"("vehicleID");
 create index if not exists idx_fuel_transactions_driver_id on "fuelTransactions"("driverID");
+
+alter table "fuelTransactions"
+  add column if not exists "litres" numeric(12,3) null;
 
 -- Migration 6: Add title and images columns to defect_reports table (if not already present)
 alter table defect_reports
@@ -857,4 +862,3 @@ alter table vehicles
 
 alter table vehicle_documents
   add column if not exists image_url text null;
-

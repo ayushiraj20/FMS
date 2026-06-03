@@ -21,6 +21,7 @@ final class FuelRepository {
     func submitRefuel(
         imageData: Data,
         amount: Double,
+        litres: Double,
         odometer: Int,
         vehicleID: UUID,
         driverID: UUID,
@@ -30,6 +31,7 @@ final class FuelRepository {
         let prevOdo = try await service.previousOdometer(vehicleID: vehicleID)
         try await service.validate(
             amount: amount,
+            litres: litres,
             odometer: odometer,
             previousOdometer: prevOdo
         )
@@ -49,6 +51,7 @@ final class FuelRepository {
             driverID: driverID,
             tripID: tripID,
             manualAmount: amount,
+            litres: litres,
             odometerReading: odometer,
             receiptImageURL: receiptURL
         )

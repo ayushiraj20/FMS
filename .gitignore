@@ -111,3 +111,4 @@ ag-cache/
 # AI / env / secrets
 .env
 .aiexclude
+/.codex-derived-3

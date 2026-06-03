@@ -33,6 +33,7 @@ struct FuelTransaction: Identifiable, Hashable, Sendable {
     var driverID: UUID
     var tripID: UUID?
     var manualAmount: Double
+    var litres: Double
     var odometerReading: Int
     var receiptImageURL: String
     var timestamp: Date
@@ -45,8 +46,10 @@ struct FuelTransaction: Identifiable, Hashable, Sendable {
         case driverID           = "driverID"
         case tripID             = "tripID"
         case manualAmount       = "manualAmount"
+        case litres             = "litres"
         case odometerReading    = "odometerReading"
         case receiptImageURL    = "receiptImageURL"
+        case receiptImageUrl    = "receiptImageUrl"
         case timestamp          = "timestamp"
         case verificationStatus = "verificationStatus"
         case rejectionReason    = "rejectionReason"
@@ -58,6 +61,7 @@ struct FuelTransaction: Identifiable, Hashable, Sendable {
         driverID: UUID,
         tripID: UUID?,
         manualAmount: Double,
+        litres: Double,
         odometerReading: Int,
         receiptImageURL: String
     ) {
@@ -66,6 +70,7 @@ struct FuelTransaction: Identifiable, Hashable, Sendable {
         self.driverID = driverID
         self.tripID = tripID
         self.manualAmount = manualAmount
+        self.litres = litres
         self.odometerReading = odometerReading
         self.receiptImageURL = receiptImageURL
         self.timestamp = Date()
@@ -82,8 +87,9 @@ extension FuelTransaction: Encodable {
         try container.encode(driverID, forKey: .driverID)
         try container.encode(tripID, forKey: .tripID)
         try container.encode(manualAmount, forKey: .manualAmount)
+        try container.encode(litres, forKey: .litres)
         try container.encode(odometerReading, forKey: .odometerReading)
-        try container.encode(receiptImageURL, forKey: .receiptImageURL)
+        try container.encode(receiptImageURL, forKey: .receiptImageUrl)
         try container.encode(timestamp, forKey: .timestamp)
         try container.encode(verificationStatus, forKey: .verificationStatus)
         try container.encode(rejectionReason, forKey: .rejectionReason)
@@ -98,8 +104,10 @@ extension FuelTransaction: Decodable {
         driverID = try container.decode(UUID.self, forKey: .driverID)
         tripID = try container.decodeIfPresent(UUID.self, forKey: .tripID)
         manualAmount = try container.decode(Double.self, forKey: .manualAmount)
+        litres = try container.decodeIfPresent(Double.self, forKey: .litres) ?? 0
         odometerReading = try container.decode(Int.self, forKey: .odometerReading)
-        receiptImageURL = try container.decode(String.self, forKey: .receiptImageURL)
+        receiptImageURL = try container.decodeIfPresent(String.self, forKey: .receiptImageURL)
+            ?? container.decode(String.self, forKey: .receiptImageUrl)
         timestamp = try container.decode(Date.self, forKey: .timestamp)
         verificationStatus = try container.decode(FuelVerificationStatus.self, forKey: .verificationStatus)
         rejectionReason = try container.decodeIfPresent(String.self, forKey: .rejectionReason)
@@ -233,7 +241,7 @@ enum CarbonEfficiencyAnalytics {
             .map { trip in
                 let tripLitres = fuelTransactions
                     .filter { $0.tripID == trip.id && $0.verificationStatus != .rejected }
-                    .reduce(0) { $0 + CarbonEfficiencyAnalytics.litres(fromSpend: $1.manualAmount) }
+                    .reduce(0) { $0 + ($1.litres > 0 ? $1.litres : CarbonEfficiencyAnalytics.litres(fromSpend: $1.manualAmount)) }
                 return CarbonLastTripPerformance(
                     tripID: trip.id,
                     route: "\(trip.origin) → \(trip.destination)",
@@ -259,7 +267,9 @@ enum CarbonEfficiencyAnalytics {
 
     private static func fuelLitres(receipts: [FuelReceipt], transactions: [FuelTransaction]) -> Double {
         let receiptLitres = receipts.reduce(0) { $0 + $1.litres }
-        let transactionLitres = transactions.reduce(0) { $0 + litres(fromSpend: $1.manualAmount) }
+        let transactionLitres = transactions.reduce(0) {
+            $0 + ($1.litres > 0 ? $1.litres : litres(fromSpend: $1.manualAmount))
+        }
         return receiptLitres + transactionLitres
     }
 

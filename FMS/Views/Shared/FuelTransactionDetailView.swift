@@ -108,6 +108,8 @@ struct FuelTransactionDetailView: View {
             Divider().padding(.horizontal, 16)
             detailRow(label: "Amount",     value: "₹\(Int(transaction.manualAmount))")
             Divider().padding(.horizontal, 16)
+            detailRow(label: "Litres",     value: String(format: "%.2f L", transaction.litres))
+            Divider().padding(.horizontal, 16)
             detailRow(label: "Odometer",   value: "\(transaction.odometerReading) km")
             Divider().padding(.horizontal, 16)
             detailRow(

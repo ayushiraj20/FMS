@@ -92,10 +92,20 @@ struct DriverDashboardView: View {
                 await loadFuelTransactions()
             }
             .sheet(isPresented: $driverVM.showFuelReceiptSheet) {
-                FuelReceiptView()
+                if let user = currentUser, let vehicle = assignedVehicle {
+                    RefuelVehicleView(
+                        vehicleID: vehicle.id,
+                        driverID: user.id,
+                        tripID: appViewModel.service.activeTrip(for: user.id)?.id,
+                        repo: FuelRepository(
+                            service: FuelService(
+                                client: SupabaseService.shared.client
+                            )
+                        )
+                    )
                     .environment(appViewModel)
-                    .environment(driverVM)
                     .registersSheetPresentation()
+                }
             }
             .sheet(isPresented: $driverVM.showBreakLogSheet) {
                 TripBreakLogSheet(trip: currentUser.flatMap { appViewModel.service.activeTrip(for: $0.id) })
