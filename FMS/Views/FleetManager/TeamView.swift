@@ -77,9 +77,11 @@ struct TeamView: View {
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(width: 56, height: 56)
-                        .background(AppTheme.brand)
-                        .clipShape(Circle())
-                        .shadow(color: AppTheme.brand.opacity(0.35), radius: 10, y: 4)
+                        .background(
+                            Circle()
+                                .fill(AppTheme.brand)
+                                .shadow(color: AppTheme.brand.opacity(0.4), radius: 10, x: 0, y: 4)
+                        )
                 }
                 .padding(.trailing, 24)
                 .padding(.bottom, 24)

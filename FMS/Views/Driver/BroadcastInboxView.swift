@@ -46,7 +46,7 @@ struct BroadcastInboxView: View {
         .refreshable {
             await loadBroadcasts()
         }
-        .navigationTitle("Broadcasts")
+        .navigationTitle("Broadcast")
         .task {
             await loadBroadcasts()
         }

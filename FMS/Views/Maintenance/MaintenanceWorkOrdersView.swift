@@ -101,13 +101,30 @@ struct MaintenanceWorkOrdersView: View {
     // MARK: - Subviews
     
     private var filterBar: some View {
-        Picker("Filter", selection: $selectedFilter) {
-            ForEach(MaintenanceOrderProgressFilter.allCases) { filter in
-                Text(filter.title).tag(filter)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(MaintenanceOrderProgressFilter.allCases) { filter in
+                    let isSelected = selectedFilter == filter
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+                            selectedFilter = filter
+                        }
+                    } label: {
+                        Text(filter.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(isSelected ? .white : AppTheme.textPrimary)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 9)
+                            .background {
+                                Capsule()
+                                    .fill(isSelected ? AppTheme.brand : AppTheme.surfaceSecondary)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+            .padding(.horizontal, 16)
         }
-        .pickerStyle(.segmented)
-        .padding(.horizontal, 16)
         .padding(.vertical, 8)
     }
     
@@ -306,12 +323,6 @@ struct MaintenanceWorkOrdersView: View {
                     }
                     .foregroundStyle(Color.secondary)
                 }
-                
-                // MARK: iOS Navigation Chevron
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(AppTheme.brand)
-                    .padding(.leading, 2)
             }
             .padding(16)
             .background(
