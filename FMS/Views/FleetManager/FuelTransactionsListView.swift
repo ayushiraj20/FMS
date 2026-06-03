@@ -39,16 +39,19 @@ struct FuelTransactionsListView: View {
                 )
 
             } else {
-                List(filtered) { tx in
-                    FuelTransactionRow(transaction: tx)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(
-                            EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0)
-                        )
-                        .onTapGesture { selectedTransaction = tx }
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(filtered) { tx in
+                            Button {
+                                selectedTransaction = tx
+                            } label: {
+                                FuelTransactionRow(transaction: tx)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 12)
                 }
-                .listStyle(.plain)
                 .refreshable {
                     await fuelVM.loadAllTransactions()
                 }
@@ -132,43 +135,39 @@ struct FuelTransactionRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 14) {
-            Circle()
-                .fill(statusColor)
-                .frame(width: 10, height: 10)
+        GlassCard {
+            HStack(spacing: 14) {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 10, height: 10)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(driverName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.primary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(driverName)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
 
-                Text("\(vehiclePlate) • \(transaction.timestamp.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.secondary)
+                    Text("\(vehiclePlate) • \(transaction.timestamp.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("₹\(Int(transaction.manualAmount))")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(AppTheme.textPrimary)
+
+                    Text(transaction.verificationStatus.displayName)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(statusColor)
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
             }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("₹\(Int(transaction.manualAmount))")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(Color.primary)
-
-                Text(transaction.verificationStatus.displayName)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(statusColor)
-            }
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.secondary.opacity(0.5))
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(uiColor: .systemBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
-        )
         .padding(.horizontal, 20)
     }
 }

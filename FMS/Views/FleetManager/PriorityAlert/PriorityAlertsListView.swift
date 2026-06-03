@@ -12,10 +12,10 @@ struct PriorityAlertsListView: View {
         let maintenanceCount = appViewModel.service.maintenanceSchedules.filter { $0.status == .overdue }.count
         return [
             ("SOS Alerts",  "exclamationmark.triangle.fill", Color(red: 1, green: 0.25, blue: 0.3),  sosCount),
-            ("Critical",    "bell.badge.fill",               Color(red: 1, green: 0.45, blue: 0.1),  criticalCount),
+            ("Critical",    criticalCount > 0 ? "bell.badge.fill" : "bell.fill",               Color(red: 1, green: 0.45, blue: 0.1),  criticalCount),
             ("Maintenance", "wrench.and.screwdriver.fill",   Color(red: 0.35, green: 0.6, blue: 1),  maintenanceCount),
-            ("Off-Route",   "location.slash.fill",           Color(red: 1, green: 0.75, blue: 0.1),  4),
-            ("Geofence",    "shield.slash.fill",             Color(red: 0.6, green: 0.3, blue: 1),   1),
+            ("Off-Route",   "location.slash.fill",           Color(red: 1, green: 0.75, blue: 0.1),  0),
+            ("Geofence",    "shield.slash.fill",             Color(red: 0.6, green: 0.3, blue: 1),   0),
         ]
     }
 

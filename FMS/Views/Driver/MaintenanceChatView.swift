@@ -31,9 +31,15 @@ struct MaintenanceChatView: View {
                 VStack(spacing: 0) {
                     ScrollViewReader { proxy in
                         ScrollView {
-                            LazyVStack(spacing: 12) {
-                                ForEach(messages) { msg in
-                                    chatBubble(msg)
+                            LazyVStack(spacing: 4) {
+                                ForEach(0..<messages.count, id: \.self) { index in
+                                    let msg = messages[index]
+                                    let nextMessage = index < messages.count - 1 ? messages[index + 1] : nil
+                                    
+                                    // Show timestamp if next message is from a different sender, OR next message is > 1 min later
+                                    let showTimestamp = nextMessage == nil || nextMessage?.senderID != msg.senderID || nextMessage!.timestamp.timeIntervalSince(msg.timestamp) > 60
+                                    
+                                    chatBubble(msg, showTimestamp: showTimestamp)
                                         .id(msg.id)
                                 }
                             }
@@ -78,19 +84,31 @@ struct MaintenanceChatView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(DriverTheme.textSecondary)
+                    }
                 }
             }
         }
     }
 
-    private func chatBubble(_ message: ChatMessage) -> some View {
+    private func chatBubble(_ message: ChatMessage, showTimestamp: Bool) -> some View {
         let isSent = message.senderID == currentUser?.id
+        let isSameSenderAsNext = messages.firstIndex(of: message).map { idx in
+            guard idx < messages.count - 1 else { return false }
+            let next = messages[idx + 1]
+            return next.senderID == message.senderID && next.timestamp.timeIntervalSince(message.timestamp) <= 60
+        } ?? false
 
         return HStack {
             if isSent { Spacer(minLength: 40) }
 
-            VStack(alignment: isSent ? .trailing : .leading, spacing: 4) {
+            VStack(alignment: isSent ? .trailing : .leading, spacing: 2) {
                 Text(message.message)
                     .font(.system(.body, design: .rounded))
                     .foregroundStyle(isSent ? .white : DriverTheme.textPrimary)
@@ -101,9 +119,12 @@ struct MaintenanceChatView: View {
                         in: CustomCorners(corners: isSent ? [.topLeft, .topRight, .bottomLeft] : [.topLeft, .topRight, .bottomRight], radius: 20)
                     )
 
-                Text(message.timestamp.formatted(date: .omitted, time: .shortened))
-                    .font(.caption2)
-                    .foregroundStyle(DriverTheme.textSecondary)
+                if showTimestamp {
+                    Text(message.timestamp.formatted(date: .omitted, time: .shortened))
+                        .font(.caption2)
+                        .foregroundStyle(DriverTheme.textSecondary)
+                        .padding(.top, 2)
+                }
             }
             .scrollTransition { content, phase in
                 content.scaleEffect(phase.isIdentity ? 1 : 0.95).opacity(phase.isIdentity ? 1 : 0.8)
@@ -111,6 +132,7 @@ struct MaintenanceChatView: View {
 
             if !isSent { Spacer(minLength: 40) }
         }
+        .padding(.bottom, isSameSenderAsNext ? 0 : 8)
     }
 
     private func sendMessage() {
@@ -140,9 +162,9 @@ struct DriverManagerChatView: View {
 
     private var driver: User? {
         if let driverID {
-            return appViewModel.service.users.first { $0.id == driverID && $0.role == .driver }
+            return appViewModel.service.users.first { $0.id == driverID && ($0.role == .driver || $0.role == .maintenance) }
         }
-        return currentUser?.role == .driver ? currentUser : nil
+        return (currentUser?.role == .driver || currentUser?.role == .maintenance) ? currentUser : nil
     }
 
     private var fleetManager: User? {
@@ -160,7 +182,7 @@ struct DriverManagerChatView: View {
         case .fleetManager:
             return driver
         case .maintenance:
-            return nil
+            return fleetManager
         }
     }
 
@@ -170,7 +192,7 @@ struct DriverManagerChatView: View {
     }
 
     private var isDriverExperience: Bool {
-        currentUser?.role == .driver
+        currentUser?.role == .driver || currentUser?.role == .maintenance
     }
 
     private var accent: Color {
@@ -293,9 +315,22 @@ struct DriverManagerChatView: View {
     private var messagesList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(messages) { message in
-                        chatBubble(message)
+                LazyVStack(spacing: 4) {
+                    ForEach(0..<messages.count, id: \.self) { index in
+                        let message = messages[index]
+                        let prevMessage = index > 0 ? messages[index - 1] : nil
+                        let nextMessage = index < messages.count - 1 ? messages[index + 1] : nil
+                        
+                        // Show sender info if:
+                        // 1. It's not sent by current user
+                        // 2. It's the first message, OR the previous message was from a different sender, OR the time difference is > 1 min
+                        let showSenderInfo = message.senderID != currentUser?.id &&
+                            (prevMessage == nil || prevMessage?.senderID != message.senderID || message.timestamp.timeIntervalSince(prevMessage!.timestamp) > 60)
+                        
+                        // Show timestamp if next message is from a different sender, OR next message is > 1 min later
+                        let showTimestamp = nextMessage == nil || nextMessage?.senderID != message.senderID || nextMessage!.timestamp.timeIntervalSince(message.timestamp) > 60
+                        
+                        chatBubble(message, showSenderInfo: showSenderInfo, showTimestamp: showTimestamp)
                             .id(message.id)
                     }
                 }
@@ -428,9 +463,14 @@ struct DriverManagerChatView: View {
         .background(isDriverExperience ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(AppTheme.surface))
     }
 
-    private func chatBubble(_ message: ChatMessage) -> some View {
+    private func chatBubble(_ message: ChatMessage, showSenderInfo: Bool, showTimestamp: Bool) -> some View {
         let isSent = message.senderID == currentUser?.id
         let sender = appViewModel.service.users.first { $0.id == message.senderID }
+        let isSameSenderAsNext = messages.firstIndex(of: message).map { idx in
+            guard idx < messages.count - 1 else { return false }
+            let next = messages[idx + 1]
+            return next.senderID == message.senderID && next.timestamp.timeIntervalSince(message.timestamp) <= 60
+        } ?? false
 
         return HStack(alignment: .bottom, spacing: 8) {
             if isSent {
@@ -438,15 +478,21 @@ struct DriverManagerChatView: View {
             }
 
             if !isSent {
-                AvatarView(name: sender?.name ?? "User", size: 30, customColor: accent)
+                if showSenderInfo {
+                    AvatarView(name: sender?.name ?? "User", size: 30, customColor: accent)
+                } else {
+                    Color.clear
+                        .frame(width: 30, height: 30)
+                }
             }
 
-            VStack(alignment: isSent ? .trailing : .leading, spacing: 4) {
-                if !isSent {
+            VStack(alignment: isSent ? .trailing : .leading, spacing: 2) {
+                if !isSent && showSenderInfo {
                     Text(sender?.name ?? "Team Member")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(secondaryText)
                         .padding(.horizontal, 4)
+                        .padding(.bottom, 2)
                 }
 
                 Text(message.message)
@@ -459,16 +505,20 @@ struct DriverManagerChatView: View {
                             .fill(isSent ? accent : (isDriverExperience ? Color.white.opacity(0.72) : AppTheme.surfaceSecondary))
                     )
 
-                Text(message.timestamp.formatted(date: .omitted, time: .shortened))
-                    .font(.system(size: 10))
-                    .foregroundStyle(secondaryText)
-                    .padding(.horizontal, 4)
+                if showTimestamp {
+                    Text(message.timestamp.formatted(date: .omitted, time: .shortened))
+                        .font(.system(size: 10))
+                        .foregroundStyle(secondaryText)
+                        .padding(.horizontal, 4)
+                        .padding(.top, 2)
+                }
             }
 
             if !isSent {
                 Spacer(minLength: 54)
             }
         }
+        .padding(.bottom, isSameSenderAsNext ? 0 : 8)
     }
 
     private func sendMessage() {

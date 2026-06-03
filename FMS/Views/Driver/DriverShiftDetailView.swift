@@ -95,7 +95,7 @@ struct DriverShiftDetailView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "fuelpump.fill")
                                 .font(.caption2)
-                            Text("\(vehicle.fuelLevel)%")
+                            Text(vehicle.fuelDisplayString)
                                 .font(.system(.caption, design: .rounded).bold())
                         }
                         .foregroundStyle(vehicle.fuelLevel < 20 ? DriverTheme.criticalRed : DriverTheme.textSecondary)

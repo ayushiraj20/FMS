@@ -45,6 +45,7 @@ struct InventoryReportDocument: Identifiable {
     var totalQuantity: Int { rows.reduce(0) { $0 + $1.quantity } }
 }
 
+@MainActor
 enum InventoryReportBuilder {
     static func makeDocument(
         parts: [SparePart],
