@@ -40,6 +40,8 @@ final class VehicleManagementViewModel {
     var documentExpiries: [DocumentType: Date] = [:]
     var documentImages: [DocumentType: UIImage?] = [:]
     var documentImageURLs: [DocumentType: String] = [:]
+    var documentOCRStatus: [DocumentType: String] = [:]
+    var documentResolvedTypes: [DocumentType: DocumentType] = [:]
     var uploadingDocuments: Set<DocumentType> = []
     var activeDocumentTypeForPhoto: DocumentType? = nil
     var selectedFileURL: URL? = nil
@@ -291,11 +293,14 @@ final class VehicleManagementViewModel {
         documentNumbers = [:]
         documentExpiries = [:]
         documentImageURLs = [:]
+        documentOCRStatus = [:]
+        documentResolvedTypes = [:]
         uploadingDocuments = []
         for type in DocumentType.allCases {
             documentNumbers[type] = ""
             documentExpiries[type] = Date.now.addingTimeInterval(86400 * 120)
             documentImages[type] = nil
+            documentResolvedTypes[type] = type
         }
         
         selectedFileURL = nil
@@ -326,6 +331,8 @@ final class VehicleManagementViewModel {
         documentExpiries = [:]
         documentImages = [:]
         documentImageURLs = [:]
+        documentOCRStatus = [:]
+        documentResolvedTypes = [:]
         uploadingDocuments = []
         
         let existingDocs = service.documents(for: vehicle.id)
@@ -343,6 +350,7 @@ final class VehicleManagementViewModel {
                 documentExpiries[type] = Date.now.addingTimeInterval(86400 * 120)
             }
             documentImages[type] = nil
+            documentResolvedTypes[type] = type
         }
         
         selectedFileURL = nil
@@ -425,6 +433,8 @@ final class VehicleManagementViewModel {
         documentExpiries = [:]
         documentImages = [:]
         documentImageURLs = [:]
+        documentOCRStatus = [:]
+        documentResolvedTypes = [:]
         uploadingDocuments = []
         
         let existingDocs = service.documents(for: vehicleID)
@@ -442,6 +452,7 @@ final class VehicleManagementViewModel {
                 documentExpiries[type] = Date.now.addingTimeInterval(86400 * 120)
             }
             documentImages[type] = nil
+            documentResolvedTypes[type] = type
         }
         isPresentingDocumentSheet = true
     }
@@ -480,13 +491,22 @@ final class VehicleManagementViewModel {
     }
 
     func uploadImage(_ image: UIImage, for type: DocumentType) {
+        documentResolvedTypes[type] = type
         documentImages[type] = image
+        documentOCRStatus[type] = "Reading document..."
         
         let localURL = saveImageLocally(image, vehicleID: activeVehicleID, type: type)
+
+        Task {
+            await applyOCR(from: image, sourceType: type)
+        }
         
         guard SupabaseConfig.isConfigured else {
             if let localURL {
                 documentImageURLs[type] = localURL.absoluteString
+            }
+            if documentOCRStatus[type] == "Reading document..." {
+                documentOCRStatus[type] = nil
             }
             return
         }
@@ -501,7 +521,11 @@ final class VehicleManagementViewModel {
                         documentType: type.rawValue
                     )
                     await MainActor.run {
-                        self.documentImageURLs[type] = urlString
+                        let resolvedType = self.documentResolvedTypes[type] ?? type
+                        self.documentImageURLs[resolvedType] = urlString
+                        if resolvedType != type {
+                            self.documentImageURLs[type] = nil
+                        }
                         self.uploadingDocuments.remove(type)
                     }
                 }
@@ -510,6 +534,51 @@ final class VehicleManagementViewModel {
                 _ = await MainActor.run {
                     self.uploadingDocuments.remove(type)
                 }
+            }
+        }
+    }
+
+    private func applyOCR(from image: UIImage, sourceType: DocumentType) async {
+        do {
+            let result = try await VehicleDocumentOCRService.extractDocumentData(from: image)
+            await MainActor.run {
+                let targetType = result.detectedType ?? sourceType
+                self.documentResolvedTypes[sourceType] = targetType
+
+                if targetType != sourceType {
+                    self.documentImages[targetType] = self.documentImages[sourceType] ?? image
+                    self.documentImageURLs[targetType] = self.documentImageURLs[sourceType]
+                    self.documentImages[sourceType] = nil
+                    self.documentImageURLs[sourceType] = nil
+                    self.documentOCRStatus[sourceType] = nil
+                }
+
+                if !result.documentNumber.isEmpty {
+                    self.documentNumbers[targetType] = result.documentNumber
+                }
+                if let expiryDate = result.expiryDate {
+                    self.documentExpiries[targetType] = expiryDate
+                }
+
+                if result.hasUsefulData {
+                    var statusParts: [String] = []
+                    if result.detectedType != nil {
+                        statusParts.append("Type detected")
+                    }
+                    if !result.documentNumber.isEmpty {
+                        statusParts.append("Number filled")
+                    }
+                    if result.expiryDate != nil {
+                        statusParts.append("Expiry filled")
+                    }
+                    self.documentOCRStatus[targetType] = statusParts.joined(separator: " • ")
+                } else {
+                    self.documentOCRStatus[targetType] = "Could not auto-fill. Enter manually."
+                }
+            }
+        } catch {
+            await MainActor.run {
+                self.documentOCRStatus[sourceType] = "Could not auto-fill. Enter manually."
             }
         }
     }

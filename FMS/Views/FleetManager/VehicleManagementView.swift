@@ -660,7 +660,6 @@ private struct VehicleFormSheet: View {
 
             ForEach(DocumentType.allCases) { docType in
                 let number = viewModel.documentNumbers[docType] ?? ""
-                let expiry = viewModel.documentExpiries[docType] ?? Date.now.addingTimeInterval(86400 * 120)
                 let hasDoc = !number.trimmingCharacters(in: .whitespaces).isEmpty
 
                 Section {
@@ -721,27 +720,23 @@ private struct VehicleFormSheet: View {
                     }
                     .buttonStyle(.plain)
 
-                    // Expiry status
-                    let daysLeft = Calendar.current.dateComponents([.day], from: .now, to: expiry).day ?? 0
-                    HStack(spacing: 5) {
-                        if daysLeft < 0 {
-                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red).font(.caption2)
-                            Text("Expired \(-daysLeft)d ago").font(.caption).foregroundStyle(.red)
-                        } else if daysLeft <= 30 {
-                            Image(systemName: "clock.badge.exclamationmark").foregroundStyle(.orange).font(.caption2)
-                            Text("Expires in \(daysLeft) days").font(.caption).foregroundStyle(.orange)
-                        } else {
-                            Image(systemName: "checkmark.shield.fill").foregroundStyle(.green).font(.caption2)
-                            Text("Valid · \(daysLeft) days remaining").font(.caption).foregroundStyle(.green)
-                        }
-                        Spacer()
-                        if hasDoc {
-                            Image(systemName: "checkmark.circle.fill")
+                    if let ocrStatus = viewModel.documentOCRStatus[docType], !ocrStatus.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "text.viewfinder")
                                 .font(.caption)
-                                .foregroundStyle(VehicleStudioTheme.success)
+                                .foregroundStyle(VehicleStudioTheme.accent)
+                            Text(ocrStatus)
+                                .font(.caption)
+                                .foregroundStyle(VehicleStudioTheme.secondary)
+                            Spacer()
+                            if hasDoc {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(VehicleStudioTheme.success)
+                            }
                         }
+                        .listRowSeparator(.hidden)
                     }
-                    .listRowSeparator(.hidden)
                 } header: {
                     Label(docType.rawValue, systemImage: docTypeIcon(docType))
                 }
@@ -1461,7 +1456,7 @@ private struct DocumentUploadSheet: View {
                         viewModel.saveDocument(for: vehicleID)
                         dismiss()
                     }
-                    .disabled(DocumentType.allCases.contains { type in
+                    .disabled(!DocumentType.allCases.contains { type in
                         (viewModel.documentNumbers[type] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
                     })
                 }
@@ -1577,6 +1572,8 @@ private struct DocumentUploadSheet: View {
                                 withAnimation {
                                     viewModel.documentImages[type] = nil
                                     viewModel.documentImageURLs[type] = nil
+                                    viewModel.documentOCRStatus[type] = nil
+                                    viewModel.documentResolvedTypes[type] = type
                                 }
                             } label: {
                                 Label("Remove", systemImage: "trash")
@@ -1607,6 +1604,12 @@ private struct DocumentUploadSheet: View {
                         }
                         
                         Spacer()
+                    }
+
+                    if let ocrStatus = viewModel.documentOCRStatus[type], !ocrStatus.isEmpty {
+                        Label(ocrStatus, systemImage: "text.viewfinder")
+                            .font(.caption)
+                            .foregroundStyle(VehicleStudioTheme.secondary)
                     }
                 }
             }

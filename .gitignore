@@ -112,3 +112,4 @@ ag-cache/
 .env
 .aiexclude
 /.codex-derived-3
+*.log
