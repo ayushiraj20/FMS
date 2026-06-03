@@ -9,6 +9,7 @@ struct FleetManagerDashboardView: View {
     @State private var isFlashingSOS = false
     @State private var showResolveConfirmation = false
     @State private var pendingResolveAlertID: UUID?
+    @State private var fuelTransactions: [FuelTransaction] = []
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -28,6 +29,8 @@ struct FleetManagerDashboardView: View {
                         
                         // MARK: - KPI Grid
                         kpiGrid
+
+                        carbonEfficiencySection
                         
 
                         // MARK: - Priority Alerts
@@ -99,6 +102,7 @@ struct FleetManagerDashboardView: View {
             await appViewModel.service.syncWithDatabase()
             await viewModel.load()
             await appViewModel.loadNotifications()
+            await loadFuelTransactions()
             sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
@@ -107,12 +111,14 @@ struct FleetManagerDashboardView: View {
             Task {
                 await appViewModel.service.syncWithDatabase()
                 await appViewModel.loadNotifications()
+                await loadFuelTransactions()
                 sendRouteGeofenceAlertsIfNeeded()
             }
         }
         .refreshable {
             await appViewModel.service.syncWithDatabase()
             await appViewModel.loadNotifications()
+            await loadFuelTransactions()
             sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
@@ -121,6 +127,142 @@ struct FleetManagerDashboardView: View {
                 .registersSheetPresentation()
         }
         .hidesTabBarWhileSheet(isPresented: showBroadcast)
+    }
+
+    private var carbonEfficiencySection: some View {
+        let summary = CarbonEfficiencyAnalytics.dashboardSummary(
+            trips: appViewModel.service.trips,
+            vehicles: appViewModel.service.vehicles,
+            drivers: appViewModel.service.users,
+            fuelReceipts: appViewModel.service.fuelReceipts,
+            fuelTransactions: fuelTransactions
+        )
+        let worstVehicles = Array(summary.vehicleMetrics.prefix(2))
+        let worstDrivers = Array(summary.driverMetrics.prefix(2))
+
+        return GlassCard {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Carbon & Fuel Score", systemImage: "leaf.fill")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Text("Diesel CO₂ at 2.68 kg/L, spend converted with ₹\(Int(CarbonEfficiencyAnalytics.estimatedDieselPricePerLitreINR))/L.")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    Spacer()
+                    Text(efficiencyText(summary.fleetEfficiencyKMPerLitre))
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(AppTheme.success)
+                }
+
+                HStack(spacing: 10) {
+                    carbonMetricTile(title: "Fleet Avg", value: efficiencyText(summary.fleetEfficiencyKMPerLitre), icon: "speedometer", tint: AppTheme.success)
+                    carbonMetricTile(title: "CO₂", value: carbonText(summary.fleetCO2KG), icon: "cloud.fill", tint: Color(UIColor.systemBlue))
+                    carbonMetricTile(title: "Can Save", value: currencyText(summary.potentialSavingsINR), icon: "indianrupeesign.circle.fill", tint: AppTheme.warning)
+                }
+
+                if worstVehicles.isEmpty && worstDrivers.isEmpty {
+                    Text("Add linked fuel records to compare vehicle and driver efficiency.")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(AppTheme.surfaceSecondary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                } else {
+                    VStack(alignment: .leading, spacing: 10) {
+                        if !worstVehicles.isEmpty {
+                            Text("Worst Vehicles")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            ForEach(worstVehicles) { metric in
+                                carbonRankingRow(metric)
+                            }
+                        }
+
+                        if !worstDrivers.isEmpty {
+                            Text("Drivers To Coach")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .padding(.top, worstVehicles.isEmpty ? 0 : 4)
+                            ForEach(worstDrivers) { metric in
+                                carbonRankingRow(metric)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func carbonMetricTile(title: String, value: String, icon: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(tint)
+            Text(value)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(AppTheme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(AppTheme.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(AppTheme.surfaceSecondary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func carbonRankingRow(_ metric: CarbonPerformanceMetric) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "leaf.arrow.triangle.circlepath")
+                .foregroundStyle(AppTheme.warning)
+                .frame(width: 32, height: 32)
+                .background(AppTheme.warning.opacity(0.12), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(metric.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text("\(efficiencyText(metric.efficiencyKMPerLitre)) · \(carbonText(metric.carbonKG))")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+            Spacer()
+            Text(currencyText(metric.potentialSavingsINR))
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(AppTheme.warning)
+        }
+    }
+
+    private func loadFuelTransactions() async {
+        guard SupabaseConfig.isConfigured else {
+            fuelTransactions = []
+            return
+        }
+        do {
+            let repo = FuelRepository(service: FuelService(client: SupabaseService.shared.client))
+            fuelTransactions = try await repo.allTransactions()
+        } catch {
+            fuelTransactions = []
+            print("[Carbon] Fuel transactions unavailable: \(error)")
+        }
+    }
+
+    private func efficiencyText(_ value: Double?) -> String {
+        guard let value else { return "-- km/L" }
+        return "\(String(format: "%.1f", value)) km/L"
+    }
+
+    private func carbonText(_ kg: Double) -> String {
+        if kg >= 1000 {
+            return "\(String(format: "%.1f", kg / 1000)) t"
+        }
+        return "\(Int(kg.rounded())) kg"
+    }
+
+    private func currencyText(_ value: Double) -> String {
+        value.formatted(.currency(code: "INR").precision(.fractionLength(0)))
     }
     
     // MARK: - Header Section
