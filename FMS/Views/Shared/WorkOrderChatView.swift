@@ -4,7 +4,8 @@ struct WorkOrderChatView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppViewModel.self) private var appViewModel
     
-    let workOrderID: UUID
+    var workOrderID: UUID? = nil
+    var defectReportID: UUID? = nil
     var onManage: (() -> Void)? = nil
     @State private var messageText = ""
     @State private var pollTimer: Timer? = nil
@@ -14,17 +15,71 @@ struct WorkOrderChatView: View {
     }
     
     private var workOrder: WorkOrder? {
-        appViewModel.service.workOrders.first { $0.id == workOrderID }
+        guard let wID = workOrderID else { return nil }
+        return appViewModel.service.workOrders.first { $0.id == wID }
+    }
+    
+    private var defectReport: DefectReport? {
+        guard let dID = defectReportID else { return nil }
+        return appViewModel.service.defects.first { $0.id == dID }
+    }
+    
+    /// True when the view was opened for a defect report (before a work order exists)
+    private var isDefectMode: Bool {
+        defectReportID != nil && workOrderID == nil
     }
     
     private var messages: [ChatMessage] {
-        appViewModel.service.chatMessages(forWorkOrder: workOrderID)
+        if let dID = defectReportID {
+            return appViewModel.service.chatMessages(forDefect: dID)
+        } else if let wID = workOrderID {
+            return appViewModel.service.chatMessages(forWorkOrder: wID)
+        }
+        return []
     }
     
     var body: some View {
         VStack(spacing: 0) {
             // Chat Header Info Card
-            if let order = workOrder {
+            // -- Header: Work Order or Defect Report info --
+            if isDefectMode, let defect = defectReport {
+                let vehicle = appViewModel.service.vehicle(for: defect.vehicleID)
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.orange)
+                        .frame(width: 44, height: 44)
+                        .background(Color.orange.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(defect.title ?? "Defect Report")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .lineLimit(1)
+                        
+                        Text("Vehicle: \(vehicle?.displayName ?? "Unknown") (\(vehicle?.plateNumber ?? "N/A"))")
+                            .font(.system(size: 12))
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    
+                    Spacer()
+                    
+                    StatusBadgeView(
+                        text: defect.status.rawValue,
+                        color: defect.status == .completed ? AppTheme.success : .orange
+                    )
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(AppTheme.surface)
+                .overlay(
+                    VStack {
+                        Spacer()
+                        Divider().foregroundStyle(AppTheme.border)
+                    }
+                )
+            } else if let order = workOrder {
                 let vehicle = appViewModel.service.vehicle(for: order.vehicleID)
                 
                 HStack(spacing: 12) {
@@ -135,7 +190,7 @@ struct WorkOrderChatView: View {
             .background(AppTheme.surface)
         }
         .background(AppTheme.background.ignoresSafeArea())
-        .navigationTitle("Repair Chat")
+        .navigationTitle(isDefectMode ? "Defect Chat" : "Repair Chat")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let onManage {
@@ -261,7 +316,8 @@ struct WorkOrderChatView: View {
             senderID: user.id,
             receiverID: nil,
             message: messageText,
-            workOrderID: workOrderID
+            workOrderID: workOrderID,
+            defectReportID: defectReportID
         )
         
         messageText = ""

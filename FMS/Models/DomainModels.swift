@@ -756,6 +756,7 @@ struct ChatMessage: Identifiable, Codable, Hashable {
     var timestamp: Date
     var isRead: Bool
     var workOrderID: UUID? = nil
+    var defectReportID: UUID? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -765,6 +766,7 @@ struct ChatMessage: Identifiable, Codable, Hashable {
         case timestamp = "sent_at"
         case isRead = "is_read"
         case workOrderID = "work_order_id"
+        case defectReportID = "defect_report_id"
     }
 }
 

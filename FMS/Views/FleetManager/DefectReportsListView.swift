@@ -402,6 +402,7 @@ struct DefectReviewSheet: View {
     @State private var isShowingApprovalForm = false
     @State private var isShowingImageDetail = false
     @State private var selectedImageName: String?
+    @State private var isShowingDefectChat = false
 
     // Computed helpers — available throughout body without scope issues
     private var vehicle: Vehicle? {
@@ -569,6 +570,33 @@ struct DefectReviewSheet: View {
 
     @ViewBuilder
     private var pendingActionsSection: some View {
+        // Chat with Driver button (always visible for pending defects)
+        Button {
+            isShowingDefectChat = true
+        } label: {
+            HStack {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                Text("Chat with Driver")
+            }
+            .font(.subheadline.weight(.bold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .background(Color.purple)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .sheet(isPresented: $isShowingDefectChat) {
+            NavigationStack {
+                WorkOrderChatView(defectReportID: defect.id)
+                    .environment(appViewModel)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { isShowingDefectChat = false }
+                        }
+                    }
+            }
+        }
+
         if !isShowingApprovalForm {
             HStack(spacing: 16) {
                 Button("Reject Report") {

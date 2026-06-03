@@ -489,8 +489,26 @@ final class MockDataService {
     }
 
     func chatMessages(forWorkOrder workOrderID: UUID) -> [ChatMessage] {
-        chatMessages.filter { $0.workOrderID == workOrderID }
-            .sorted { $0.timestamp < $1.timestamp }
+        let linkedWO = workOrders.first { $0.id == workOrderID }
+        let linkedDefectID = linkedWO?.defectReportID
+        return chatMessages.filter {
+            $0.workOrderID == workOrderID ||
+            (linkedDefectID != nil && $0.defectReportID == linkedDefectID)
+        }
+        .sorted { $0.timestamp < $1.timestamp }
+    }
+
+
+    /// Returns all chat messages for a defect report.
+    /// If the defect has a linked work order, messages from that work order thread are also included.
+    func chatMessages(forDefect defectID: UUID) -> [ChatMessage] {
+        // Find any work order linked to this defect
+        let linkedWO = workOrders.first { $0.defectReportID == defectID }
+        return chatMessages.filter {
+            $0.defectReportID == defectID ||
+            (linkedWO != nil && $0.workOrderID == linkedWO!.id)
+        }
+        .sorted { $0.timestamp < $1.timestamp }
     }
 
     func todayInspection(for driverID: UUID) -> InspectionRecord? {
@@ -692,7 +710,21 @@ final class MockDataService {
         }
     }
 
-    func sendChatMessage(senderID: UUID, receiverID: UUID?, message: String, workOrderID: UUID? = nil) {
+    func sendChatMessage(senderID: UUID, receiverID: UUID?, message: String, workOrderID: UUID? = nil, defectReportID: UUID? = nil) {
+        var finalWorkOrderID = workOrderID
+        var finalDefectReportID = defectReportID
+
+        // Resolve missing IDs from the relationship between WorkOrder and DefectReport
+        if finalWorkOrderID == nil, let defID = finalDefectReportID {
+            if let linkedWO = workOrders.first(where: { $0.defectReportID == defID }) {
+                finalWorkOrderID = linkedWO.id
+            }
+        } else if finalDefectReportID == nil, let woID = finalWorkOrderID {
+            if let linkedWO = workOrders.first(where: { $0.id == woID }) {
+                finalDefectReportID = linkedWO.defectReportID
+            }
+        }
+
         let msg = ChatMessage(
             id: UUID(),
             senderID: senderID,
@@ -700,7 +732,8 @@ final class MockDataService {
             message: message,
             timestamp: .now,
             isRead: false,
-            workOrderID: workOrderID
+            workOrderID: finalWorkOrderID,
+            defectReportID: finalDefectReportID
         )
         chatMessages.append(msg)
         
@@ -716,7 +749,7 @@ final class MockDataService {
         }
         
         // Push notification on new message in coordination thread
-        if let wID = workOrderID, let order = workOrders.first(where: { $0.id == wID }) {
+        if let wID = finalWorkOrderID, let order = workOrders.first(where: { $0.id == wID }) {
             let sender = users.first { $0.id == senderID }
             let senderName = sender?.name ?? "Someone"
             let senderRoleText = sender?.role.rawValue ?? "Team Member"
@@ -747,7 +780,23 @@ final class MockDataService {
                     addNotification(userID: techID, roleTarget: nil, title: "New Repair Message", message: alertMsg, category: .maintenance)
                 }
             }
-        } else if let receiverID, workOrderID == nil {
+        } else if let defID = finalDefectReportID, let defect = defects.first(where: { $0.id == defID }) {
+            // Defect coordination chat (before work order exists)
+            let sender = users.first { $0.id == senderID }
+            let senderName = sender?.name ?? "Someone"
+            let alertMsg = "\(senderName): \(message)"
+
+            if sender?.role == .driver {
+                // Notify all fleet managers
+                let managers = users.filter { $0.role == .fleetManager }
+                for mgr in managers {
+                    addNotification(userID: mgr.id, roleTarget: nil, title: "Defect Chat", message: alertMsg, category: .maintenance)
+                }
+            } else if sender?.role == .fleetManager {
+                // Notify the driver who reported
+                addNotification(userID: defect.driverID, roleTarget: nil, title: "Defect Chat", message: alertMsg, category: .maintenance)
+            }
+        } else if let receiverID, finalWorkOrderID == nil {
             let sender = users.first { $0.id == senderID }
             let receiver = users.first { $0.id == receiverID }
             let senderName = sender?.name ?? "Someone"

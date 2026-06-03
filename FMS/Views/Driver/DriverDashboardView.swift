@@ -8,6 +8,7 @@ struct DriverDashboardView: View {
     // Pre-trip inspection gate
     @State private var showTripInspectionSheet = false
     @State private var tripToStart: Trip? = nil
+    @State private var defectChatID: UUID? = nil
 
     private var currentUser: User? { appViewModel.currentUser }
     private var assignedVehicle: Vehicle? { appViewModel.assignedVehicle }
@@ -536,9 +537,41 @@ struct DriverDashboardView: View {
                             .font(.subheadline)
                             .foregroundStyle(DriverTheme.textSecondary)
                             .lineLimit(2)
+                        
+                        // Chat button
+                        Button {
+                            defectChatID = defect.id
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "bubble.left.and.bubble.right.fill")
+                                    .font(.caption)
+                                Text("Chat with Manager")
+                                    .font(.caption.bold())
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(DriverTheme.accent, in: Capsule())
+                        }
                     }
                     .padding()
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                }
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { defectChatID != nil },
+            set: { if !$0 { defectChatID = nil } }
+        )) {
+            if let chatDefectID = defectChatID {
+                NavigationStack {
+                    WorkOrderChatView(defectReportID: chatDefectID)
+                        .environment(appViewModel)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close") { defectChatID = nil }
+                            }
+                        }
                 }
             }
         }
