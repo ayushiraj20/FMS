@@ -648,5 +648,53 @@ final class SupabaseService {
             .eq("id", value: partID)
             .execute()
     }
+
+    // MARK: - MFA (Two-Factor Authentication)
+
+    /// Enroll a new TOTP factor. Returns the factor ID, QR code data URI, secret, and OTP URI.
+    func enrollMFA(friendlyName: String = "FMS Authenticator") async throws -> (factorID: String, qrCode: String, secret: String, uri: String) {
+        let response = try await client.auth.mfa.enroll(
+            params: MFAEnrollParams(
+                issuer: "FleetOS",
+                friendlyName: friendlyName
+            )
+        )
+        return (
+            factorID: response.id,
+            qrCode: response.totp?.qrCode ?? "",
+            secret: response.totp?.secret ?? "",
+            uri: response.totp?.uri ?? ""
+        )
+    }
+
+    /// Create a challenge and verify in one step. Returns the updated session on success.
+    func challengeAndVerifyMFA(factorID: String, code: String) async throws {
+        try await client.auth.mfa.challengeAndVerify(
+            params: MFAChallengeAndVerifyParams(
+                factorId: factorID,
+                code: code
+            )
+        )
+    }
+
+    /// List all MFA factors for the currently authenticated user.
+    /// Returns only verified TOTP factors.
+    func listVerifiedMFAFactors() async throws -> [(id: String, friendlyName: String?)] {
+        let response = try await client.auth.mfa.listFactors()
+        return response.totp
+            .filter { $0.status == .verified }
+            .map { (id: $0.id, friendlyName: $0.friendlyName) }
+    }
+
+    /// List all MFA factors (including unverified) for cleanup during enrollment.
+    func listAllMFAFactors() async throws -> [(id: String, status: String, friendlyName: String?)] {
+        let response = try await client.auth.mfa.listFactors()
+        return response.totp.map { (id: $0.id, status: $0.status.rawValue, friendlyName: $0.friendlyName) }
+    }
+
+    /// Remove an enrolled MFA factor.
+    func unenrollMFA(factorID: String) async throws {
+        try await client.auth.mfa.unenroll(params: MFAUnenrollParams(factorId: factorID))
+    }
 }
 
