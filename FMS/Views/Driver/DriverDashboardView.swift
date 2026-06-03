@@ -8,6 +8,8 @@ struct DriverDashboardView: View {
     // Pre-trip inspection gate
     @State private var showTripInspectionSheet = false
     @State private var tripToStart: Trip? = nil
+    @State private var showTripEndInspectionSheet = false
+    @State private var tripToEnd: Trip? = nil
     @State private var defectChatID: UUID? = nil
 
     private var currentUser: User? { appViewModel.currentUser }
@@ -103,7 +105,15 @@ struct DriverDashboardView: View {
             }
             .sheet(isPresented: $showTripInspectionSheet) {
                 TripStartInspectionSheet(trip: tripToStart) {
-                    driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
+                    driverVM.showToastMessage("Trip started. Have a safe journey.")
+                }
+                .environment(appViewModel)
+                .environment(driverVM)
+                .registersSheetPresentation()
+            }
+            .sheet(isPresented: $showTripEndInspectionSheet) {
+                TripStartInspectionSheet(trip: tripToEnd, inspectionType: .postTrip) {
+                    driverVM.showToastMessage("Trip ended successfully.")
                 }
                 .environment(appViewModel)
                 .environment(driverVM)
