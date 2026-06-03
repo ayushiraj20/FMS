@@ -288,7 +288,7 @@ struct FleetManagerDashboardView: View {
         var mapCoordinates = locations.map(\.coordinate)
         for tripID in locations.compactMap(\.activeTrip?.id) {
             if let plan = appViewModel.service.tripRoutePlansByTripID[tripID] {
-                mapCoordinates.append(contentsOf: plan.allRoutes.flatMap { $0 })
+                mapCoordinates.append(contentsOf: plan.mainRouteCoordinates)
             }
         }
 
@@ -546,7 +546,7 @@ struct FleetManagerDashboardView: View {
     private func sendRouteGeofenceAlertsIfNeeded() {
         Task {
             await appViewModel.service.prefetchRoutePlansForActiveTrips()
-            let locations = appViewModel.service.allFleetLocations()
+            let locations = appViewModel.service.movingFleetLocations(for: appViewModel.currentUser)
             await appViewModel.service.sendRouteGeofenceMonitoringAlerts(
                 for: appViewModel.currentUser,
                 locations: locations

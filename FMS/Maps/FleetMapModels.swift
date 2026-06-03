@@ -71,6 +71,14 @@ extension MockDataService {
         }
     }
 
+    func movingFleetLocations(for manager: User? = nil) -> [FleetVehicleLocation] {
+        allFleetLocations().filter { location in
+            guard location.activeTrip?.status == .inProgress else { return false }
+            guard let organizationID = manager?.organizationID else { return true }
+            return location.vehicle.organizationID == organizationID
+        }
+    }
+
     func nearbyFleetLocations(limit: Int = 3) -> [FleetVehicleLocation] {
         Array(allFleetLocations().prefix(limit))
     }

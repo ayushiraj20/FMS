@@ -24,13 +24,13 @@ enum TripRoutePlanningService {
     let primaryRoutes = await calculateMapKitRoutes(origin: origin, destination: destination)
     routeSets.append(contentsOf: primaryRoutes)
 
-    if routeSets.count < 3 {
+    if routeSets.count < 2 {
       let waypointRoutes = await calculateWaypointAlternates(
         origin: origin,
         destination: destination,
         existing: routeSets
       )
-      for route in waypointRoutes where routeSets.count < 3 {
+      for route in waypointRoutes where routeSets.count < 2 {
         if !routeSets.contains(where: { isSimilarRoute($0, to: route) }) {
           routeSets.append(route)
         }
@@ -39,17 +39,12 @@ enum TripRoutePlanningService {
 
     guard let mainRoute = routeSets.first, mainRoute.count >= 2 else { return nil }
 
-    let alternatives = Array(routeSets.dropFirst().prefix(2))
+    let alternatives = Array(routeSets.dropFirst().prefix(1))
     let paddedAlternatives: [[CLLocationCoordinate2D]]
-    if alternatives.count == 2 {
+    if alternatives.count == 1 {
       paddedAlternatives = alternatives
-    } else if alternatives.count == 1 {
-      paddedAlternatives = [alternatives[0], synthesizeOffsetRoute(origin: origin, destination: destination, variant: 1)]
     } else {
-      paddedAlternatives = [
-        synthesizeOffsetRoute(origin: origin, destination: destination, variant: 1),
-        synthesizeOffsetRoute(origin: origin, destination: destination, variant: 2)
-      ]
+      paddedAlternatives = [synthesizeOffsetRoute(origin: origin, destination: destination, variant: 1)]
     }
 
     let mainDistanceKM = polylineLengthMeters(mainRoute) / 1_000

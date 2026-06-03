@@ -1,7 +1,7 @@
 import Foundation
 import MapKit
 
-/// Planned driving routes for a trip: one recommended main route and two alternatives.
+/// Planned driving routes for a trip: one recommended ideal route and one approved alternative.
 struct TripRoutePlan: Identifiable, Codable {
     let tripID: UUID
     let origin: CLLocationCoordinate2D
