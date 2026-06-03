@@ -5,6 +5,9 @@ struct MaintenanceReportsView: View {
     @State private var report: MaintenanceReportSummary?
     @State private var generatedAt: Date?
     @State private var isLoading = false
+    @State private var loadMessage: String?
+    @State private var generatedReportURL: URL?
+    @State private var showReportShareSheet = false
 
     private let reportService = FleetReportService()
     private var currentUser: User? { appViewModel.currentUser }
@@ -26,6 +29,12 @@ struct MaintenanceReportsView: View {
                         message: "Generate a report to review assigned work orders, cost, overdue jobs, and vehicle risk."
                     )
                 }
+
+                if let loadMessage {
+                    Label(loadMessage, systemImage: "info.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
             }
             .padding(16)
             .padding(.bottom, 20)
@@ -36,12 +45,19 @@ struct MaintenanceReportsView: View {
 
         .task {
             if report == nil {
-                await generateReport()
+                await generateMaintenanceSummary()
             }
         }
         .refreshable {
-            await generateReport()
+            await generateMaintenanceSummary()
         }
+        .sheet(isPresented: $showReportShareSheet, onDismiss: { generatedReportURL = nil }) {
+            if let generatedReportURL {
+                ShareSheet(items: [generatedReportURL])
+                    .registersSheetPresentation()
+            }
+        }
+        .hidesTabBarWhileSheet(isPresented: showReportShareSheet)
     }
 
     private var header: some View {
@@ -53,10 +69,14 @@ struct MaintenanceReportsView: View {
 
                 HStack(spacing: 12) {
                     Button {
-                        Task { await generateReport() }
+                        Task { await generateReportAndPDF() }
                     } label: {
-                        Text("Generate Report")
-                            .lineLimit(1)
+                        if isLoading {
+                            ProgressView()
+                        } else {
+                            Label("Generate Report", systemImage: "doc.badge.gearshape.fill")
+                                .lineLimit(1)
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.brand)
@@ -170,8 +190,9 @@ struct MaintenanceReportsView: View {
         }
     }
 
-    private func generateReport() async {
+    private func generateMaintenanceSummary() async {
         isLoading = true
+        loadMessage = nil
         await appViewModel.service.syncDefectsAndWorkOrders()
         report = reportService.generateMaintenanceSummary(
             vehicles: appViewModel.service.vehicles,
@@ -182,6 +203,80 @@ struct MaintenanceReportsView: View {
         )
         generatedAt = .now
         isLoading = false
+    }
+
+    private func generateReportAndPDF() async {
+        isLoading = true
+        loadMessage = nil
+        await appViewModel.service.syncDefectsAndWorkOrders()
+        report = reportService.generateMaintenanceSummary(
+            vehicles: appViewModel.service.vehicles,
+            workOrders: appViewModel.service.workOrders,
+            defects: appViewModel.service.defects,
+            schedules: appViewModel.service.maintenanceSchedules,
+            assignedMaintenanceID: currentUser?.role == .maintenance ? currentUser?.id : nil
+        )
+        generatedAt = .now
+
+        guard let parts = await loadInventoryPartsForReport() else {
+            isLoading = false
+            return
+        }
+
+        guard !parts.isEmpty else {
+            loadMessage = "No spare parts inventory found for the PDF report."
+            isLoading = false
+            return
+        }
+
+        let reportID = UUID()
+        let document = InventoryReportBuilder.makeDocument(
+            parts: parts,
+            organizationName: appViewModel.currentOrganization?.name ?? "Fleet",
+            generatedBy: appViewModel.currentUser?.name ?? "Maintenance",
+            reportID: reportID
+        )
+
+        guard let pdfURL = InventoryReportPDFGenerator().generate(document: document) else {
+            loadMessage = "Report generated, but PDF export failed."
+            isLoading = false
+            return
+        }
+
+        GeneratedReportStore.shared.register(reportID: reportID, url: pdfURL)
+        generatedReportURL = pdfURL
+        showReportShareSheet = true
+
+        appViewModel.service.addNotification(
+            userID: nil,
+            roleTarget: .fleetManager,
+            title: "Inventory Report Ready",
+            message: "Maintenance generated an inventory reorder report. Urgent items: \(document.urgentCount). Medium priority: \(document.mediumCount). Report ID: \(reportID.uuidString)",
+            category: document.urgentCount > 0 ? .warning : .maintenance
+        )
+
+        await appViewModel.loadNotifications()
+        loadMessage = "Inventory PDF generated and sent to fleet manager."
+        isLoading = false
+    }
+
+    private func loadInventoryPartsForReport() async -> [SparePart]? {
+        guard SupabaseConfig.isConfigured else {
+            loadMessage = "Inventory PDF reports require Supabase inventory records."
+            return nil
+        }
+
+        guard let orgID = appViewModel.currentOrganization?.id else {
+            loadMessage = "Organization not found. Sign in again to generate reports."
+            return nil
+        }
+
+        do {
+            return try await SupabaseService.shared.fetchSpareParts(organizationID: orgID)
+        } catch {
+            loadMessage = "Could not load spare parts inventory from the database."
+            return nil
+        }
     }
 
     private func currency(_ value: Double) -> String {

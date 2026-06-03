@@ -3,6 +3,8 @@ import SwiftUI
 struct NotificationsView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @State private var selectedFilter: NotificationFilter = .all
+    @State private var reportShareURL: URL?
+    @State private var showReportShareSheet = false
 
     enum NotificationFilter: String, CaseIterable {
         case all = "All"
@@ -118,6 +120,23 @@ struct NotificationsView: View {
                                             .foregroundStyle(DriverTheme.textSecondary)
                                             .lineLimit(3)
                                             .multilineTextAlignment(.leading)
+
+                                        if let reportID = notification.inventoryReportID {
+                                            Button {
+                                                if let url = GeneratedReportStore.shared.url(for: reportID) {
+                                                    reportShareURL = url
+                                                    showReportShareSheet = true
+                                                }
+                                            } label: {
+                                                Label("Download PDF", systemImage: "arrow.down.doc.fill")
+                                                    .font(.caption.weight(.semibold))
+                                            }
+                                            .buttonStyle(.bordered)
+                                            .controlSize(.small)
+                                            .tint(DriverTheme.accent)
+                                            .disabled(GeneratedReportStore.shared.url(for: reportID) == nil)
+                                            .padding(.top, 4)
+                                        }
                                     }
                                 }
                                 .padding(.vertical, 2)
@@ -141,6 +160,13 @@ struct NotificationsView: View {
         .task {
             await appViewModel.loadNotifications()
         }
+        .sheet(isPresented: $showReportShareSheet, onDismiss: { reportShareURL = nil }) {
+            if let reportShareURL {
+                ShareSheet(items: [reportShareURL])
+                    .registersSheetPresentation()
+            }
+        }
+        .hidesTabBarWhileSheet(isPresented: showReportShareSheet)
     }
 
     private func color(for category: NotificationCategory) -> Color {

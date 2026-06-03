@@ -88,13 +88,12 @@ extension MockDataService {
     }
 
     func fleetMapPreviewLocations(for manager: User?, limit: Int = 3) -> [FleetVehicleLocation] {
-        let allLocations = allFleetLocations()
-        let breachedIDs = Set(routeGeofenceBreaches(for: manager, locations: allLocations).map(\.id))
-        let breachedLocations = allLocations.filter { breachedIDs.contains($0.id) }
-        let activeTripLocations = allLocations
-            .filter { !breachedIDs.contains($0.id) && $0.activeTrip != nil }
+        let movingLocations = movingFleetLocations(for: manager)
+        let breachedIDs = Set(routeGeofenceBreaches(for: manager, locations: movingLocations).map(\.id))
+        let breachedLocations = movingLocations.filter { breachedIDs.contains($0.id) }
+        let onRouteLocations = movingLocations.filter { !breachedIDs.contains($0.id) }
 
-        return Array((breachedLocations + activeTripLocations + allLocations).prefix(max(limit, breachedLocations.count)))
+        return Array((breachedLocations + onRouteLocations).prefix(max(limit, breachedLocations.count)))
     }
 
     func processRouteGeofenceUpdate(
@@ -271,11 +270,11 @@ extension MockDataService {
         let vehicle = breach.location.vehicle
         let driverName = breach.location.driver?.name ?? "Unassigned"
         let driverPhone = breach.location.driver?.phone ?? "No driver phone"
-        return "Fleet: \(vehicle.displayName) (\(vehicle.plateNumber)) is outside all approved route corridors (±\(Int(Self.routeCorridorToleranceMeters)) m) for \(breach.trip.origin) → \(breach.trip.destination). Driver: \(driverName), \(driverPhone). \(breach.distanceText) near \(breach.location.locality)."
+        return "Fleet: \(vehicle.displayName) (\(vehicle.plateNumber)) is outside the 50 m approved geofence for \(breach.trip.origin) → \(breach.trip.destination). Driver: \(driverName), \(driverPhone). \(breach.distanceText) near \(breach.location.locality)."
     }
 
     private func routeBreachDriverMessage(for breach: TripRouteGeofenceBreach) -> String {
-        "You are outside the approved route corridor (±\(Int(Self.routeCorridorToleranceMeters)) m from main or alternative routes) near \(breach.location.locality). Return to an approved route or contact your fleet manager."
+        "You are outside the 50 m approved geofence near \(breach.location.locality). Return to the ideal or approved alternate route, or contact your fleet manager."
     }
 
     private func corridorOverflowDistance(
@@ -305,7 +304,7 @@ struct TripRouteGeofenceStatusBanner: View {
                 Text(breaches.isEmpty ? "Vehicles on approved routes" : "\(breaches.count) route corridor breach\(breaches.count == 1 ? "" : "es")")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.textPrimary)
-                Text("Main + 2 alternate routes · ±\(Int(TripRoutePlan.corridorToleranceMeters)) m corridor · \(monitoredTripCount) active trip\(monitoredTripCount == 1 ? "" : "s")")
+                Text("Ideal + 1 hidden alternate route · 50 m moving geofence · \(monitoredTripCount) active trip\(monitoredTripCount == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(AppTheme.textSecondary)
             }

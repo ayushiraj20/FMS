@@ -1098,7 +1098,7 @@ struct AssignDriverTripView: View {
                 destinationLng: destinationCoordinate?.longitude
             )
 
-            successMessage = "Assigned \(vehicle.displayName) to \(driver.name) with main and alternate routes."
+            successMessage = "Assigned \(vehicle.displayName) to \(driver.name) with ideal route and one hidden alternate route."
             withAnimation { isShowingToast = true }
         }
 

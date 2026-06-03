@@ -478,9 +478,15 @@ struct DriverDashboardView: View {
 
     private var todayDistanceValue: Int {
         guard let user = currentUser else { return 0 }
-        let today = Calendar.current.startOfDay(for: .now)
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
         let trips = appViewModel.service.trips.filter {
-            $0.driverID == user.id && $0.startDate >= today
+            guard $0.driverID == user.id else { return false }
+            if $0.startDate >= today { return true }
+            if $0.status == .completed, let endDate = $0.endDate {
+                return calendar.isDate(endDate, inSameDayAs: .now)
+            }
+            return false
         }
         return Int(trips.reduce(0.0) { $0 + $1.distanceKM })
     }

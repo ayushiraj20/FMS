@@ -117,7 +117,7 @@ final class VehicleManagementViewModel {
     }
 
     var serviceDueSoonCount: Int {
-        vehicles.filter { maintenanceDaysRemaining(for: $0) <= maintenanceThresholdDays }.count
+        vehicles.filter { isMaintenanceDueSoon($0) }.count
     }
 
     var averageFuelLevel: Int {
@@ -204,11 +204,47 @@ final class VehicleManagementViewModel {
     }
 
     func maintenanceDaysRemaining(for vehicle: Vehicle) -> Int {
-        Calendar.current.dateComponents(
-            [.day],
-            from: Calendar.current.startOfDay(for: .now),
-            to: Calendar.current.startOfDay(for: vehicle.nextServiceDate)
-        ).day ?? 0
+        vehicle.maintenanceDaysRemaining
+    }
+
+    func maintenanceKilometersRemaining(for vehicle: Vehicle) -> Int {
+        vehicle.kilometersUntilNextService
+    }
+
+    func isMaintenanceDueSoon(_ vehicle: Vehicle) -> Bool {
+        vehicle.isMaintenanceDue ||
+        vehicle.maintenanceDaysRemaining <= maintenanceThresholdDays ||
+        vehicle.kilometersUntilNextService <= 1_000
+    }
+
+    func maintenanceServiceLabel(for vehicle: Vehicle) -> String {
+        if vehicle.isDistanceMaintenanceDue {
+            return "\(vehicle.distanceSinceLastService.formatted()) km due"
+        }
+
+        if vehicle.isTimeMaintenanceDue {
+            return "\(abs(vehicle.maintenanceDaysRemaining))d overdue"
+        }
+
+        let days = vehicle.maintenanceDaysRemaining
+        let kilometers = vehicle.kilometersUntilNextService
+        if kilometers <= 1_000 {
+            return "\(kilometers.formatted()) km left"
+        }
+        if days <= maintenanceThresholdDays {
+            return "\(days)d left"
+        }
+        return "\(kilometers.formatted()) km / \(days)d"
+    }
+
+    func maintenanceServiceTint(for vehicle: Vehicle) -> Color {
+        if vehicle.isMaintenanceDue {
+            return .red
+        }
+        if vehicle.maintenanceDaysRemaining <= maintenanceThresholdDays || vehicle.kilometersUntilNextService <= 1_000 {
+            return .orange
+        }
+        return .green
     }
 
     func needsAttention(_ vehicle: Vehicle) -> Bool {
@@ -216,7 +252,7 @@ final class VehicleManagementViewModel {
         vehicle.fuelLevel <= 25 ||
         activeAlertCount(for: vehicle) > 0 ||
         unresolvedDefectCount(for: vehicle) > 0 ||
-        maintenanceDaysRemaining(for: vehicle) <= 7
+        isMaintenanceDueSoon(vehicle)
     }
 
     func confirmDelete(_ vehicle: Vehicle) {
@@ -242,7 +278,7 @@ final class VehicleManagementViewModel {
         fuelLevel = 50.0
         odometer = ""
         assignedDriverID = nil
-        nextServiceDate = Date.now.addingTimeInterval(86400 * 10)
+        nextServiceDate = Calendar.current.date(byAdding: .month, value: Vehicle.maintenanceIntervalMonths, to: .now) ?? Date.now.addingTimeInterval(86400 * 180)
         utilization = "0"
         fuelConsumption = "0"
         vehicleType = "Truck"
@@ -323,6 +359,9 @@ final class VehicleManagementViewModel {
         let cleanUtil = utilization.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
         let util = Int(cleanUtil) ?? 0
 
+        let lastServiceDate = selectedVehicle?.lastServiceDate ?? Date.now
+        let nextServiceDate = Calendar.current.date(byAdding: .month, value: Vehicle.maintenanceIntervalMonths, to: lastServiceDate) ?? self.nextServiceDate
+
         let vehicle = Vehicle(
             id: activeVehicleID,
             organizationID: orgID,
@@ -333,14 +372,16 @@ final class VehicleManagementViewModel {
             fuelLevel: Int(fuelLevel),
             odometer: odo,
             assignedDriverID: assignedDriverID,
-            nextServiceDate: selectedVehicle?.nextServiceDate ?? Date.now,
+            nextServiceDate: nextServiceDate,
             utilization: util,
             fuelConsumption: fuelCons,
             vehicleType: vehicleType,
             fuelType: fuelType,
             manufacturer: manufacturer,
             vehicleYear: vehicleYear,
-            vinNumber: vinNumber
+            vinNumber: vinNumber,
+            serviceReferenceReading: selectedVehicle?.serviceReferenceReading ?? odo,
+            lastServiceDate: lastServiceDate
         )
 
         if selectedVehicle == nil {
