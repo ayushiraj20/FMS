@@ -46,16 +46,6 @@ struct FleetReportsAnalyticsView: View {
         .background(AppTheme.background)
         .navigationTitle("Reports")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task { await generateReport(exportPDF: true) }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .disabled(isLoading)
-            }
-        }
         .refreshable {
             await generateReport(exportPDF: true)
         }
