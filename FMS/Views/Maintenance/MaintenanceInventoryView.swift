@@ -6,6 +6,7 @@ import SwiftUI
 struct MaintenanceInventoryView: View {
     @Environment(AppViewModel.self) private var appViewModel
     private let allCategoriesLabel = "All"
+    private let lowStockLabel = "Low Stock"
 
     @State private var parts: [SparePart] = []
     @State private var isLoading = false
@@ -25,7 +26,7 @@ struct MaintenanceInventoryView: View {
         let cats = Array(Set(parts.map { $0.category })).sorted {
             $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
         }
-        return [allCategoriesLabel] + cats
+        return [allCategoriesLabel, lowStockLabel] + cats
     }
 
     private var visibleParts: [SparePart] {
@@ -35,8 +36,16 @@ struct MaintenanceInventoryView: View {
                 part.name.localizedCaseInsensitiveContains(q) ||
                 part.partNumber.localizedCaseInsensitiveContains(q) ||
                 part.category.localizedCaseInsensitiveContains(q)
-            let matchesCategory = selectedCategory == allCategoriesLabel ||
-                part.category.localizedCaseInsensitiveCompare(selectedCategory) == .orderedSame
+            
+            let matchesCategory: Bool
+            if selectedCategory == allCategoriesLabel {
+                matchesCategory = true
+            } else if selectedCategory == lowStockLabel {
+                matchesCategory = part.isLowStock || part.isOutOfStock
+            } else {
+                matchesCategory = part.category.localizedCaseInsensitiveCompare(selectedCategory) == .orderedSame
+            }
+            
             return matchesSearch && matchesCategory
         }
         if sortLowStockFirst {
@@ -55,28 +64,33 @@ struct MaintenanceInventoryView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                cardsGrid
+        ZStack(alignment: .bottomTrailing) {
+            VStack(alignment: .leading, spacing: 0) {
                 bubbleFilter
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                
                 inventoryList
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 96)
-        }
-        .navigationTitle("Inventory")
-        .navigationBarTitleDisplayMode(.large)
-        .background(Color(uiColor: .systemGroupedBackground))
-        .searchable(text: $searchText, prompt: "Search name, part no. or category...")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showingAddPart = true
-                } label: {
-                    Image(systemName: "plus")
-                }
+            .navigationTitle("Inventory")
+            .navigationBarTitleDisplayMode(.large)
+            .background(Color(uiColor: .systemGroupedBackground))
+            .searchable(text: $searchText, prompt: "Search name, part no. or category...")
+            
+            // FAB
+            Button {
+                showingAddPart = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(accent)
+                    .clipShape(Circle())
             }
+            .padding(.trailing, 20)
+            .padding(.bottom, 24)
         }
         .sheet(isPresented: $showingAddPart) {
             AddEditSparePartSheet(existingPart: nil) { newPart in
@@ -129,67 +143,6 @@ struct MaintenanceInventoryView: View {
         }
     }
 
-    // MARK: – Cards
-
-    private var cardsGrid: some View {
-        HStack(spacing: 12) {
-            gridCard(
-                icon: "shippingbox.fill",
-                title: "Total Parts",
-                value: "\(parts.reduce(0) { $0 + $1.quantity })",
-                subtitle: "\(parts.count) types",
-                iconBg: accent.opacity(0.15),
-                iconColor: accent
-            )
-            gridCard(
-                icon: "exclamationmark.triangle.fill",
-                title: "Low Stock",
-                value: "\(parts.filter { $0.isLowStock || $0.isOutOfStock }.count)",
-                subtitle: "Need attention",
-                iconBg: accent.opacity(0.15),
-                iconColor: accent
-            )
-        }
-    }
-
-    private func gridCard(
-        icon: String,
-        title: String,
-        value: String,
-        subtitle: String,
-        iconBg: Color,
-        iconColor: Color
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
-                Image(systemName: icon)
-                    .font(.callout)
-                    .foregroundStyle(iconColor)
-                    .frame(width: 30, height: 30)
-                    .background(iconBg, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                Spacer()
-                Text(value)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(headingText)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(headingText)
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(detailText)
-            }
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.dynamic(light: "#FFFFFF", dark: "#1B1C22"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.dynamic(light: "#E6D8D2", dark: "#353741"), lineWidth: 0.5)
-        )
-    }
-
     // MARK: – Category Filter
 
     private var bubbleFilter: some View {
@@ -197,23 +150,22 @@ struct MaintenanceInventoryView: View {
             HStack(spacing: 8) {
                 ForEach(availableCategories, id: \.self) { category in
                     let isSelected = selectedCategory == category
-                    if isSelected {
-                        Button { selectedCategory = category } label: {
-                            Text(category)
-                                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+                            selectedCategory = category
                         }
-                        .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.capsule)
-                        .tint(accent)
-                    } else {
-                        Button { selectedCategory = category } label: {
-                            Text(category)
-                                .font(.system(.subheadline, design: .rounded).weight(.medium))
-                        }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
-                        .tint(.secondary)
+                    } label: {
+                        Text(category)
+                            .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                            .foregroundStyle(isSelected ? .white : Color.primary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(isSelected ? accent : Color(uiColor: .secondarySystemGroupedBackground))
+                            )
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 2)
@@ -225,8 +177,7 @@ struct MaintenanceInventoryView: View {
     @ViewBuilder private var inventoryList: some View {
         if isLoading {
             ProgressView("Loading inventory…")
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 40)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let err = loadError {
             VStack(spacing: 12) {
                 Image(systemName: "exclamationmark.triangle")
@@ -240,7 +191,7 @@ struct MaintenanceInventoryView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(accent)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.vertical, 40)
         } else if visibleParts.isEmpty {
             VStack(spacing: 12) {
@@ -255,17 +206,35 @@ struct MaintenanceInventoryView: View {
                     .foregroundStyle(detailText)
                     .multilineTextAlignment(.center)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.vertical, 60)
         } else {
-            VStack(spacing: 6) {
+            List {
                 ForEach(visibleParts) { part in
-                    SparePartRow(part: part) {
-                        partToEdit = part
-                    } onDelete: {
-                        Task { await deletePart(part) }
-                    }
+                    SparePartRow(part: part)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                Task { await deletePart(part) }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+
+                            Button {
+                                partToEdit = part
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(accent)
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: 96)
             }
         }
     }
@@ -359,67 +328,36 @@ struct MaintenanceInventoryView: View {
 
 private struct SparePartRow: View {
     let part: SparePart
-    let onEdit: () -> Void
-    let onDelete: () -> Void
 
     private var accent: Color { Color(hex: "#FF9500") }
 
     var body: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 10) {
+        GlassCard {
+            HStack(spacing: 12) {
                 Circle()
                     .fill(statusColor)
-                    .frame(width: 8, height: 8)
+                    .frame(width: 10, height: 10)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(part.name)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.headline)
                         .foregroundStyle(AppTheme.textPrimary)
                         .lineLimit(1)
 
                     HStack(spacing: 6) {
                         Text(part.partNumber)
-                            .font(.caption2.monospaced().weight(.medium))
+                            .font(.subheadline.monospaced().weight(.medium))
                             .foregroundStyle(AppTheme.textSecondary)
                         Text("·")
                             .foregroundStyle(AppTheme.textSecondary)
                         Text(stockLabel)
-                            .font(.caption2.weight(.bold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(statusColor)
                     }
                 }
-
-                Spacer(minLength: 4)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(AppTheme.textSecondary.opacity(0.6))
+                Spacer()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Capsule(style: .continuous).fill(.regularMaterial))
-            .glassEffect(.regular.interactive(), in: .capsule)
-            .onTapGesture { onEdit() }
-
-            // Edit / Delete
-            Menu {
-                Button { onEdit() } label: {
-                    Label("Edit Part", systemImage: "pencil")
-                }
-                Button(role: .destructive) { onDelete() } label: {
-                    Label("Delete Part", systemImage: "trash")
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(accent)
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(.regularMaterial))
-                    .glassEffect(.regular.interactive(), in: .circle)
-            }
-            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 4)
     }
 
     private var stockLabel: String {

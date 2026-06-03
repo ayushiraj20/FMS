@@ -46,16 +46,6 @@ struct FleetReportsAnalyticsView: View {
         .background(AppTheme.background)
         .navigationTitle("Reports")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task { await generateReport(exportPDF: true) }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .disabled(isLoading)
-            }
-        }
         .refreshable {
             await generateReport(exportPDF: true)
         }
@@ -129,10 +119,10 @@ struct FleetReportsAnalyticsView: View {
                         }
                     } label: {
                         Label(section.rawValue, systemImage: section.iconName)
-                            .font(.caption.weight(.semibold))
+                            .font(.subheadline.weight(.semibold))
                             .labelStyle(.titleAndIcon)
                             .foregroundStyle(selectedSection == section ? .white : AppTheme.textPrimary)
-                            .padding(.horizontal, 12)
+                            .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .background(selectedSection == section ? AppTheme.brand : AppTheme.surfaceSecondary, in: Capsule())
                     }

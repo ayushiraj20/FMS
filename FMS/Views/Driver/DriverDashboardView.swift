@@ -59,10 +59,11 @@ struct DriverDashboardView: View {
                     .glassEffect(.identity)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 8) {
                         NavigationLink(destination: BroadcastInboxView()) {
                             Image(systemName: "megaphone.fill")
-                                .padding(10)
+                                .imageScale(.large)
+                                .frame(width: 32, height: 32)
                         }
                         .buttonStyle(.plain)
                         
@@ -71,6 +72,8 @@ struct DriverDashboardView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                     .foregroundStyle(DriverTheme.accent)
                     .glassEffect(.identity)
                 }

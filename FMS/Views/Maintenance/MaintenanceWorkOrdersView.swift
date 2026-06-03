@@ -101,13 +101,30 @@ struct MaintenanceWorkOrdersView: View {
     // MARK: - Subviews
     
     private var filterBar: some View {
-        Picker("Filter", selection: $selectedFilter) {
-            ForEach(MaintenanceOrderProgressFilter.allCases) { filter in
-                Text(filter.title).tag(filter)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(MaintenanceOrderProgressFilter.allCases) { filter in
+                    let isSelected = selectedFilter == filter
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+                            selectedFilter = filter
+                        }
+                    } label: {
+                        Text(filter.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(isSelected ? .white : AppTheme.textPrimary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background {
+                                Capsule()
+                                    .fill(isSelected ? AppTheme.brand : Color(uiColor: .secondarySystemGroupedBackground))
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+            .padding(.horizontal, 16)
         }
-        .pickerStyle(.segmented)
-        .padding(.horizontal, 16)
         .padding(.vertical, 8)
     }
     
@@ -306,12 +323,6 @@ struct MaintenanceWorkOrdersView: View {
                     }
                     .foregroundStyle(Color.secondary)
                 }
-                
-                // MARK: iOS Navigation Chevron
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(AppTheme.brand)
-                    .padding(.leading, 2)
             }
             .padding(16)
             .background(
@@ -528,27 +539,22 @@ struct MaintenanceWorkOrdersView: View {
                         HStack(spacing: 8) {
                             ForEach(Self.progressStatuses, id: \.self) { status in
                                 let isSelected = selectedStatus == status
-                                if isSelected {
-                                    Button {
+                                Button {
+                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
                                         selectedStatus = status
-                                    } label: {
-                                        Text(status.displayTitle)
-                                            .font(.system(.subheadline, design: .rounded).weight(.medium))
                                     }
-                                    .buttonStyle(.borderedProminent)
-                                    .buttonBorderShape(.capsule)
-                                    .tint(accent)
-                                } else {
-                                    Button {
-                                        selectedStatus = status
-                                    } label: {
-                                        Text(status.displayTitle)
-                                            .font(.system(.subheadline, design: .rounded).weight(.medium))
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .buttonBorderShape(.capsule)
-                                    .tint(.secondary)
+                                } label: {
+                                    Text(status.displayTitle)
+                                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                                        .foregroundStyle(isSelected ? .white : .primary)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(
+                                            Capsule()
+                                                .fill(isSelected ? accent : Color(uiColor: .secondarySystemGroupedBackground))
+                                        )
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -1194,10 +1200,10 @@ struct MaintenanceWorkOrdersView: View {
                                 selectedCategory = category
                             } label: {
                                 Text(category)
-                                    .font(.caption.weight(.semibold))
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(selectedCategory == category ? .white : .primary)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
                                     .background(selectedCategory == category ? accent : Color(uiColor: .secondarySystemGroupedBackground), in: Capsule())
                             }
                             .buttonStyle(.plain)
