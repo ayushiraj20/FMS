@@ -31,10 +31,7 @@ struct FleetTripDetailSheet: View {
                     ZStack {
                         Map(position: $cameraPosition) {
                             if let routePlan {
-                                TripRoutesMapContent(
-                                    plan: routePlan,
-                                    showAlternatives: trip.status != .completed
-                                )
+                                TripRoutesMapContent(plan: routePlan)
                             } else if let originCoordinate, let destinationCoordinate {
                                 MapPolyline(coordinates: [originCoordinate, destinationCoordinate])
                                     .stroke(AppTheme.brand, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))

@@ -119,7 +119,7 @@ struct UserManagementView: View {
             }
         } label: {
             Text(title)
-                .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(isSelected ? .white : Color(hex: "#8E8E93"))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)

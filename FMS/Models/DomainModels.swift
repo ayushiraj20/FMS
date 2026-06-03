@@ -199,6 +199,8 @@ struct Vehicle: Identifiable, Codable, Hashable {
     var manufacturer: String
     var vehicleYear: String
     var vinNumber: String
+    var serviceReferenceReading: Int
+    var lastServiceDate: Date
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -218,9 +220,11 @@ struct Vehicle: Identifiable, Codable, Hashable {
         case manufacturer
         case vehicleYear = "vehicle_year"
         case vinNumber = "vin_number"
+        case serviceReferenceReading = "service_reference_reading"
+        case lastServiceDate = "last_service_date"
     }
 
-    init(id: UUID, organizationID: UUID, displayName: String, plateNumber: String, model: String, status: VehicleStatus, fuelLevel: Int, odometer: Int, assignedDriverID: UUID?, nextServiceDate: Date, utilization: Int, fuelConsumption: Double = 0.0, vehicleType: String = "Truck", fuelType: String = "Diesel", manufacturer: String = "", vehicleYear: String = "", vinNumber: String = "") {
+    init(id: UUID, organizationID: UUID, displayName: String, plateNumber: String, model: String, status: VehicleStatus, fuelLevel: Int, odometer: Int, assignedDriverID: UUID?, nextServiceDate: Date, utilization: Int, fuelConsumption: Double = 0.0, vehicleType: String = "Truck", fuelType: String = "Diesel", manufacturer: String = "", vehicleYear: String = "", vinNumber: String = "", serviceReferenceReading: Int? = nil, lastServiceDate: Date? = nil) {
         self.id = id
         self.organizationID = organizationID
         self.displayName = displayName
@@ -238,6 +242,8 @@ struct Vehicle: Identifiable, Codable, Hashable {
         self.manufacturer = manufacturer
         self.vehicleYear = vehicleYear
         self.vinNumber = vinNumber
+        self.serviceReferenceReading = serviceReferenceReading ?? odometer
+        self.lastServiceDate = lastServiceDate ?? Calendar.current.date(byAdding: .month, value: -6, to: nextServiceDate) ?? Date.now
     }
 
     init(from decoder: Decoder) throws {
@@ -259,6 +265,10 @@ struct Vehicle: Identifiable, Codable, Hashable {
         manufacturer = (try? container.decode(String.self, forKey: .manufacturer)) ?? ""
         vehicleYear = (try? container.decode(String.self, forKey: .vehicleYear)) ?? ""
         vinNumber = (try? container.decode(String.self, forKey: .vinNumber)) ?? ""
+        serviceReferenceReading = (try? container.decode(Int.self, forKey: .serviceReferenceReading)) ?? odometer
+        lastServiceDate = (try? container.decode(Date.self, forKey: .lastServiceDate))
+            ?? Calendar.current.date(byAdding: .month, value: -6, to: nextServiceDate)
+            ?? Date.now
     }
 
     func encode(to encoder: Encoder) throws {
@@ -284,6 +294,45 @@ struct Vehicle: Identifiable, Codable, Hashable {
         try container.encode(manufacturer, forKey: .manufacturer)
         try container.encode(vehicleYear, forKey: .vehicleYear)
         try container.encode(vinNumber, forKey: .vinNumber)
+        try container.encode(serviceReferenceReading, forKey: .serviceReferenceReading)
+        try container.encode(lastServiceDate, forKey: .lastServiceDate)
+    }
+}
+
+extension Vehicle {
+    static let maintenanceIntervalKilometers = 10_000
+    static let maintenanceIntervalMonths = 6
+
+    var distanceSinceLastService: Int {
+        max(0, odometer - serviceReferenceReading)
+    }
+
+    var kilometersUntilNextService: Int {
+        max(0, Self.maintenanceIntervalKilometers - distanceSinceLastService)
+    }
+
+    var timeBasedServiceDueDate: Date {
+        Calendar.current.date(byAdding: .month, value: Self.maintenanceIntervalMonths, to: lastServiceDate) ?? nextServiceDate
+    }
+
+    var maintenanceDaysRemaining: Int {
+        Calendar.current.dateComponents(
+            [.day],
+            from: Calendar.current.startOfDay(for: .now),
+            to: Calendar.current.startOfDay(for: timeBasedServiceDueDate)
+        ).day ?? 0
+    }
+
+    var isDistanceMaintenanceDue: Bool {
+        distanceSinceLastService >= Self.maintenanceIntervalKilometers
+    }
+
+    var isTimeMaintenanceDue: Bool {
+        maintenanceDaysRemaining <= 0
+    }
+
+    var isMaintenanceDue: Bool {
+        isDistanceMaintenanceDue || isTimeMaintenanceDue
     }
 }
 

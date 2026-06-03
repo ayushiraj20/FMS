@@ -20,6 +20,10 @@ struct FleetManagerDashboardView: View {
                     } else {
                         if let activeSOS = appViewModel.activeEmergencyAlert {
                             emergencyAlertBanner(for: activeSOS)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .top).combined(with: .opacity),
+                                    removal: .move(edge: .top).combined(with: .opacity)
+                                ))
                         }
                         
                         // MARK: - KPI Grid
@@ -284,7 +288,7 @@ struct FleetManagerDashboardView: View {
         var mapCoordinates = locations.map(\.coordinate)
         for tripID in locations.compactMap(\.activeTrip?.id) {
             if let plan = appViewModel.service.tripRoutePlansByTripID[tripID] {
-                mapCoordinates.append(contentsOf: plan.allRoutes.flatMap { $0 })
+                mapCoordinates.append(contentsOf: plan.mainRouteCoordinates)
             }
         }
 
@@ -542,7 +546,7 @@ struct FleetManagerDashboardView: View {
     private func sendRouteGeofenceAlertsIfNeeded() {
         Task {
             await appViewModel.service.prefetchRoutePlansForActiveTrips()
-            let locations = appViewModel.service.allFleetLocations()
+            let locations = appViewModel.service.movingFleetLocations(for: appViewModel.currentUser)
             await appViewModel.service.sendRouteGeofenceMonitoringAlerts(
                 for: appViewModel.currentUser,
                 locations: locations
@@ -615,7 +619,7 @@ struct FleetManagerDashboardView: View {
         }
         .transition(.asymmetric(
             insertion: .move(edge: .top).combined(with: .opacity),
-            removal: .opacity
+            removal: .move(edge: .top).combined(with: .opacity)
         ))
     }
 }
@@ -825,12 +829,15 @@ private struct EmergencyAlertBanner: View {
 
     private func openInMaps() {
         guard hasValidGPS else { return }
-        let location = CLLocation(latitude: alert.latitude, longitude: alert.longitude)
-        let item = MKMapItem(location: location, address: nil as MKAddress?)
+        let coordinate = CLLocationCoordinate2D(latitude: alert.latitude, longitude: alert.longitude)
+        let placemark = MKPlacemark(coordinate: coordinate)
+        let item = MKMapItem(placemark: placemark)
         item.name = "🚨 \(alert.driverName) — \(alert.vehicleNumber)"
-        item.openInMaps(launchOptions: [
-            MKLaunchOptionsMapTypeKey: NSNumber(value: MKMapType.standard.rawValue)
-        ])
+        
+        let options: [String: Any] = [
+            MKLaunchOptionsMapTypeKey: MKMapType.standard.rawValue
+        ]
+        item.openInMaps(launchOptions: options)
     }
 }
 

@@ -59,10 +59,11 @@ struct DriverDashboardView: View {
                     .glassEffect(.identity)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 8) {
                         NavigationLink(destination: BroadcastInboxView()) {
                             Image(systemName: "megaphone.fill")
-                                .padding(10)
+                                .imageScale(.large)
+                                .frame(width: 32, height: 32)
                         }
                         .buttonStyle(.plain)
                         
@@ -71,6 +72,8 @@ struct DriverDashboardView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                     .foregroundStyle(DriverTheme.accent)
                     .glassEffect(.identity)
                 }
@@ -475,9 +478,15 @@ struct DriverDashboardView: View {
 
     private var todayDistanceValue: Int {
         guard let user = currentUser else { return 0 }
-        let today = Calendar.current.startOfDay(for: .now)
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
         let trips = appViewModel.service.trips.filter {
-            $0.driverID == user.id && $0.startDate >= today
+            guard $0.driverID == user.id else { return false }
+            if $0.startDate >= today { return true }
+            if $0.status == .completed, let endDate = $0.endDate {
+                return calendar.isDate(endDate, inSameDayAs: .now)
+            }
+            return false
         }
         return Int(trips.reduce(0.0) { $0 + $1.distanceKM })
     }

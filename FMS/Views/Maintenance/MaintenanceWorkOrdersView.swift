@@ -113,11 +113,11 @@ struct MaintenanceWorkOrdersView: View {
                         Text(filter.title)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(isSelected ? .white : AppTheme.textPrimary)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 9)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
                             .background {
                                 Capsule()
-                                    .fill(isSelected ? AppTheme.brand : AppTheme.surfaceSecondary)
+                                    .fill(isSelected ? AppTheme.brand : Color(uiColor: .secondarySystemGroupedBackground))
                             }
                     }
                     .buttonStyle(.plain)
@@ -539,27 +539,22 @@ struct MaintenanceWorkOrdersView: View {
                         HStack(spacing: 8) {
                             ForEach(Self.progressStatuses, id: \.self) { status in
                                 let isSelected = selectedStatus == status
-                                if isSelected {
-                                    Button {
+                                Button {
+                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
                                         selectedStatus = status
-                                    } label: {
-                                        Text(status.displayTitle)
-                                            .font(.system(.subheadline, design: .rounded).weight(.medium))
                                     }
-                                    .buttonStyle(.borderedProminent)
-                                    .buttonBorderShape(.capsule)
-                                    .tint(accent)
-                                } else {
-                                    Button {
-                                        selectedStatus = status
-                                    } label: {
-                                        Text(status.displayTitle)
-                                            .font(.system(.subheadline, design: .rounded).weight(.medium))
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .buttonBorderShape(.capsule)
-                                    .tint(.secondary)
+                                } label: {
+                                    Text(status.displayTitle)
+                                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                                        .foregroundStyle(isSelected ? .white : .primary)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(
+                                            Capsule()
+                                                .fill(isSelected ? accent : Color(uiColor: .secondarySystemGroupedBackground))
+                                        )
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -1205,10 +1200,10 @@ struct MaintenanceWorkOrdersView: View {
                                 selectedCategory = category
                             } label: {
                                 Text(category)
-                                    .font(.caption.weight(.semibold))
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(selectedCategory == category ? .white : .primary)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
                                     .background(selectedCategory == category ? accent : Color(uiColor: .secondarySystemGroupedBackground), in: Capsule())
                             }
                             .buttonStyle(.plain)

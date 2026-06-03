@@ -63,12 +63,12 @@ struct PriorityAlertsListView: View {
             HStack(spacing: 7) {
                 // Icon
                 Image(systemName: cat.icon)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(isSelected ? .white : cat.color)
 
                 // Label
                 Text(cat.name)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(isSelected ? .white : AppTheme.textPrimary)
 
                 // Count Badge
@@ -83,8 +83,8 @@ struct PriorityAlertsListView: View {
                         )
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
             .background {
                 if isSelected {
                     Capsule()

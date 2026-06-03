@@ -907,6 +907,29 @@ final class MockDataService {
         }
     }
 
+    private func resetMaintenanceCycle(vehicleID: UUID, completionDate: Date) {
+        guard let index = vehicles.firstIndex(where: { $0.id == vehicleID }) else { return }
+        vehicles[index].serviceReferenceReading = vehicles[index].odometer
+        vehicles[index].lastServiceDate = completionDate
+        vehicles[index].nextServiceDate = Calendar.current.date(
+            byAdding: .month,
+            value: Vehicle.maintenanceIntervalMonths,
+            to: completionDate
+        ) ?? completionDate
+
+        let updatedVehicle = vehicles[index]
+        if SupabaseConfig.isConfigured {
+            Task {
+                do {
+                    try await SupabaseService.shared.updateVehicle(updatedVehicle)
+                    print("[Sync] Maintenance cycle reset for \(updatedVehicle.displayName)")
+                } catch {
+                    print("[Sync] resetMaintenanceCycle FAILED for \(updatedVehicle.displayName): \(error)")
+                }
+            }
+        }
+    }
+
     func deleteVehicle(_ vehicle: Vehicle) {
         vehicles.removeAll { $0.id == vehicle.id }
         documents.removeAll { $0.vehicleID == vehicle.id }
@@ -1034,6 +1057,8 @@ final class MockDataService {
         
         // Notify if state changed to Completed
         if oldStatus != .completed && workOrder.status == .completed {
+            let completionDate = workOrder.completedDate ?? Date.now
+            resetMaintenanceCycle(vehicleID: workOrder.vehicleID, completionDate: completionDate)
             let vehicle = vehicles.first { $0.id == workOrder.vehicleID }
             let plate = vehicle?.plateNumber ?? "Vehicle"
             let text = "Repair completed for \(plate): \(workOrder.title)."
@@ -1210,7 +1235,11 @@ final class MockDataService {
 
     func updateMaintenanceSchedule(_ schedule: MaintenanceSchedule) {
         guard let index = maintenanceSchedules.firstIndex(where: { $0.id == schedule.id }) else { return }
+        let oldStatus = maintenanceSchedules[index].status
         maintenanceSchedules[index] = schedule
+        if oldStatus != .completed && schedule.status == .completed {
+            resetMaintenanceCycle(vehicleID: schedule.vehicleID, completionDate: schedule.dueDate)
+        }
         if SupabaseConfig.isConfigured {
             Task {
                 do {

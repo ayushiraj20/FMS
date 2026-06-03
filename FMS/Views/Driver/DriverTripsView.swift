@@ -239,7 +239,7 @@ struct ActiveTripMapView: View {
             VStack {
                 topOverlays
                 if routePlan != nil {
-                    TripRouteLegendView()
+                TripRouteLegendView()
                         .padding(.top, 4)
                 }
                 corridorStatusBanner
@@ -315,7 +315,7 @@ struct ActiveTripMapView: View {
                 .background(.ultraThinMaterial, in: Capsule())
                 .padding(.top, 6)
         case .outsideCorridor:
-            Text("Outside approved route corridor (±\(Int(TripRoutePlan.corridorToleranceMeters)) m). Return to a highlighted route.")
+            Text("Outside 50 m approved geofence. Return to the ideal or approved alternate route.")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(DriverTheme.criticalRed)
                 .padding(.horizontal, 14)
