@@ -135,10 +135,6 @@ struct FleetUtilizationDetailView: View {
                 Text("\(count)")
                     .font(.title3.weight(.bold))
                     .foregroundStyle(AppTheme.textPrimary)
-
-                Text("(\(value)%)")
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.textSecondary)
             }
             
             Text("\(count) vehicle\(count == 1 ? "" : "s") - \(detail)")
