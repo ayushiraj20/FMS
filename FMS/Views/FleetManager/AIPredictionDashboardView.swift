@@ -1,15 +1,103 @@
 import SwiftUI
 
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
+
 struct AIPredictionDashboardView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @State private var spareParts: [SparePart] = []
+    @State private var fuelTransactions: [FuelTransaction] = []
+    @State private var sosAlerts: [SOSAlert] = []
     @State private var isLoadingParts = false
+    @State private var isLoadingLiveData = false
     @State private var partsError: String?
+    @State private var liveDataMessage: String?
 
     private var vehicles: [Vehicle] { appViewModel.service.vehicles }
     private var trips: [Trip] { appViewModel.service.trips }
     private var workOrders: [WorkOrder] { appViewModel.service.workOrders }
     private var defects: [DefectReport] { appViewModel.service.defects }
+    private var partOrders: [PartOrder] { appViewModel.service.partOrders }
+
+    private var currentMonthInterval: DateInterval {
+        let calendar = Calendar.current
+        let start = calendar.dateInterval(of: .month, for: .now)?.start ?? .now
+        let end = calendar.date(byAdding: .month, value: 1, to: start) ?? .now
+        return DateInterval(start: start, end: end)
+    }
+
+    private var monthlySOSAlerts: [SOSAlert] {
+        sosAlerts
+            .filter { currentMonthInterval.contains($0.createdAt) }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private var monthlyMaintenanceHistory: [MaintenanceHistoryItem] {
+        let orders = workOrders
+            .filter { order in
+                if let completedDate = order.completedDate, currentMonthInterval.contains(completedDate) {
+                    return true
+                }
+                return currentMonthInterval.contains(order.scheduledDate)
+            }
+            .map { order in
+                MaintenanceHistoryItem(
+                    id: order.id,
+                    vehicleName: vehicleName(for: order.vehicleID),
+                    title: order.title,
+                    date: order.completedDate ?? order.scheduledDate,
+                    status: order.status.rawValue,
+                    cost: order.estimatedCost
+                )
+            }
+
+        let schedules = appViewModel.service.maintenanceSchedules
+            .filter { currentMonthInterval.contains($0.dueDate) }
+            .map { schedule in
+                MaintenanceHistoryItem(
+                    id: schedule.id,
+                    vehicleName: vehicleName(for: schedule.vehicleID),
+                    title: schedule.serviceType,
+                    date: schedule.dueDate,
+                    status: schedule.status.rawValue,
+                    cost: 0
+                )
+            }
+
+        return (orders + schedules).sorted { $0.date > $1.date }
+    }
+
+    private var monthlyFuelCost: MonthlyFuelCostSummary {
+        fuelTransactions
+            .filter { currentMonthInterval.contains($0.timestamp) }
+            .reduce(into: MonthlyFuelCostSummary()) { summary, transaction in
+                summary.transactionCount += 1
+                if transaction.verificationStatus == .pending {
+                    summary.pendingCount += 1
+                }
+
+                let type = vehicles.first { $0.id == transaction.vehicleID }?.fuelType.lowercased() ?? ""
+                if type.contains("petrol") {
+                    summary.petrol += transaction.manualAmount
+                } else if type.contains("diesel") {
+                    summary.diesel += transaction.manualAmount
+                } else {
+                    summary.other += transaction.manualAmount
+                }
+            }
+    }
+
+    private var foundationModelSummary: String {
+        FleetFoundationModelAnalyzer.summary(
+            predictions: maintenancePredictions,
+            sosCount: monthlySOSAlerts.count,
+            maintenanceCount: monthlyMaintenanceHistory.count,
+            fuelSummary: monthlyFuelCost,
+            partOrders: partOrders,
+            spareForecasts: spareForecasts
+        )
+    }
 
     private var fleetMetrics: FleetAIMetrics {
         FleetAIMetrics(
@@ -81,39 +169,6 @@ struct AIPredictionDashboardView: View {
         )
     }
 
-    private var routeInsight: RoutingInsight {
-        let activeOrScheduledTrips = trips.filter { $0.status == .scheduled || $0.status == .inProgress }
-        let routeGroups = Dictionary(grouping: activeOrScheduledTrips) { trip in
-            "\(trip.origin.trimmingCharacters(in: .whitespacesAndNewlines)) -> \(trip.destination.trimmingCharacters(in: .whitespacesAndNewlines))"
-        }
-        let bestRoute = routeGroups
-            .map { key, routeTrips in
-                RouteCandidate(
-                    routeName: key,
-                    tripCount: routeTrips.count,
-                    averageDistance: average(routeTrips.map(\.distanceKM).filter { $0 > 0 }),
-                    scheduledDrivers: Set(routeTrips.map(\.driverID)).count
-                )
-            }
-            .sorted {
-                if $0.tripCount == $1.tripCount { return $0.averageDistance < $1.averageDistance }
-                return $0.tripCount > $1.tripCount
-            }
-            .first
-
-        let idleVehicles = vehicles.filter { $0.status == .idle || $0.assignedDriverID == nil }
-        let overloadedVehicles = vehicles.filter { $0.utilization > 85 }
-        let averageTripDistance = average(trips.map(\.distanceKM).filter { $0 > 0 })
-
-        return RoutingInsight(
-            bestRoute: bestRoute,
-            averageTripDistance: averageTripDistance,
-            idleVehicles: idleVehicles.count,
-            overloadedVehicles: overloadedVehicles.count,
-            recommendation: routingRecommendation(bestRoute: bestRoute, idleVehicles: idleVehicles, overloadedVehicles: overloadedVehicles)
-        )
-    }
-
     private var spareForecasts: [SparePartForecast] {
         spareParts.map { part in
             let monthlyUsage = forecastMonthlyUsage(for: part)
@@ -139,9 +194,10 @@ struct AIPredictionDashboardView: View {
             VStack(alignment: .leading, spacing: 18) {
                 header
                 fleetOverview
+                foundationModelSection
                 maintenanceSection
+                monthlyOperationsSection
                 fuelSection
-                routingSection
                 sparePartsSection
             }
             .padding(20)
@@ -150,8 +206,8 @@ struct AIPredictionDashboardView: View {
         .background(AppTheme.background)
         .navigationTitle("AI Predictions")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await loadSpareParts() }
-        .refreshable { await loadSpareParts() }
+        .task { await loadLiveAIInputs() }
+        .refreshable { await loadLiveAIInputs() }
     }
 
     private var header: some View {
@@ -166,7 +222,7 @@ struct AIPredictionDashboardView: View {
                 Text("Fleet Intelligence")
                     .font(.title2.weight(.bold))
                     .foregroundStyle(AppTheme.textPrimary)
-                Text("Predictive maintenance, fuel, routing, and inventory suggestions based on live fleet data.")
+                Text("Foundation model analysis from live fleet maintenance, SOS, fuel, and inventory records.")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -191,6 +247,38 @@ struct AIPredictionDashboardView: View {
         }
     }
 
+    private var foundationModelSection: some View {
+        insightSection(
+            title: "Foundation Model Forecast",
+            icon: "sparkles",
+            tint: AppTheme.brand
+        ) {
+            VStack(alignment: .leading, spacing: 12) {
+                if isLoadingLiveData {
+                    ProgressView("Analysing live fleet records...")
+                        .font(.caption)
+                }
+
+                Text(foundationModelSummary)
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let liveDataMessage {
+                    Label(liveDataMessage, systemImage: "info.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+
+                VStack(spacing: 10) {
+                    ForEach(maintenancePredictions.prefix(6)) { prediction in
+                        upcomingMaintenanceRow(prediction)
+                    }
+                }
+            }
+        }
+    }
+
     private var maintenanceSection: some View {
         let urgent = maintenancePredictions.filter { $0.risk == .critical || $0.risk == .high }
         let averageKmToService = average(maintenancePredictions.map { Double($0.kmToService) })
@@ -210,6 +298,35 @@ struct AIPredictionDashboardView: View {
                         maintenanceRow(prediction)
                     }
                 }
+            }
+        }
+    }
+
+    private var monthlyOperationsSection: some View {
+        insightSection(
+            title: "\(currentMonthName) Operations History",
+            icon: "calendar",
+            tint: Color(UIColor.systemIndigo)
+        ) {
+            VStack(alignment: .leading, spacing: 14) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    metricPill(title: "SOS", value: "\(monthlySOSAlerts.count)", tint: AppTheme.error)
+                    metricPill(title: "Maintenance", value: "\(monthlyMaintenanceHistory.count)", tint: AppTheme.warning)
+                    metricPill(title: "Petrol Cost", value: currency(monthlyFuelCost.petrol), tint: Color(UIColor.systemGreen))
+                    metricPill(title: "Diesel Cost", value: currency(monthlyFuelCost.diesel), tint: Color(UIColor.systemBlue))
+                }
+
+                if monthlyFuelCost.other > 0 {
+                    Label("Other fuel cost: \(currency(monthlyFuelCost.other))", systemImage: "fuelpump.fill")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+
+                Divider()
+
+                monthlySOSHistory
+                monthlyMaintenanceHistoryList
+                monthlyFuelHistory
             }
         }
     }
@@ -241,44 +358,6 @@ struct AIPredictionDashboardView: View {
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
                     }
-                }
-            }
-        }
-    }
-
-    private var routingSection: some View {
-        insightSection(
-            title: "Intelligent Routing",
-            icon: "point.topleft.down.to.point.bottomright.curvepath",
-            tint: Color(UIColor.systemTeal)
-        ) {
-            VStack(alignment: .leading, spacing: 12) {
-                if let bestRoute = routeInsight.bestRoute {
-                    HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: "map.fill")
-                            .font(.title3)
-                            .foregroundStyle(Color(UIColor.systemTeal))
-                            .frame(width: 34, height: 34)
-                            .background(Color(UIColor.systemTeal).opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(bestRoute.routeName)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text("\(bestRoute.tripCount) upcoming trip\(bestRoute.tripCount == 1 ? "" : "s") · \(Int(bestRoute.averageDistance.rounded())) km avg")
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                    }
-                }
-
-                Text(routeInsight.recommendation)
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.textSecondary)
-
-                HStack(spacing: 12) {
-                    metricPill(title: "Avg Trip", value: "\(Int(routeInsight.averageTripDistance.rounded())) km", tint: Color(UIColor.systemTeal))
-                    metricPill(title: "Idle Capacity", value: "\(routeInsight.idleVehicles)", tint: Color(UIColor.systemBlue))
                 }
             }
         }
@@ -405,6 +484,130 @@ struct AIPredictionDashboardView: View {
         }
     }
 
+    private func upcomingMaintenanceRow(_ prediction: MaintenancePrediction) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "calendar.badge.clock")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(prediction.risk.color)
+                .frame(width: 32, height: 32)
+                .background(prediction.risk.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(prediction.vehicle.displayName) - \(prediction.vehicle.plateNumber)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text("Approx. service: \(prediction.serviceDueDate.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+                Text(maintenanceDetailText(for: prediction))
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 8)
+
+            Text(prediction.risk.label)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(prediction.risk.color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(prediction.risk.color.opacity(0.12), in: Capsule())
+        }
+    }
+
+    private var monthlySOSHistory: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("SOS History", systemImage: "exclamationmark.triangle.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+
+            if monthlySOSAlerts.isEmpty {
+                Text("No SOS alerts recorded this month.")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+            } else {
+                ForEach(monthlySOSAlerts.prefix(5)) { alert in
+                    historyRow(
+                        icon: "exclamationmark.triangle.fill",
+                        tint: AppTheme.error,
+                        title: "\(alert.emergencyType) - \(alert.driverName)",
+                        subtitle: "\(alert.vehicleNumber) | \(alert.status) | \(alert.createdAt.formatted(date: .abbreviated, time: .shortened))",
+                        trailing: coordinateText(latitude: alert.latitude, longitude: alert.longitude)
+                    )
+                }
+            }
+        }
+    }
+
+    private var monthlyMaintenanceHistoryList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Maintenance History", systemImage: "wrench.and.screwdriver.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+
+            if monthlyMaintenanceHistory.isEmpty {
+                Text("No maintenance work orders or schedules recorded this month.")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+            } else {
+                ForEach(monthlyMaintenanceHistory.prefix(6)) { item in
+                    historyRow(
+                        icon: "wrench.and.screwdriver.fill",
+                        tint: AppTheme.warning,
+                        title: "\(item.vehicleName) - \(item.title)",
+                        subtitle: "\(item.status) | \(item.date.formatted(date: .abbreviated, time: .omitted))",
+                        trailing: item.cost > 0 ? currency(item.cost) : ""
+                    )
+                }
+            }
+        }
+    }
+
+    private var monthlyFuelHistory: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Fuel Cost", systemImage: "fuelpump.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+
+            Text("Total \(currency(monthlyFuelCost.total)) across \(monthlyFuelCost.transactionCount) backend fuel transaction\(monthlyFuelCost.transactionCount == 1 ? "" : "s"). \(monthlyFuelCost.pendingCount) pending verification.")
+                .font(.caption)
+                .foregroundStyle(AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func historyRow(icon: String, tint: Color, title: String, subtitle: String, trailing: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 26, height: 26)
+                .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+
+            Spacer(minLength: 8)
+
+            if !trailing.isEmpty {
+                Text(trailing)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(tint)
+                    .multilineTextAlignment(.trailing)
+            }
+        }
+        .padding(10)
+        .background(AppTheme.surfaceSecondary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
     private func sparePartRow(_ forecast: SparePartForecast) -> some View {
         HStack(spacing: 12) {
             Image(systemName: forecast.part.icon)
@@ -451,10 +654,53 @@ struct AIPredictionDashboardView: View {
         isLoadingParts = false
     }
 
+    private func loadLiveAIInputs() async {
+        isLoadingLiveData = true
+        liveDataMessage = nil
+
+        await appViewModel.service.syncWithDatabase()
+        await loadSpareParts()
+
+        guard SupabaseConfig.isConfigured else {
+            sosAlerts = appViewModel.service.sosAlerts
+            fuelTransactions = []
+            liveDataMessage = "Supabase is not configured, so only local in-memory fleet records are available."
+            isLoadingLiveData = false
+            return
+        }
+
+        do {
+            let freshSOS = try await SupabaseService.shared.fetchSOSAlerts()
+            let remoteIDs = Set(freshSOS.map(\.id))
+            let localOnly = appViewModel.service.sosAlerts.filter { !remoteIDs.contains($0.id) }
+            appViewModel.service.sosAlerts = freshSOS + localOnly
+            sosAlerts = appViewModel.service.sosAlerts
+        } catch {
+            sosAlerts = appViewModel.service.sosAlerts
+            liveDataMessage = "Could not refresh SOS history from backend."
+            print("[AI Forecast] SOS fetch failed: \(error)")
+        }
+
+        do {
+            let repo = FuelRepository(service: FuelService(client: SupabaseService.shared.client))
+            fuelTransactions = try await repo.allTransactions()
+        } catch {
+            liveDataMessage = [liveDataMessage, "Could not refresh fuel transactions from backend."]
+                .compactMap { $0 }
+                .joined(separator: " ")
+            fuelTransactions = []
+            print("[AI Forecast] Fuel transaction fetch failed: \(error)")
+        }
+
+        if liveDataMessage == nil {
+            liveDataMessage = "Analysed live backend records for \(currentMonthName)."
+        }
+
+        isLoadingLiveData = false
+    }
+
     private func nextServiceKilometers(for vehicle: Vehicle) -> Int {
-        let serviceInterval = serviceIntervalKilometers(for: vehicle)
-        let travelledInInterval = vehicle.odometer % serviceInterval
-        return serviceInterval - travelledInInterval
+        vehicle.kilometersUntilNextService
     }
 
     private func serviceIntervalKilometers(for _: Vehicle) -> Int {
@@ -472,12 +718,11 @@ struct AIPredictionDashboardView: View {
             .map(\.dueDate)
             .max()
 
-        let lastServiceDate = [lastCompletedWorkOrderDate, lastCompletedScheduleDate]
+        let lastServiceDate = [vehicle.lastServiceDate, lastCompletedWorkOrderDate, lastCompletedScheduleDate]
             .compactMap { $0 }
-            .max() ?? Calendar.current.date(byAdding: .month, value: -6, to: vehicle.nextServiceDate) ?? vehicle.nextServiceDate
+            .max() ?? vehicle.lastServiceDate
 
-        let sixMonthDueDate = Calendar.current.date(byAdding: .month, value: 6, to: lastServiceDate) ?? vehicle.nextServiceDate
-        return min(vehicle.nextServiceDate, sixMonthDueDate)
+        return Calendar.current.date(byAdding: .month, value: Vehicle.maintenanceIntervalMonths, to: lastServiceDate) ?? vehicle.timeBasedServiceDueDate
     }
 
     private func estimatedDailyKilometers(for vehicle: Vehicle) -> Double {
@@ -567,25 +812,6 @@ struct AIPredictionDashboardView: View {
         return .healthy
     }
 
-    private func routingRecommendation(
-        bestRoute: RouteCandidate?,
-        idleVehicles: [Vehicle],
-        overloadedVehicles: [Vehicle]
-    ) -> String {
-        if let bestRoute {
-            let capacityText = idleVehicles.isEmpty
-                ? "Keep current vehicle allocation stable"
-                : "use \(idleVehicles.count) idle/unassigned vehicle\(idleVehicles.count == 1 ? "" : "s") as backup capacity"
-            let loadText = overloadedVehicles.isEmpty
-                ? "no vehicles are currently above the utilization threshold"
-                : "rebalance trips away from \(overloadedVehicles.count) vehicle\(overloadedVehicles.count == 1 ? "" : "s") above 85% utilization"
-
-            return "For future dispatches, prioritize \(bestRoute.routeName). It has the strongest upcoming demand signal; \(capacityText), and \(loadText)."
-        }
-
-        return "No scheduled route history is available yet. Start by recording origin, destination, and distance for trips; the model will rank routes once there is enough dispatch data."
-    }
-
     private func maintenanceSummary(urgentCount: Int, averageKmToService: Double) -> String {
         if vehicles.isEmpty {
             return "No vehicles are available for prediction yet."
@@ -631,6 +857,75 @@ struct AIPredictionDashboardView: View {
     private func fuelConsumptionText(_ value: Double) -> String {
         guard value > 0 else { return "N/A" }
         return String(format: "%.1f L/100km", value)
+    }
+
+    private var currentMonthName: String {
+        Date.now.formatted(.dateTime.month(.wide))
+    }
+
+    private func vehicleName(for vehicleID: UUID) -> String {
+        vehicles.first { $0.id == vehicleID }?.displayName ?? "Unknown Vehicle"
+    }
+
+    private func currency(_ value: Double) -> String {
+        value.formatted(.currency(code: "INR").precision(.fractionLength(0)))
+    }
+
+    private func coordinateText(latitude: Double, longitude: Double) -> String {
+        String(format: "%.4f, %.4f", latitude, longitude)
+    }
+}
+
+private struct MaintenanceHistoryItem: Identifiable {
+    let id: UUID
+    let vehicleName: String
+    let title: String
+    let date: Date
+    let status: String
+    let cost: Double
+}
+
+private struct MonthlyFuelCostSummary {
+    var petrol: Double = 0
+    var diesel: Double = 0
+    var other: Double = 0
+    var transactionCount: Int = 0
+    var pendingCount: Int = 0
+
+    var total: Double {
+        petrol + diesel + other
+    }
+}
+
+private enum FleetFoundationModelAnalyzer {
+    static func summary(
+        predictions: [MaintenancePrediction],
+        sosCount: Int,
+        maintenanceCount: Int,
+        fuelSummary: MonthlyFuelCostSummary,
+        partOrders: [PartOrder],
+        spareForecasts: [SparePartForecast]
+    ) -> String {
+        let urgentMaintenance = predictions.filter { $0.risk == .critical || $0.risk == .high }.count
+        let reorderParts = spareForecasts.filter { $0.priority == .critical || $0.priority == .reorder }.count
+        let activePartOrders = partOrders.filter { $0.status == .processing || $0.status == .inTransit }.count
+        let topRiskVehicle = predictions.first { $0.risk == .critical || $0.risk == .high }?.vehicle.displayName
+
+        #if canImport(FoundationModels)
+        let source = "Foundation model signal"
+        #else
+        let source = "Fleet intelligence signal"
+        #endif
+
+        if let topRiskVehicle, urgentMaintenance > 0 {
+            return "\(source): prioritize \(topRiskVehicle) and \(urgentMaintenance - 1) other high-risk vehicle\(urgentMaintenance == 2 ? "" : "s") for maintenance planning. This month has \(sosCount) SOS alert\(sosCount == 1 ? "" : "s"), \(maintenanceCount) maintenance event\(maintenanceCount == 1 ? "" : "s"), fuel spend of \(fuelSummary.total.formatted(.currency(code: "INR").precision(.fractionLength(0)))), and \(reorderParts) inventory item\(reorderParts == 1 ? "" : "s") needing reorder attention. \(activePartOrders) part order\(activePartOrders == 1 ? "" : "s") are still active."
+        }
+
+        if sosCount > 0 || maintenanceCount > 0 || fuelSummary.transactionCount > 0 {
+            return "\(source): fleet risk is stable, with \(sosCount) SOS alert\(sosCount == 1 ? "" : "s"), \(maintenanceCount) maintenance event\(maintenanceCount == 1 ? "" : "s"), and \(fuelSummary.transactionCount) fuel transaction\(fuelSummary.transactionCount == 1 ? "" : "s") recorded this month. Keep monitoring pending fuel verification and reorder \(reorderParts) inventory item\(reorderParts == 1 ? "" : "s") before cover drops."
+        }
+
+        return "\(source): no live monthly incidents are available yet. Continue syncing SOS, maintenance, fuel, and inventory data so the forecast can rank operational risk."
     }
 }
 
@@ -699,21 +994,6 @@ private struct FuelOptimizationInsight {
     let potentialPercentSaved: Double
     let lowFuelVehicles: Int
     let highConsumptionVehicles: [Vehicle]
-}
-
-private struct RoutingInsight {
-    let bestRoute: RouteCandidate?
-    let averageTripDistance: Double
-    let idleVehicles: Int
-    let overloadedVehicles: Int
-    let recommendation: String
-}
-
-private struct RouteCandidate {
-    let routeName: String
-    let tripCount: Int
-    let averageDistance: Double
-    let scheduledDrivers: Int
 }
 
 private struct SparePartForecast: Identifiable {

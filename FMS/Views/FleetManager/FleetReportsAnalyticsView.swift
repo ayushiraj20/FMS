@@ -541,16 +541,6 @@ struct FleetReportsAnalyticsView: View {
     }
 }
 
-private struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
-
 private enum ReportSection: String, CaseIterable, Identifiable {
     case overview = "Overview"
     case maintenance = "Maintenance"

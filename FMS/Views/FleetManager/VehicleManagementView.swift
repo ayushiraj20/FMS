@@ -927,10 +927,9 @@ private struct VehicleDetailView: View {
                         Label("Utilization", systemImage: "speedometer")
                     }
                     
-                    let days = viewModel.maintenanceDaysRemaining(for: vehicle)
                     LabeledContent {
-                        Text(serviceLabel(for: days))
-                            .foregroundStyle(serviceTint(for: days))
+                        Text(viewModel.maintenanceServiceLabel(for: vehicle))
+                            .foregroundStyle(viewModel.maintenanceServiceTint(for: vehicle))
                     } label: {
                         Label("Service Due", systemImage: "calendar")
                     }
@@ -1215,12 +1214,11 @@ private struct VehicleDetailView: View {
                 icon: "bell.badge.fill"
             )
 
-            let days = viewModel.maintenanceDaysRemaining(for: vehicle)
             VehicleMetricTile(
                 title: "Service",
-                value: serviceLabel(for: days),
+                value: viewModel.maintenanceServiceLabel(for: vehicle),
                 caption: "Next window",
-                tint: serviceTint(for: days),
+                tint: viewModel.maintenanceServiceTint(for: vehicle),
                 icon: "calendar"
             )
         }
@@ -2073,10 +2071,14 @@ private func vehicleTags(for vehicle: Vehicle, in viewModel: VehicleManagementVi
     }
 
     let days = viewModel.maintenanceDaysRemaining(for: vehicle)
-    if days <= 0 {
+    if vehicle.isDistanceMaintenanceDue {
+        tags.append(VehicleTag(title: "Service due by km", icon: "speedometer", tint: VehicleStudioTheme.danger))
+    } else if vehicle.isTimeMaintenanceDue {
         tags.append(VehicleTag(title: "Service overdue", icon: "calendar.badge.exclamationmark", tint: VehicleStudioTheme.danger))
     } else if days <= 7 {
         tags.append(VehicleTag(title: "Service in \(days)d", icon: "calendar", tint: VehicleStudioTheme.warning))
+    } else if vehicle.kilometersUntilNextService <= 1_000 {
+        tags.append(VehicleTag(title: "\(vehicle.kilometersUntilNextService.formatted()) km to service", icon: "speedometer", tint: VehicleStudioTheme.warning))
     }
 
     if vehicle.fuelLevel <= 25 {

@@ -8,7 +8,7 @@ struct FleetMapFullView: View {
     @State private var mapPosition: MapCameraPosition = .region(FleetMapRegion.india)
 
     var body: some View {
-        let locations = service.allFleetLocations()
+        let locations = service.movingFleetLocations(for: manager)
         let breaches = service.routeGeofenceBreaches(for: manager, locations: locations)
         let monitoredTrips = locations.compactMap(\.activeTrip).count
 
@@ -49,13 +49,13 @@ struct FleetMapFullView: View {
                 Button {
                     var coordinates = locations.map(\.coordinate)
                     for item in activeTripPlans(locations: locations) {
-                        coordinates.append(contentsOf: item.plan.allRoutes.flatMap { $0 })
+                        coordinates.append(contentsOf: item.plan.mainRouteCoordinates)
                     }
                     mapPosition = .region(FleetMapRegion.region(for: coordinates))
                 } label: {
                     Image(systemName: "location.viewfinder")
                 }
-                .accessibilityLabel("Show all vehicles")
+                .accessibilityLabel("Show moving vehicles")
             }
         }
         .sheet(item: $selectedLocation) { location in
@@ -64,7 +64,11 @@ struct FleetMapFullView: View {
         }
         .task {
             await service.prefetchRoutePlansForActiveTrips()
-            mapPosition = .region(FleetMapRegion.region(for: locations.map(\.coordinate)))
+            var coordinates = locations.map(\.coordinate)
+            for item in activeTripPlans(locations: locations) {
+                coordinates.append(contentsOf: item.plan.mainRouteCoordinates)
+            }
+            mapPosition = .region(FleetMapRegion.region(for: coordinates))
         }
         .task(id: locations.map(\.id.uuidString).joined()) {
             await service.sendRouteGeofenceMonitoringAlerts(for: manager, locations: locations)

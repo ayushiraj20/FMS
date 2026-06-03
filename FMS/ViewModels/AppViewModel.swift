@@ -12,6 +12,7 @@ enum RootFlowState {
     case login
     case demoRoleSelection
     case forcePasswordReset
+    case mfaVerification
     case authenticated
 }
 
@@ -29,6 +30,11 @@ final class AppViewModel {
     var currentUser: User?
     var isAuthenticating = false
     var authErrorMessage: String?
+
+    // MFA state
+    var pendingMFAFactorID: String?
+    var mfaErrorMessage: String?
+    var isMFAVerifying = false
 
     var organizationName = ""
     var profileNotificationsEnabled = true
@@ -167,11 +173,23 @@ final class AppViewModel {
                     if matchedUser.isPasswordResetRequired {
                         flowState = .forcePasswordReset
                     } else {
-                        // Load notifications filtered for this user's UUID immediately after login
-                        await loadNotifications()
-
-                        flowState = .authenticated
-                        startAutoRefresh()
+                        // Check for enrolled MFA factors
+                        let mfaFactors = (try? await supabase.listVerifiedMFAFactors()) ?? []
+                        let mockEnabled = UserDefaults.standard.bool(forKey: "mock_mfa_enabled_\(matchedUser.id.uuidString)")
+                        
+                        if let firstFactor = mfaFactors.first {
+                            pendingMFAFactorID = firstFactor.id
+                            mfaErrorMessage = nil
+                            flowState = .mfaVerification
+                        } else if mockEnabled {
+                            pendingMFAFactorID = "mock-factor-\(matchedUser.id.uuidString)"
+                            mfaErrorMessage = nil
+                            flowState = .mfaVerification
+                        } else {
+                            // No MFA — proceed normally
+                            await loadNotifications()
+                            flowState = .authenticated
+                            startAutoRefresh()
 
                         // START
                         
@@ -191,6 +209,7 @@ final class AppViewModel {
                             
                             self.subscribeToSOSAlerts()
                             self.checkActiveSOSAlerts()
+                        }
                         }
                     }
 
@@ -247,26 +266,22 @@ final class AppViewModel {
             // Pre-load notifications filtered for this user's UUID
             notifications = service.notifications(for: user)
 
-            flowState = .authenticated
-            startAutoRefresh()
+            let mockEnabled = UserDefaults.standard.bool(forKey: "mock_mfa_enabled_\(user.id.uuidString)")
+            if mockEnabled {
+                pendingMFAFactorID = "mock-factor-\(user.id.uuidString)"
+                mfaErrorMessage = nil
+                flowState = .mfaVerification
+            } else {
+                flowState = .authenticated
+                startAutoRefresh()
 
-            // START BROADCAST
-
-            if let orgID =
-            currentOrganization?.id {
-
-                await BroadcastService.shared
-                    .load(
-                        orgID: orgID
-                    )
-
-                BroadcastService.shared
-                    .subscribe(
-                        orgID: orgID
-                    )
-                
-                self.subscribeToSOSAlerts()
-                self.checkActiveSOSAlerts()
+                // START BROADCAST
+                if let orgID = currentOrganization?.id {
+                    await BroadcastService.shared.load(orgID: orgID)
+                    BroadcastService.shared.subscribe(orgID: orgID)
+                    self.subscribeToSOSAlerts()
+                    self.checkActiveSOSAlerts()
+                }
             }
         }
 
@@ -438,6 +453,70 @@ final class AppViewModel {
         }
         
         isAuthenticating = false
+    }
+
+    // MARK: - MFA Verification (during login)
+
+    func verifyMFA(code: String) async {
+        guard let factorID = pendingMFAFactorID else {
+            mfaErrorMessage = "No MFA factor found. Please log in again."
+            return
+        }
+
+        isMFAVerifying = true
+        mfaErrorMessage = nil
+
+        do {
+            if factorID.hasPrefix("mock-factor-") {
+                try await Task.sleep(for: .seconds(0.6))
+                if TOTPHelper.verify(code: code, secret: "JVDMEZ5ERNQK2P3TJMIDOD47UYMKO") {
+                    await completeMFALogin()
+                } else {
+                    throw NSError(domain: "MFA", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid verification code"])
+                }
+            } else {
+                try await supabase.challengeAndVerifyMFA(factorID: factorID, code: code)
+                // MFA verified — complete login
+                await completeMFALogin()
+            }
+        } catch {
+            mfaErrorMessage = "Invalid verification code. Please try again."
+            print("[MFA] Verification failed: \(error.localizedDescription)")
+        }
+
+        isMFAVerifying = false
+    }
+
+    /// Finish the login flow after successful MFA verification.
+    private func completeMFALogin() async {
+        pendingMFAFactorID = nil
+        mfaErrorMessage = nil
+
+        await loadNotifications()
+        flowState = .authenticated
+        startAutoRefresh()
+
+        if let orgID = currentOrganization?.id {
+            await BroadcastService.shared.load(orgID: orgID)
+            BroadcastService.shared.subscribe(orgID: orgID)
+            self.subscribeToSOSAlerts()
+            self.checkActiveSOSAlerts()
+        }
+    }
+
+    func cancelMFA() {
+        pendingMFAFactorID = nil
+        mfaErrorMessage = nil
+        isMFAVerifying = false
+        currentUser = nil
+
+        if SupabaseConfig.isConfigured {
+            Task {
+                try? await SupabaseService.shared.client.auth.signOut()
+            }
+        }
+
+        flowState = .login
     }
 
     // MARK: Logout

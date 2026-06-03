@@ -7,6 +7,8 @@ import Speech
 final class SpeechTranscriptionService {
     var isRecording = false
     var partialTranscript = ""
+    var finalTranscript = ""
+    var finalTranscriptToken = 0
     var errorMessage: String?
 
     private let audioEngine = AVAudioEngine()
@@ -96,6 +98,7 @@ final class SpeechTranscriptionService {
         try audioEngine.start()
 
         partialTranscript = ""
+        finalTranscript = ""
         errorMessage = nil
         isRecording = true
 
@@ -104,6 +107,10 @@ final class SpeechTranscriptionService {
                 guard let self else { return }
                 if let result {
                     self.partialTranscript = result.bestTranscription.formattedString
+                    if result.isFinal {
+                        self.finalTranscript = result.bestTranscription.formattedString
+                        self.finalTranscriptToken += 1
+                    }
                 }
                 if let error, self.isRecording {
                     self.errorMessage = error.localizedDescription

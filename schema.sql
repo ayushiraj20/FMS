@@ -277,6 +277,7 @@ create table if not exists chat_messages (
   sender_id uuid not null references profiles(id) on delete cascade,
   receiver_id uuid null references profiles(id) on delete cascade,
   work_order_id uuid null references work_orders(id) on delete cascade,
+  defect_report_id uuid null references defect_reports(id) on delete cascade,
   message text not null,
   timestamp timestamptz not null default now(),
   is_read boolean not null default false,
@@ -828,3 +829,32 @@ create table if not exists spare_parts (
 -- Migration 9: Add is_password_reset_required column to profiles (safe to re-run)
 alter table profiles
   add column if not exists is_password_reset_required boolean not null default false;
+
+-- Migration 10: Add defect_report_id column to chat_messages (safe to re-run)
+alter table chat_messages
+  add column if not exists defect_report_id uuid null;
+
+-- Add the foreign key constraint if it doesn't already exist
+do $$ begin
+  alter table chat_messages
+    add constraint chat_messages_defect_report_id_fkey
+    foreign key (defect_report_id)
+    references defect_reports(id)
+    on delete cascade;
+exception when duplicate_object then null;
+end $$;
+
+-- Migration 11: Add missing vehicle details and document image columns (safe to re-run)
+alter table vehicles
+  add column if not exists fuel_consumption double precision not null default 0.0,
+  add column if not exists vehicle_type text not null default 'Truck',
+  add column if not exists fuel_type text not null default 'Diesel',
+  add column if not exists manufacturer text not null default '',
+  add column if not exists vehicle_year text not null default '',
+  add column if not exists vin_number text not null default '',
+  add column if not exists service_reference_reading integer null,
+  add column if not exists last_service_date timestamptz null;
+
+alter table vehicle_documents
+  add column if not exists image_url text null;
+

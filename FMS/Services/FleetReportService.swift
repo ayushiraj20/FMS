@@ -79,6 +79,7 @@ struct FleetReportService {
         let activeOrders = scopedOrders.filter { $0.status != .completed }
         let completedOrders = scopedOrders.filter { $0.status == .completed }
         let upcomingScheduleCount = schedules.filter { $0.status == .upcoming }.count
+        let maintenanceCycleCount = vehicles.filter { $0.isMaintenanceDue }.count
         let rows = vehicles.map { vehicle in
             maintenanceRow(
                 vehicle: vehicle,
@@ -103,7 +104,7 @@ struct FleetReportService {
             criticalWorkOrders: activeOrders.filter { $0.priority == .critical }.count,
             totalEstimatedCost: totalCost,
             averageEstimatedCost: scopedOrders.isEmpty ? 0 : totalCost / Double(scopedOrders.count),
-            upcomingServiceCount: upcomingScheduleCount,
+            upcomingServiceCount: upcomingScheduleCount + maintenanceCycleCount,
             rows: rows
         )
     }
@@ -249,13 +250,13 @@ struct FleetReportService {
         let vehicleOrders = workOrders.filter { $0.vehicleID == vehicle.id }
         let openOrders = vehicleOrders.filter { $0.status != .completed }
         let unresolved = defects.filter { $0.vehicleID == vehicle.id && !$0.isResolved }
-        let daysToService = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: .now), to: Calendar.current.startOfDay(for: vehicle.nextServiceDate)).day ?? 0
+        let daysToService = vehicle.maintenanceDaysRemaining
         let hasCriticalOrder = openOrders.contains { $0.priority == .critical }
         let hasHighDefect = unresolved.contains { $0.severity == .high || $0.severity == .critical }
         let severity: FleetReportSeverity
-        if daysToService < 0 || hasCriticalOrder || hasHighDefect {
+        if vehicle.isMaintenanceDue || hasCriticalOrder || hasHighDefect {
             severity = .critical
-        } else if daysToService <= 14 || !unresolved.isEmpty || openOrders.count >= 2 {
+        } else if daysToService <= 14 || vehicle.kilometersUntilNextService <= 1_000 || !unresolved.isEmpty || openOrders.count >= 2 {
             severity = .action
         } else if daysToService <= 30 || !openOrders.isEmpty {
             severity = .watch
@@ -267,7 +268,7 @@ struct FleetReportService {
             vehicleID: vehicle.id,
             vehicleName: vehicle.displayName,
             plateNumber: vehicle.plateNumber,
-            nextServiceDate: vehicle.nextServiceDate,
+            nextServiceDate: vehicle.timeBasedServiceDueDate,
             daysToService: daysToService,
             openWorkOrders: openOrders.count,
             unresolvedDefects: unresolved.count,

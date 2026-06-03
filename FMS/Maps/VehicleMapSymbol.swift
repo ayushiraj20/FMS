@@ -45,8 +45,7 @@ extension Vehicle {
 
 extension FleetVehicleLocation {
     var isMoving: Bool {
-        if let activeTrip, activeTrip.status == .inProgress { return true }
-        return vehicle.status == .active
+        activeTrip?.status == .inProgress
     }
 }
 

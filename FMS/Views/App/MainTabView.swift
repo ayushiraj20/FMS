@@ -81,41 +81,99 @@ private struct DriverTabView: View {
     @Environment(AppViewModel.self)
     private var appViewModel
     @State private var sheetPresentationDepth = 0
+    @State private var showVoiceTripInspectionSheet = false
+    @State private var voiceTripToStart: Trip?
+    @State private var showVoiceTripEndInspectionSheet = false
+    @State private var voiceTripToEnd: Trip?
+    @State private var showVoiceRefuelSheet = false
 
     @State
     private var driverVM = DriverViewModel()
 
+    private var currentUser: User? { appViewModel.currentUser }
+
     var body: some View {
 
-        TabView(
-            selection:
-            $driverVM.selectedTab
-        ) {
+        ZStack(alignment: .bottom) {
+            TabView(
+                selection:
+                $driverVM.selectedTab
+            ) {
 
-            NavigationStack {
-                DriverDashboardView()
+                NavigationStack {
+                    DriverDashboardView()
+                }
+                .tabItem {
+                    Label(
+                        "Dashboard",
+                        systemImage:
+                        "house.fill"
+                    )
+                }
+                .tag(0)
+
+                NavigationStack {
+                    DriverTripTabView()
+                }
+                .tabItem {
+                    Label(
+                        "Trip",
+                        systemImage:
+                        "truck.box.fill"
+                    )
+                }
+                .tag(1)
             }
-            .tabItem {
-                Label(
-                    "Dashboard",
-                    systemImage:
-                    "house.fill"
+
+            DriverVoiceLoggerView(
+                onStartTripRequested: handleVoiceStartTrip,
+                onEndTripRequested: handleVoiceEndTrip,
+                onRefuelRequested: handleVoiceRefuel,
+                onLiveMapRequested: showTripsTab,
+                onDashboardRequested: showDashboardTab,
+                onTripsRequested: showTripsTab
+            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 78)
+        }
+        .sheet(isPresented: $showVoiceRefuelSheet) {
+            if let user = currentUser, let vehicle = voiceCommandVehicle(for: user) {
+                RefuelVehicleView(
+                    vehicleID: vehicle.id,
+                    driverID: user.id,
+                    tripID: appViewModel.service.activeTrip(for: user.id)?.id,
+                    repo: FuelRepository(
+                        service: FuelService(
+                            client: SupabaseService.shared.client
+                        )
+                    )
                 )
-            }
-            .tag(0)
-
-            NavigationStack {
-                DriverTripTabView()
-            }
-            .tabItem {
-                Label(
-                    "Trip",
-                    systemImage:
-                    "truck.box.fill"
+                .environment(appViewModel)
+                .registersSheetPresentation()
+            } else {
+                EmptyStateView(
+                    icon: "fuelpump",
+                    title: "No vehicle found",
+                    message: "A vehicle assignment or active trip is required to log refuel."
                 )
+                .registersSheetPresentation()
             }
-            .tag(1)
-
+        }
+        .sheet(isPresented: $showVoiceTripInspectionSheet) {
+            TripStartInspectionSheet(trip: voiceTripToStart) {
+                driverVM.showToastMessage("Trip started. Have a safe journey.")
+            }
+            .environment(appViewModel)
+            .environment(driverVM)
+            .registersSheetPresentation()
+        }
+        .sheet(isPresented: $showVoiceTripEndInspectionSheet) {
+            TripStartInspectionSheet(trip: voiceTripToEnd, inspectionType: .postTrip) {
+                driverVM.showToastMessage("Trip ended successfully.")
+            }
+            .environment(appViewModel)
+            .environment(driverVM)
+            .registersSheetPresentation()
         }
         .tint(
             DriverTheme.accent
@@ -151,6 +209,59 @@ private struct DriverTabView: View {
             driverVM.stopLiveTracking()
             driverVM.disableBackgroundGeofenceMonitoring()
         }
+    }
+
+    private func handleVoiceStartTrip() {
+        guard let user = currentUser else { return }
+        if let activeTrip = appViewModel.service.activeTrip(for: user.id) {
+            driverVM.showToastMessage("Trip already in progress to \(activeTrip.destination).")
+            showTripsTab()
+            return
+        }
+        guard let nextTrip = appViewModel.service.upcomingTrips(for: user.id).first else {
+            driverVM.showToastMessage("No scheduled trip found.")
+            showTripsTab()
+            return
+        }
+        voiceTripToStart = nextTrip
+        showVoiceTripInspectionSheet = true
+    }
+
+    private func handleVoiceEndTrip() {
+        guard let user = currentUser else { return }
+        guard let activeTrip = appViewModel.service.activeTrip(for: user.id) else {
+            driverVM.showToastMessage("No active trip found.")
+            showTripsTab()
+            return
+        }
+        voiceTripToEnd = activeTrip
+        showVoiceTripEndInspectionSheet = true
+    }
+
+    private func handleVoiceRefuel() {
+        guard let user = currentUser, voiceCommandVehicle(for: user) != nil else {
+            driverVM.showToastMessage("No assigned vehicle found for refuel.")
+            return
+        }
+        showVoiceRefuelSheet = true
+    }
+
+    private func showDashboardTab() {
+        driverVM.selectedTab = 0
+    }
+
+    private func showTripsTab() {
+        driverVM.selectedTab = 1
+    }
+
+    private func voiceCommandVehicle(for user: User) -> Vehicle? {
+        if let assignedVehicle = appViewModel.assignedVehicle {
+            return assignedVehicle
+        }
+        if let activeTrip = appViewModel.service.activeTrip(for: user.id) {
+            return appViewModel.service.vehicle(for: activeTrip.vehicleID)
+        }
+        return nil
     }
 }
 

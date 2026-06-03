@@ -1,11 +1,12 @@
 import MapKit
 import SwiftUI
 
-/// Shared map overlay for fleet manager and driver showing main + alternative routes.
+/// Shared map overlay for fleet manager and driver. Alternatives are approved for geofencing,
+/// but hidden by default so the ideal route is the first route shown.
 struct TripRoutesMapContent: MapContent {
     let plan: TripRoutePlan
     var showLabels: Bool = true
-    var showAlternatives: Bool = true
+    var showAlternatives: Bool = false
 
     var body: some MapContent {
         MapPolyline(coordinates: plan.mainRouteCoordinates)
@@ -15,7 +16,7 @@ struct TripRoutesMapContent: MapContent {
             ForEach(Array(plan.alternativeRouteCoordinates.enumerated()), id: \.offset) { index, route in
                 MapPolyline(coordinates: route)
                     .stroke(
-                        index == 0 ? Color.orange : Color.purple,
+                        Color.orange,
                         style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round, dash: [8, 6])
                     )
             }
@@ -50,11 +51,14 @@ enum TripRouteMapCamera {
 }
 
 struct TripRouteLegendView: View {
+    var showAlternatives: Bool = false
+
     var body: some View {
         HStack(spacing: 12) {
-            legendItem(color: .blue, label: "Main", dashed: false)
-            legendItem(color: .orange, label: "Alt 1", dashed: true)
-            legendItem(color: .purple, label: "Alt 2", dashed: true)
+            legendItem(color: .blue, label: "Ideal", dashed: false)
+            if showAlternatives {
+                legendItem(color: .orange, label: "Alt", dashed: true)
+            }
         }
         .font(.caption2.weight(.semibold))
         .padding(.horizontal, 10)
