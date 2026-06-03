@@ -654,7 +654,7 @@ final class SupabaseService {
     /// Enroll a new TOTP factor. Returns the factor ID, QR code data URI, secret, and OTP URI.
     func enrollMFA(friendlyName: String = "FMS Authenticator") async throws -> (factorID: String, qrCode: String, secret: String, uri: String) {
         let response = try await client.auth.mfa.enroll(
-            params: MFAEnrollParams(
+            params: MFATotpEnrollParams(
                 issuer: "FleetOS",
                 friendlyName: friendlyName
             )
