@@ -63,10 +63,10 @@ struct DefectReportView: View {
                                             }
                                         } label: {
                                             Text(type.rawValue)
-                                                .font(.system(.subheadline, design: .rounded).bold())
+                                                .font(.system(.subheadline, design: .rounded).weight(.semibold))
                                                 .foregroundStyle(issueType == type ? .white : DriverTheme.textPrimary)
-                                                .padding(.horizontal, 20)
-                                                .padding(.vertical, 12)
+                                                .padding(.horizontal, 16)
+                                                .padding(.vertical, 8)
                                                 .background(issueType == type ? DriverTheme.accent : DriverTheme.cardFill, in: Capsule())
                                                 .shadow(color: issueType == type ? DriverTheme.accent.opacity(0.3) : .clear, radius: 8, y: 4)
                                         }

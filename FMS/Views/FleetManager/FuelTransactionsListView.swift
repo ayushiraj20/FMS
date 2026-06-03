@@ -94,7 +94,7 @@ struct FuelTransactionsListView: View {
             }
         } label: {
             Text(label)
-                .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(isSelected ? .white : Color.primary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
