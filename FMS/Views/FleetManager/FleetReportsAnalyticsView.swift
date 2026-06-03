@@ -119,10 +119,10 @@ struct FleetReportsAnalyticsView: View {
                         }
                     } label: {
                         Label(section.rawValue, systemImage: section.iconName)
-                            .font(.caption.weight(.semibold))
+                            .font(.subheadline.weight(.semibold))
                             .labelStyle(.titleAndIcon)
                             .foregroundStyle(selectedSection == section ? .white : AppTheme.textPrimary)
-                            .padding(.horizontal, 12)
+                            .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .background(selectedSection == section ? AppTheme.brand : AppTheme.surfaceSecondary, in: Capsule())
                     }

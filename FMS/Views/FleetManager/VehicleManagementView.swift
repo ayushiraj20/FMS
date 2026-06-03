@@ -1729,8 +1729,8 @@ private struct VehicleFilterChip: View {
                     )
             }
             .foregroundStyle(isSelected ? .white : VehicleStudioTheme.primary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
             .background(
                 Capsule()
                     .fill(isSelected ? VehicleStudioTheme.accentGradient : LinearGradient(colors: [VehicleStudioTheme.softFill, VehicleStudioTheme.softFill], startPoint: .leading, endPoint: .trailing))

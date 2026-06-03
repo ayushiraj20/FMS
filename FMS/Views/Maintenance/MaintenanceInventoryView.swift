@@ -150,23 +150,22 @@ struct MaintenanceInventoryView: View {
             HStack(spacing: 8) {
                 ForEach(availableCategories, id: \.self) { category in
                     let isSelected = selectedCategory == category
-                    if isSelected {
-                        Button { selectedCategory = category } label: {
-                            Text(category)
-                                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+                            selectedCategory = category
                         }
-                        .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.capsule)
-                        .tint(accent)
-                    } else {
-                        Button { selectedCategory = category } label: {
-                            Text(category)
-                                .font(.system(.subheadline, design: .rounded).weight(.medium))
-                        }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
-                        .tint(.secondary)
+                    } label: {
+                        Text(category)
+                            .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                            .foregroundStyle(isSelected ? .white : Color.primary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(isSelected ? accent : Color(uiColor: .secondarySystemGroupedBackground))
+                            )
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 2)

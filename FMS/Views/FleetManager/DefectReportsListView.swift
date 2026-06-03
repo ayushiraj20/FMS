@@ -78,8 +78,8 @@ struct DefectReportsListView: View {
                                     ? .white
                                     : AppTheme.textPrimary
                                 )
-                                .padding(.horizontal, 18)
-                                .padding(.vertical, 12)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
                                 .background(
                                     filterTab == option
                                     ? Color("AccentColor")
@@ -134,20 +134,6 @@ struct DefectReportsListView: View {
         .background(AppTheme.background.ignoresSafeArea())
         .navigationTitle("Defect Reports")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task { await refreshDefects() }
-                } label: {
-                    if isLoading {
-                        ProgressView().tint(AppTheme.brand)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                            .foregroundStyle(AppTheme.brand)
-                    }
-                }
-            }
-        }
         .task {
             // Auto-sync from Supabase whenever this view appears
             await refreshDefects()
