@@ -45,7 +45,7 @@ struct FleetReportsAnalyticsView: View {
         }
         .background(AppTheme.background)
         .navigationTitle("Reports")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .refreshable {
             await generateReport(exportPDF: true)
         }

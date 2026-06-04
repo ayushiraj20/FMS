@@ -255,6 +255,8 @@ private struct PDFLayout {
     var pageNumber = 0
 
     mutating func beginCover(title: String, organization: String, generated: String) {
+        /*
+        // Original rendering logic (commented out for reference)
         context.beginPage()
         pageNumber += 1
         y = 0
@@ -275,9 +277,49 @@ private struct PDFLayout {
         y = bandHeight + 28
         drawText(AppBranding.tagline, at: CGPoint(x: margin, y: y), font: .systemFont(ofSize: 13), color: .secondaryLabel, maxWidth: contentWidth)
         y += 36
+        */
+
+        context.beginPage()
+        pageNumber += 1
+        y = 44
+
+        // Top thin accent bar
+        let accentHeight: CGFloat = 4
+        brand.setFill()
+        UIBezierPath(rect: CGRect(x: margin, y: y, width: contentWidth, height: accentHeight)).fill()
+        y += 24
+
+        // Product category tag
+        drawText("REPORT · FLEET INTELLIGENCE", at: CGPoint(x: margin, y: y), font: .systemFont(ofSize: 9, weight: .bold), color: brand, maxWidth: contentWidth)
+        y += 18
+
+        // Elegant title
+        drawText(title, at: CGPoint(x: margin, y: y), font: .systemFont(ofSize: 28, weight: .bold), color: .label, maxWidth: contentWidth)
+        y += 38
+
+        // Metadata block inline
+        let metadataString = "Organization: \(organization)  |  Generated: \(generated)"
+        drawText(metadataString, at: CGPoint(x: margin, y: y), font: .systemFont(ofSize: 11, weight: .medium), color: .secondaryLabel, maxWidth: contentWidth)
+        y += 20
+
+        // Divider
+        let separatorY = y + 4
+        let separatorPath = UIBezierPath()
+        separatorPath.move(to: CGPoint(x: margin, y: separatorY))
+        separatorPath.addLine(to: CGPoint(x: margin + contentWidth, y: separatorY))
+        cardBorder.setStroke()
+        separatorPath.lineWidth = 1
+        separatorPath.stroke()
+        y += 18
+
+        // Tagline
+        drawText(AppBranding.tagline, at: CGPoint(x: margin, y: y), font: .systemFont(ofSize: 12), color: .secondaryLabel, maxWidth: contentWidth)
+        y += 28
     }
 
     mutating func drawSectionHeader(_ title: String, subtitle: String? = nil) {
+        /*
+        // Original rendering logic (commented out for reference)
         ensureSpace(56)
         y += 12
 
@@ -290,6 +332,19 @@ private struct PDFLayout {
         if let subtitle {
             drawText(subtitle, at: CGPoint(x: margin + 12, y: y), font: .systemFont(ofSize: 11), color: .secondaryLabel, maxWidth: contentWidth - 12)
             y += 18
+        } else {
+            y += 4
+        }
+        */
+
+        ensureSpace(50)
+        y += 14
+
+        drawText(title, at: CGPoint(x: margin, y: y), font: .systemFont(ofSize: 18, weight: .bold), color: .label, maxWidth: contentWidth)
+        y += 22
+        if let subtitle {
+            drawText(subtitle, at: CGPoint(x: margin, y: y), font: .systemFont(ofSize: 11), color: .secondaryLabel, maxWidth: contentWidth)
+            y += 16
         } else {
             y += 4
         }
@@ -320,6 +375,8 @@ private struct PDFLayout {
     }
 
     mutating func drawStatRow(_ pairs: [(String, String)]) {
+        /*
+        // Original rendering logic (commented out for reference)
         ensureSpace(44)
         let chipGap: CGFloat = 8
         var x = margin
@@ -343,6 +400,37 @@ private struct PDFLayout {
             x += chipW + chipGap
         }
         y += 40
+        */
+
+        ensureSpace(44)
+        let chipGap: CGFloat = 8
+        var x = margin
+        let chipH: CGFloat = 34
+        for pair in pairs {
+            let labelW = (pair.0 as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: 8)]).width
+            let valueW = (pair.1 as NSString).size(withAttributes: [.font: UIFont.boldSystemFont(ofSize: 12)]).width
+            let chipW = min(max(labelW, valueW) + 24, contentWidth / 2 - 4)
+            if x + chipW > margin + contentWidth {
+                x = margin
+                y += chipH + chipGap
+                ensureSpace(chipH + 8)
+            }
+            let frame = CGRect(x: x, y: y, width: chipW, height: chipH)
+            
+            UIColor.systemGray6.setFill()
+            UIBezierPath(roundedRect: frame, cornerRadius: 8).fill()
+            
+            let strokeColor = UIColor.separator.withAlphaComponent(0.12)
+            strokeColor.setStroke()
+            let path = UIBezierPath(roundedRect: frame, cornerRadius: 8)
+            path.lineWidth = 1
+            path.stroke()
+
+            drawText(pair.0.uppercased(), in: frame.insetBy(dx: 10, dy: 4), font: .systemFont(ofSize: 7, weight: .bold), color: .secondaryLabel)
+            drawText(pair.1, in: frame.insetBy(dx: 10, dy: 15), font: .systemFont(ofSize: 12, weight: .bold), color: .label)
+            x += chipW + chipGap
+        }
+        y += chipH + 12
     }
 
     mutating func drawNarrative(_ text: String) {
@@ -354,6 +442,8 @@ private struct PDFLayout {
     }
 
     mutating func drawChartImage(_ image: UIImage, height: CGFloat) {
+        /*
+        // Original rendering logic (commented out for reference)
         ensureSpace(height + 8)
         let frame = CGRect(x: margin, y: y, width: contentWidth, height: height)
         UIColor.secondarySystemGroupedBackground.setFill()
@@ -363,9 +453,28 @@ private struct PDFLayout {
         let inset = frame.insetBy(dx: 8, dy: 8)
         image.draw(in: inset)
         y += height + 14
+        */
+
+        ensureSpace(height + 8)
+        let frame = CGRect(x: margin, y: y, width: contentWidth, height: height)
+        
+        UIColor.systemGray6.setFill()
+        UIBezierPath(roundedRect: frame, cornerRadius: 12).fill()
+        
+        let strokeColor = UIColor.separator.withAlphaComponent(0.15)
+        strokeColor.setStroke()
+        let path = UIBezierPath(roundedRect: frame, cornerRadius: 12)
+        path.lineWidth = 1
+        path.stroke()
+        
+        let inset = frame.insetBy(dx: 12, dy: 12)
+        image.draw(in: inset)
+        y += height + 14
     }
 
     mutating func drawInfoBanner(_ text: String) {
+        /*
+        // Original rendering logic (commented out for reference)
         let innerPad: CGFloat = 12
         let font = UIFont.systemFont(ofSize: 12)
         let textH = textHeight(text, font: font, width: contentWidth - innerPad * 2)
@@ -379,9 +488,31 @@ private struct PDFLayout {
         UIBezierPath(roundedRect: frame, cornerRadius: 10).stroke()
         drawText(text, in: frame.insetBy(dx: innerPad, dy: innerPad), font: font, color: .label)
         y += boxH + 10
+        */
+
+        let innerPad: CGFloat = 12
+        let font = UIFont.systemFont(ofSize: 11, weight: .regular)
+        let textH = textHeight(text, font: font, width: contentWidth - innerPad * 2)
+        let boxH = textH + innerPad * 2
+        ensureSpace(boxH + 8)
+        let frame = CGRect(x: margin, y: y, width: contentWidth, height: boxH)
+        
+        UIColor.systemGray6.setFill()
+        UIBezierPath(roundedRect: frame, cornerRadius: 10).fill()
+        
+        let strokeColor = brand.withAlphaComponent(0.2)
+        strokeColor.setStroke()
+        let path = UIBezierPath(roundedRect: frame, cornerRadius: 10)
+        path.lineWidth = 1
+        path.stroke()
+        
+        drawText(text, in: frame.insetBy(dx: innerPad, dy: innerPad), font: font, color: .label)
+        y += boxH + 10
     }
 
     mutating func drawTable(headers: [String], rows: [[String]], severityColumn: Int? = nil) {
+        /*
+        // Original rendering logic (commented out for reference)
         let colCount = headers.count
         let colW = contentWidth / CGFloat(colCount)
         let headerH: CGFloat = 28
@@ -425,9 +556,65 @@ private struct PDFLayout {
             y += rowH
         }
         y += 12
+        */
+
+        let colCount = headers.count
+        let colW = contentWidth / CGFloat(colCount)
+        let headerH: CGFloat = 26
+        let rowH: CGFloat = 32
+        let tableH = headerH + CGFloat(rows.count) * rowH + 12
+        ensureSpace(tableH)
+
+        // Draw light gray table header background
+        let headerFrame = CGRect(x: margin, y: y, width: contentWidth, height: headerH)
+        UIColor.systemGray6.setFill()
+        UIBezierPath(roundedRect: headerFrame, cornerRadius: 6).fill()
+
+        // Draw headers
+        for (i, header) in headers.enumerated() {
+            let cell = CGRect(x: margin + CGFloat(i) * colW + 6, y: y + 7, width: colW - 12, height: headerH - 12)
+            drawText(header.uppercased(), in: cell, font: .systemFont(ofSize: 8, weight: .bold), color: .secondaryLabel)
+        }
+        y += headerH
+
+        // Draw rows
+        for (rowIndex, row) in rows.enumerated() {
+            // Faint divider line between rows
+            let lineY = y
+            let linePath = UIBezierPath()
+            linePath.move(to: CGPoint(x: margin, y: lineY))
+            linePath.addLine(to: CGPoint(x: margin + contentWidth, y: lineY))
+            UIColor.separator.withAlphaComponent(0.15).setStroke()
+            linePath.lineWidth = 0.5
+            linePath.stroke()
+
+            for (i, cellText) in row.enumerated() {
+                let cell = CGRect(x: margin + CGFloat(i) * colW + 6, y: y + 6, width: colW - 12, height: rowH - 10)
+                let color: UIColor
+                if severityColumn == i {
+                    color = severityColor(for: cellText)
+                } else {
+                    color = .label
+                }
+                drawText(cellText, in: cell, font: .systemFont(ofSize: 9), color: color)
+            }
+            y += rowH
+        }
+
+        // Draw bottom table boundary line
+        let bottomPath = UIBezierPath()
+        bottomPath.move(to: CGPoint(x: margin, y: y))
+        bottomPath.addLine(to: CGPoint(x: margin + contentWidth, y: y))
+        UIColor.separator.withAlphaComponent(0.15).setStroke()
+        bottomPath.lineWidth = 0.5
+        bottomPath.stroke()
+
+        y += 12
     }
 
     mutating func drawRecommendationCard(title: String, detail: String, severity: String) {
+        /*
+        // Original rendering logic (commented out for reference)
         let titleFont = UIFont.boldSystemFont(ofSize: 12)
         let detailFont = UIFont.systemFont(ofSize: 10)
         let detailH = textHeight(detail, font: detailFont, width: contentWidth - 80)
@@ -449,6 +636,33 @@ private struct PDFLayout {
         drawText(title, at: CGPoint(x: frame.minX + 12, y: frame.minY + 10), font: titleFont, color: .label, maxWidth: contentWidth - 88)
         drawText(detail, at: CGPoint(x: frame.minX + 12, y: frame.minY + 28), font: detailFont, color: .secondaryLabel, maxWidth: contentWidth - 24)
         y += cardH + 8
+        */
+
+        let titleFont = UIFont.systemFont(ofSize: 12, weight: .bold)
+        let detailFont = UIFont.systemFont(ofSize: 10, weight: .regular)
+        let detailH = textHeight(detail, font: detailFont, width: contentWidth - 92)
+        let cardH = max(56, detailH + 28)
+        ensureSpace(cardH + 8)
+
+        let frame = CGRect(x: margin, y: y, width: contentWidth, height: cardH)
+        UIColor.systemGray6.setFill()
+        UIBezierPath(roundedRect: frame, cornerRadius: 12).fill()
+        
+        let strokeColor = UIColor.separator.withAlphaComponent(0.15)
+        strokeColor.setStroke()
+        let path = UIBezierPath(roundedRect: frame, cornerRadius: 12)
+        path.lineWidth = 1
+        path.stroke()
+
+        let pillColor = severityColor(for: severity)
+        let pill = CGRect(x: frame.maxX - 74, y: frame.minY + 12, width: 62, height: 18)
+        pillColor.withAlphaComponent(0.12).setFill()
+        UIBezierPath(roundedRect: pill, cornerRadius: 9).fill()
+        drawText(severity, in: pill, font: .systemFont(ofSize: 8, weight: .bold), color: pillColor, alignment: .center)
+
+        drawText(title, at: CGPoint(x: frame.minX + 12, y: frame.minY + 12), font: titleFont, color: .label, maxWidth: contentWidth - 92)
+        drawText(detail, at: CGPoint(x: frame.minX + 12, y: frame.minY + 30), font: detailFont, color: .secondaryLabel, maxWidth: contentWidth - 24)
+        y += cardH + 8
     }
 
     mutating func drawFooter() {
@@ -458,6 +672,8 @@ private struct PDFLayout {
     }
 
     mutating func drawMetricCard(frame: CGRect, label: String, value: String, caption: String?) {
+        /*
+        // Original rendering logic (commented out for reference)
         brandLight.setFill()
         UIBezierPath(roundedRect: frame, cornerRadius: 10).fill()
         cardBorder.setStroke()
@@ -466,6 +682,22 @@ private struct PDFLayout {
         drawText(value, in: frame.insetBy(dx: 10, dy: 22), font: .boldSystemFont(ofSize: 18), color: brand)
         if let caption {
             drawText(caption, in: frame.insetBy(dx: 10, dy: 44), font: .systemFont(ofSize: 9), color: .secondaryLabel)
+        }
+        */
+
+        UIColor.systemGray6.setFill()
+        UIBezierPath(roundedRect: frame, cornerRadius: 12).fill()
+        
+        let borderStrokeColor = UIColor.separator.withAlphaComponent(0.15)
+        borderStrokeColor.setStroke()
+        let path = UIBezierPath(roundedRect: frame, cornerRadius: 12)
+        path.lineWidth = 1
+        path.stroke()
+
+        drawText(label.uppercased(), in: frame.insetBy(dx: 12, dy: 8), font: .systemFont(ofSize: 8, weight: .bold), color: .secondaryLabel)
+        drawText(value, in: frame.insetBy(dx: 12, dy: 20), font: .systemFont(ofSize: 20, weight: .bold), color: .label)
+        if let caption {
+            drawText(caption, in: frame.insetBy(dx: 12, dy: 44), font: .systemFont(ofSize: 9, weight: .regular), color: .secondaryLabel)
         }
     }
 
@@ -480,12 +712,31 @@ private struct PDFLayout {
     }
 
     mutating func drawPageHeader() {
+        /*
+        // Original rendering logic (commented out for reference)
         let h: CGFloat = 36
         brand.setFill()
         UIBezierPath(rect: CGRect(x: 0, y: 0, width: pageRect.width, height: h)).fill()
         drawText(AppBranding.reportProductName, at: CGPoint(x: margin, y: 10), font: .boldSystemFont(ofSize: 11), color: .white, maxWidth: contentWidth * 0.7)
         drawText("Page \(pageNumber)", at: CGPoint(x: pageRect.width - margin - 60, y: 10), font: .systemFont(ofSize: 10), color: UIColor.white.withAlphaComponent(0.85), maxWidth: 60, alignment: .right)
         y = h + 16
+        */
+
+        let headerH: CGFloat = 30
+        y = margin - 20
+        
+        drawText(AppBranding.reportProductName.uppercased(), at: CGPoint(x: margin, y: y), font: .systemFont(ofSize: 8, weight: .bold), color: brand, maxWidth: contentWidth * 0.7)
+        drawText("Page \(pageNumber)", at: CGPoint(x: pageRect.width - margin - 60, y: y), font: .systemFont(ofSize: 8, weight: .bold), color: .secondaryLabel, maxWidth: 60, alignment: .right)
+        
+        let lineY = y + 14
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: margin, y: lineY))
+        path.addLine(to: CGPoint(x: margin + contentWidth, y: lineY))
+        UIColor.separator.withAlphaComponent(0.15).setStroke()
+        path.lineWidth = 0.5
+        path.stroke()
+        
+        y = margin + 12
     }
 
     mutating func drawPageFooter() {

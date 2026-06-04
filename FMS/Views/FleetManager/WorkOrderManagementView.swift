@@ -36,6 +36,7 @@ struct WorkOrderManagementView: View {
         }
         .background(AppTheme.background.ignoresSafeArea())
         .navigationTitle("Work Orders")
+        .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $viewModel.searchText)
         .sheet(isPresented: $viewModel.isPresentingCreateSheet) {
             CreateWorkOrderSheet(viewModel: viewModel)
