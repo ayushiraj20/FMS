@@ -90,6 +90,7 @@ struct TeamView: View {
 // MARK: - Drivers Tab
 private struct DriversTabView: View {
     let viewModel: TeamViewModel
+    @State private var memberToEdit: User?
 
     private var drivers: [User] {
         let all = viewModel.service.users.filter { $0.role == .driver }
@@ -150,6 +151,18 @@ private struct DriversTabView: View {
                                     DriverRowCard(driver: driver, service: viewModel.service)
                                 }
                                 .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button {
+                                        memberToEdit = driver
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                    Button(role: .destructive) {
+                                        viewModel.confirmDelete(driver)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
                         .padding(.horizontal, 20)
@@ -163,6 +176,10 @@ private struct DriversTabView: View {
         .background(AppTheme.background)
         .refreshable {
             await viewModel.service.syncWithDatabase()
+        }
+        .sheet(item: $memberToEdit) { driver in
+            EditCrewMemberSheet(member: driver, service: viewModel.service)
+                .registersSheetPresentation()
         }
     }
 

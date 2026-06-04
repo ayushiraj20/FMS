@@ -436,7 +436,7 @@ private struct VehicleFormSheet: View {
         return !cleanOdo.isEmpty && Int(cleanOdo) != nil
     }
 
-    private var canSave: Bool { step1Valid && step2Valid }
+    private var canSave: Bool { step1Valid && step2Valid && viewModel.uploadingDocuments.isEmpty }
 
     private let stepTitles = ["Identity", "Operations", "Compliance"]
 
@@ -1062,6 +1062,9 @@ private struct VehicleDetailView: View {
                 DocumentPreviewSheet(document: document, viewModel: viewModel)
                     .registersSheetPresentation()
             }
+            .task {
+                await viewModel.refresh()
+            }
             .sheet(item: $activeSheet) { sheet in
                 NavigationStack {
                     ZStack {
@@ -1456,9 +1459,12 @@ private struct DocumentUploadSheet: View {
                         viewModel.saveDocument(for: vehicleID)
                         dismiss()
                     }
-                    .disabled(!DocumentType.allCases.contains { type in
-                        (viewModel.documentNumbers[type] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
-                    })
+                    .disabled(
+                        !viewModel.uploadingDocuments.isEmpty ||
+                        DocumentType.allCases.allSatisfy { type in
+                            (viewModel.documentNumbers[type] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
+                        }
+                    )
                 }
             }
             .photosPicker(isPresented: $viewModel.isPresentingImagePicker, selection: $selectedPhotoItem, matching: .images)

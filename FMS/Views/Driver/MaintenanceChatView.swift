@@ -234,10 +234,16 @@ struct DriverManagerChatView: View {
         .onAppear {
             Task {
                 await appViewModel.service.syncChatMessages()
+                if let currentUser, let recipient {
+                    appViewModel.service.markChatMessagesRead(between: currentUser.id, and: recipient.id)
+                }
             }
             pollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
                 Task {
                     await appViewModel.service.syncChatMessages()
+                    if let currentUser, let recipient {
+                        appViewModel.service.markChatMessagesRead(between: currentUser.id, and: recipient.id)
+                    }
                 }
             }
         }
@@ -348,6 +354,9 @@ struct DriverManagerChatView: View {
                         proxy.scrollTo(lastID, anchor: .bottom)
                     }
                 }
+                if let currentUser, let recipient {
+                    appViewModel.service.markChatMessagesRead(between: currentUser.id, and: recipient.id)
+                }
             }
         }
     }
@@ -420,11 +429,11 @@ struct DriverManagerChatView: View {
                         Task { await toggleVoiceRecording() }
                     } label: {
                         Image(systemName: speech.isRecording ? "stop.circle.fill" : "mic.fill")
-                            .font(.system(size: 22, weight: .semibold))
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(speech.isRecording ? .red : accent)
-                            .frame(width: 44, height: 44)
+                            .frame(width: 40, height: 40)
                             .background(
-                                (speech.isRecording ? Color.red.opacity(0.12) : accent.opacity(0.12)),
+                                (speech.isRecording ? Color.red.opacity(0.15) : accent.opacity(0.12)),
                                 in: Circle()
                             )
                             .symbolEffect(.pulse, isActive: speech.isRecording)
@@ -438,10 +447,17 @@ struct DriverManagerChatView: View {
                     axis: .vertical
                 )
                 .lineLimit(1...4)
-                .font(.system(size: 15))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(isDriverExperience ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(AppTheme.surfaceSecondary), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .font(.system(size: 16))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color(UIColor.secondarySystemBackground))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color(UIColor.separator).opacity(0.5), lineWidth: 0.5)
+                )
                 .foregroundStyle(primaryText)
                 .disabled(speech.isRecording)
 
@@ -449,18 +465,23 @@ struct DriverManagerChatView: View {
                     sendMessage()
                 } label: {
                     Image(systemName: "paperplane.fill")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(accent, in: Circle())
+                        .frame(width: 40, height: 40)
+                        .background(
+                            Circle()
+                                .fill(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray.opacity(0.3) : accent)
+                        )
                 }
                 .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || recipient == nil || speech.isRecording)
-                .opacity(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || recipient == nil || speech.isRecording ? 0.5 : 1)
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(isDriverExperience ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(AppTheme.surface))
+        .padding(.vertical, 12)
+        .background(
+            Color(UIColor.systemBackground)
+                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: -3)
+        )
     }
 
     private func chatBubble(_ message: ChatMessage, showSenderInfo: Bool, showTimestamp: Bool) -> some View {
@@ -487,14 +508,6 @@ struct DriverManagerChatView: View {
             }
 
             VStack(alignment: isSent ? .trailing : .leading, spacing: 2) {
-                if !isSent && showSenderInfo {
-                    Text(sender?.name ?? "Team Member")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(secondaryText)
-                        .padding(.horizontal, 4)
-                        .padding(.bottom, 2)
-                }
-
                 Text(message.message)
                     .font(.system(size: 15))
                     .foregroundStyle(isSent ? .white : primaryText)
@@ -502,7 +515,7 @@ struct DriverManagerChatView: View {
                     .padding(.vertical, 10)
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(isSent ? accent : (isDriverExperience ? Color.white.opacity(0.72) : AppTheme.surfaceSecondary))
+                            .fill(isSent ? accent : AppTheme.surfaceSecondary)
                     )
 
                 if showTimestamp {

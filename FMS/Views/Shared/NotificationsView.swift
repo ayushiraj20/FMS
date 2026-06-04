@@ -41,9 +41,7 @@ struct NotificationsView: View {
                         if appViewModel.unreadNotificationsCount > 0 {
                             Button {
                                 Task {
-                                    for notification in appViewModel.notifications.filter({ !$0.isRead }) {
-                                        await appViewModel.markNotificationAsRead(id: notification.id)
-                                    }
+                                    await appViewModel.markAllNotificationsAsRead()
                                 }
                             } label: {
                                 Text("Mark All Read")

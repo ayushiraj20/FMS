@@ -45,6 +45,12 @@ struct MaintenanceDashboardView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 8) {
+                    NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
+                        ChatToolbarIcon()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("CHAT_BUTTON")
+
                     NavigationLink(destination: BroadcastInboxView()) {
                         Image(systemName: "megaphone.fill")
                             .imageScale(.large)

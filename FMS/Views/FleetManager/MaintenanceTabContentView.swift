@@ -13,6 +13,9 @@ struct MaintenanceTabContentView: View {
 
     @State private var dutyFilter: DutyFilter = .all
     @State private var showAddSheet = false
+    @State private var memberToEdit: User? = nil
+    @State private var memberToDelete: User? = nil
+    @State private var showDeleteConfirmation = false
 
     private var maintenancePersonnel: [User] {
         appViewModel.service.users.filter { $0.role == .maintenance }
@@ -56,6 +59,19 @@ struct MaintenanceTabContentView: View {
                                     maintenanceMemberCard(member)
                                 }
                                 .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button {
+                                        memberToEdit = member
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                    Button(role: .destructive) {
+                                        memberToDelete = member
+                                        showDeleteConfirmation = true
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
                     }
@@ -77,6 +93,29 @@ struct MaintenanceTabContentView: View {
             AddMaintenanceMemberSheet(service: appViewModel.service,
                                      orgID: appViewModel.currentOrganization?.id)
                 .registersSheetPresentation()
+        }
+        .sheet(item: $memberToEdit) { member in
+            EditMaintenanceMemberSheet(member: member, service: appViewModel.service)
+                .registersSheetPresentation()
+        }
+        .confirmationDialog(
+            "Delete Technician",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let m = memberToDelete {
+                    appViewModel.service.deleteUser(m)
+                }
+                memberToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                memberToDelete = nil
+            }
+        } message: {
+            if let m = memberToDelete {
+                Text("Are you sure you want to delete \(m.name)? This action cannot be undone.")
+            }
         }
     }
 
@@ -327,6 +366,11 @@ struct MaintenanceMemberDetailView: View {
                 if !isDeleted {
                     activeWorkOrdersSection
                 }
+
+                // Completed Work Orders
+                if !isDeleted {
+                    completedWorkOrdersSection
+                }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
@@ -433,6 +477,70 @@ struct MaintenanceMemberDetailView: View {
                                 text: order.status.rawValue,
                                 color: order.status == .inProgress ? AppTheme.brand : AppTheme.warning
                             )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var completedWorkOrdersSection: some View {
+        let completedOrders = service.workOrders.filter {
+            $0.assignedMaintenanceID == member.id && $0.status == .completed
+        }
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("COMPLETED WORK ORDERS")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(AppTheme.textSecondary)
+                .padding(.horizontal, 4)
+
+            if completedOrders.isEmpty {
+                EmptyStateView(
+                    icon: "clock.arrow.circlepath",
+                    title: "No past orders",
+                    message: "Completed work orders will appear here."
+                )
+            } else {
+                ForEach(completedOrders) { order in
+                    let vehicle = service.vehicles.first { $0.id == order.vehicleID }
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(order.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                Spacer()
+                                priorityBadge(order.priority)
+                            }
+                            if let v = vehicle {
+                                Label(v.displayName + " · " + v.plateNumber, systemImage: "truck.box.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            Text(order.details)
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .lineLimit(2)
+                            
+                            if !order.repairSummary.isEmpty {
+                                Text("Summary: \(order.repairSummary)")
+                                    .font(.caption.italic())
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            
+                            HStack {
+                                StatusBadgeView(
+                                    text: order.status.rawValue,
+                                    color: AppTheme.success
+                                )
+                                Spacer()
+                                if let completedDate = order.completedDate {
+                                    Text(completedDate, style: .date)
+                                        .font(.caption2)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                }
+                            }
                         }
                     }
                 }
