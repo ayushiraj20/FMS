@@ -103,9 +103,9 @@ final class AppViewModel {
     // MARK: App Launch
 
     func startApp() async {
-
+        let sleepSeconds = hasSeenOnboarding ? 1.5 : 3.5
         try? await Task.sleep(
-            for: .seconds(1.5)
+            for: .seconds(sleepSeconds)
         )
 
         flowState =

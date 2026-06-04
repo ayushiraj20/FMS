@@ -56,8 +56,8 @@ struct AssignDriverTripView: View {
         case refrigerated   = "Refrigerated"
     }
 
-    // All drivers without an active trip — duty status is shown as info, not a filter.
-    // This lets Fleet Managers pre-assign trips to off-duty drivers.
+    // Only drivers without an active trip who are currently On Duty.
+    // Drivers must be on duty to be assigned a trip.
     private var availableDrivers: [User] {
         let all = service.driversEligibleForTripAssignment(
             organizationID: appViewModel.currentOrganization?.id
@@ -362,29 +362,18 @@ struct AssignDriverTripView: View {
                                 .font(.system(size: 15))
                         }
                         Text(routeCalculated ? "Continue — \(Int(locationService.routeDistanceKM)) km route" : "Select Vehicle")
+                            .font(.system(.headline, design: .rounded).bold())
                     }
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(
-                        (tripStartLocation.isEmpty || tripDestination.isEmpty)
-                        ? Color(.secondaryLabel)
-                        : .white
-                    )
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(
-                                (tripStartLocation.isEmpty || tripDestination.isEmpty)
-                                ? Color(.systemGray5)
-                                : AppTheme.brand
-                            )
-                    )
-                    .shadow(color: (tripStartLocation.isEmpty || tripDestination.isEmpty) ? .clear : AppTheme.brand.opacity(0.3), radius: 8, y: 4)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 8)
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
+                .tint((tripStartLocation.isEmpty || tripDestination.isEmpty) ? Color.gray.opacity(0.5) : AppTheme.brand)
                 .disabled(tripStartLocation.isEmpty || tripDestination.isEmpty)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
             }
             .background(.ultraThinMaterial)
         }
@@ -648,7 +637,7 @@ struct AssignDriverTripView: View {
                 Text("\(availableDrivers.count) eligible driver\(availableDrivers.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(AppTheme.textSecondary)
-                Text("Off-duty drivers can be pre-assigned")
+                Text("Drivers must be on duty to be assigned")
                     .font(.caption2)
                     .foregroundStyle(AppTheme.brand.opacity(0.8))
                 Spacer()
@@ -981,14 +970,13 @@ struct AssignDriverTripView: View {
                 // Assign button
                 Button(action: handleAssignment) {
                     Text("Confirm Assignment & Schedule Trip")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .font(.system(.headline, design: .rounded).bold())
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(isFormValid ? AppTheme.brand : Color(.systemGray4))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .shadow(color: isFormValid ? AppTheme.brand.opacity(0.3) : .clear, radius: 8, y: 4)
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
+                .tint(isFormValid ? AppTheme.brand : Color.gray.opacity(0.5))
                 .disabled(!isFormValid)
             }
             .padding(16)

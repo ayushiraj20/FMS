@@ -411,6 +411,12 @@ final class VehicleManagementViewModel {
                 }
             }
             
+            // Wait for any in-progress Supabase image uploads to complete
+            // before saving documents, so imageUrl is not nil.
+            while !uploadingDocuments.isEmpty {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            
             // Save all provided documents
             for type in DocumentType.allCases {
                 if let number = documentNumbers[type], !number.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -460,19 +466,25 @@ final class VehicleManagementViewModel {
     }
 
     func saveDocument(for vehicleID: UUID) {
-        let docsToSave = DocumentType.allCases.compactMap { type -> (DocumentType, String, Date, String?)? in
+        let docsToSave = DocumentType.allCases.compactMap { type -> (DocumentType, String, Date)? in
             guard let number = documentNumbers[type], !number.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
-            return (type, number, documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120), documentImageURLs[type])
+            return (type, number, documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120))
         }
         
         Task {
-            for (type, number, expiry, url) in docsToSave {
+            // Wait for any in-progress Supabase image uploads to complete
+            // before saving documents, so imageUrl is not nil.
+            while !uploadingDocuments.isEmpty {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            
+            for (type, number, expiry) in docsToSave {
                 await service.addDocument(
                     vehicleID: vehicleID,
                     type: type,
                     number: number,
                     expiryDate: expiry,
-                    imageUrl: url
+                    imageUrl: documentImageURLs[type]
                 )
             }
         }
@@ -535,8 +547,12 @@ final class VehicleManagementViewModel {
                     }
                 }
             } catch {
-                print("Failed to upload: \(error)")
-                _ = await MainActor.run {
+                print("Failed to upload to Supabase: \(error)")
+                await MainActor.run {
+                    // Fall back to the locally cached file so the photo is not lost
+                    if self.documentImageURLs[type] == nil, let localURL = localURL {
+                        self.documentImageURLs[type] = localURL.absoluteString
+                    }
                     self.uploadingDocuments.remove(type)
                 }
             }

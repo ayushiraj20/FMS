@@ -181,7 +181,7 @@ struct AppSettingsView: View {
                                         }
                                     }
                                     .pickerStyle(.menu)
-                                    .accentColor(roleColor)
+                                    .tint(roleColor)
                                 }
                                 
                                 Divider().background(AppTheme.border)

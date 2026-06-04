@@ -94,7 +94,7 @@ private struct DriverTabView: View {
 
     var body: some View {
 
-        ZStack(alignment: .bottom) {
+        ZStack(alignment: .bottomTrailing) {
             TabView(
                 selection:
                 $driverVM.selectedTab
@@ -125,16 +125,18 @@ private struct DriverTabView: View {
                 .tag(1)
             }
 
-            DriverVoiceLoggerView(
-                onStartTripRequested: handleVoiceStartTrip,
-                onEndTripRequested: handleVoiceEndTrip,
-                onRefuelRequested: handleVoiceRefuel,
-                onLiveMapRequested: showTripsTab,
-                onDashboardRequested: showDashboardTab,
-                onTripsRequested: showTripsTab
-            )
-            .padding(.horizontal, 20)
-            .padding(.bottom, 78)
+            if driverVM.selectedTab == 0 && !driverVM.hideVoiceLogger {
+                DriverVoiceLoggerView(
+                    onStartTripRequested: handleVoiceStartTrip,
+                    onEndTripRequested: handleVoiceEndTrip,
+                    onRefuelRequested: handleVoiceRefuel,
+                    onLiveMapRequested: showTripsTab,
+                    onDashboardRequested: showDashboardTab,
+                    onTripsRequested: showTripsTab
+                )
+                .padding(.trailing, 20)
+                .padding(.bottom, 96)
+            }
         }
         .sheet(isPresented: $showVoiceRefuelSheet) {
             if let user = currentUser, let vehicle = voiceCommandVehicle(for: user) {

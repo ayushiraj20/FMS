@@ -23,15 +23,13 @@ struct LoginView: View {
                         
                         // Top Logo & Titles
                         VStack(spacing: 16) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(AppTheme.brand)
-                                    .frame(width: 72, height: 72)
-                                Image(systemName: "truck.box.fill")
-                                    .font(.system(size: 32))
-                                    .foregroundStyle(.white)
-                            }
-                            .padding(.top, 40)
+                            Image("AppLogo")
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 72, height: 72)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+                                .padding(.top, 40)
                             
                             Text(AppBranding.name)
                                 .font(.system(size: 28, weight: .bold, design: .rounded))

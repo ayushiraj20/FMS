@@ -8,6 +8,7 @@ import Observation
 final class DriverViewModel {
     var isLoading = true
     var selectedTab = 0
+    var hideVoiceLogger = false
     var showSOSSheet = false
     var showProfileSheet = false
     var showDefectSheet = false

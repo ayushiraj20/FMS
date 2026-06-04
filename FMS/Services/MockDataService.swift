@@ -532,10 +532,13 @@ final class MockDataService {
         }
     }
 
-    func todayInspection(for driverID: UUID) -> InspectionRecord? {
+    func todayInspection(for driverID: UUID, vehicleID: UUID? = nil) -> InspectionRecord? {
         let today = Calendar.current.startOfDay(for: .now)
         return inspections.first {
-            $0.driverID == driverID && Calendar.current.isDate($0.date, inSameDayAs: today)
+            $0.driverID == driverID &&
+            $0.type == .preTrip &&
+            ($0.vehicleID == vehicleID || vehicleID == nil) &&
+            Calendar.current.isDate($0.date, inSameDayAs: today)
         }
     }
 
@@ -589,11 +592,10 @@ final class MockDataService {
     }
 
     /// Drivers eligible to be assigned a trip by a Fleet Manager.
-    /// Unlike `isDriverAvailableForDispatch`, this does NOT require the driver to be On Duty —
-    /// so the FM can pre-assign trips to off-duty drivers who will see them upon going online.
+    /// Driver must be On Duty to be assigned a trip.
     func isDriverEligibleForTripAssignment(_ driver: User) -> Bool {
         guard driver.role == .driver else { return false }
-        return !hasOpenTripAssignment(for: driver.id)
+        return dutyStatus(for: driver.id) == .onDuty && !hasOpenTripAssignment(for: driver.id)
     }
 
     func driversEligibleForTripAssignment(organizationID: UUID? = nil) -> [User] {

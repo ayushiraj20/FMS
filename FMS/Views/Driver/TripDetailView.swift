@@ -4,6 +4,7 @@ import MapKit
 struct TripDetailView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(DriverViewModel.self) private var driverVM
     private let initialTrip: Trip
 
     private var trip: Trip {
@@ -17,9 +18,14 @@ struct TripDetailView: View {
     private var currentUser: User? { appViewModel.currentUser }
     private var checkpoints: [TripCheckpoint] { appViewModel.service.checkpoints(for: trip.id) }
     private var driver: User? { appViewModel.service.user(for: trip.driverID) }
+    private var isOnDuty: Bool {
+        guard let user = currentUser else { return false }
+        return appViewModel.service.dutyStatus(for: user.id) == .onDuty
+    }
 
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var sheetHeight: PresentationDetent = .medium
+    @State private var showPreTripInspectionSheet = false
     @State private var showPostTripInspectionSheet = false
     @State private var showBreakLogSheet = false
 
@@ -90,11 +96,19 @@ struct TripDetailView: View {
                 .presentationBackground(.ultraThinMaterial)
                 .presentationCornerRadius(40)
                 .interactiveDismissDisabled()
+                .sheet(isPresented: $showPreTripInspectionSheet) {
+                    TripStartInspectionSheet(trip: trip) {
+                        driverVM.showToastMessage("Trip started. Have a safe journey.")
+                    }
+                    .environment(appViewModel)
+                    .environment(driverVM)
+                }
                 .sheet(isPresented: $showPostTripInspectionSheet) {
-                    TripEndInspectionSheet(trip: trip) {
+                    TripStartInspectionSheet(trip: trip, inspectionType: .postTrip) {
                         dismiss()
                     }
                     .environment(appViewModel)
+                    .environment(driverVM)
                 }
                 .sheet(isPresented: $showBreakLogSheet) {
                     TripBreakLogSheet(trip: trip)
@@ -296,20 +310,23 @@ struct TripDetailView: View {
     @ViewBuilder
     private var actionButtonSection: some View {
         if trip.status == .scheduled {
-            let inspDone = currentUser.flatMap { appViewModel.service.todayInspection(for: $0.id) } != nil
-            
             Button {
-                if inspDone { appViewModel.service.startScheduledTrip(id: trip.id) }
+                if isOnDuty {
+                    showPreTripInspectionSheet = true
+                }
             } label: {
-                Text(inspDone ? "Start Trip" : "Complete Inspection First")
-                    .font(.system(.headline, design: .rounded).bold())
-                    .frame(maxWidth: .infinity)
+                HStack(spacing: 8) {
+                    Image(systemName: "play.fill")
+                    Text("Start Trip")
+                        .font(.system(.headline, design: .rounded).bold())
+                }
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .tint(inspDone ? DriverTheme.accent : Color.gray)
+            .tint(isOnDuty ? DriverTheme.accent : Color.gray.opacity(0.5))
             .controlSize(.large)
             .buttonBorderShape(.capsule)
-            .disabled(!inspDone)
+            .disabled(!isOnDuty)
         } else if trip.status == .inProgress {
             Button {
                 showBreakLogSheet = true
@@ -346,5 +363,6 @@ struct TripDetailView: View {
             startDate: .now, endDate: nil, distanceKM: 148, status: .inProgress
         ))
         .environment(AppViewModel())
+        .environment(DriverViewModel())
     }
 }

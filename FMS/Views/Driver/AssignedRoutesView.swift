@@ -63,7 +63,7 @@ struct AssignedRoutesView: View {
                 .foregroundStyle(DriverTheme.accent.opacity(0.4))
                 .symbolEffect(.pulse)
             Text("No routes assigned")
-                .font(.system(.title3, design: .rounded).bold())
+                .font(.title3.bold())
             Text("New route assignments will appear here")
                 .font(.subheadline)
                 .foregroundStyle(DriverTheme.textSecondary)
@@ -95,8 +95,8 @@ struct AssignedRoutesView: View {
                     Circle().fill(DriverTheme.criticalRed).frame(width: 10, height: 10)
                 }
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(trip.origin).font(.system(.headline, design: .rounded).bold())
-                    Text(trip.destination).font(.system(.headline, design: .rounded).bold())
+                    Text(trip.origin).font(.headline.bold())
+                    Text(trip.destination).font(.headline.bold())
                 }
                 Spacer()
             }

@@ -37,70 +37,7 @@ struct HelpSupportView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
                     
-                    // Direct Support Options
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Contact Support")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(roleColor.opacity(0.8))
-                            .padding(.leading, 8)
-                        
-                        GlassCard {
-                            VStack(spacing: 16) {
-                                // Hotline Call
-                                Link(destination: URL(string: "tel:18005550199")!) {
-                                    HStack(spacing: 16) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(roleColor.opacity(0.12))
-                                                .frame(width: 40, height: 40)
-                                            Image(systemName: "phone.fill")
-                                                .foregroundStyle(roleColor)
-                                        }
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("Operations Control Center")
-                                                .font(.subheadline.weight(.semibold))
-                                                .foregroundStyle(AppTheme.textPrimary)
-                                            Text("24/7 Breakdown & Assistance Hotline")
-                                                .font(.caption)
-                                                .foregroundStyle(AppTheme.textSecondary)
-                                        }
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption)
-                                            .foregroundStyle(AppTheme.textSecondary)
-                                    }
-                                }
-                                
-                                Divider().background(AppTheme.border)
-                                
-                                // Support Email
-                                Link(destination: URL(string: "mailto:support@fleetos.com")!) {
-                                    HStack(spacing: 16) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(roleColor.opacity(0.12))
-                                                .frame(width: 40, height: 40)
-                                            Image(systemName: "envelope.fill")
-                                                .foregroundStyle(roleColor)
-                                        }
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("Email IT & App Support")
-                                                .font(.subheadline.weight(.semibold))
-                                                .foregroundStyle(AppTheme.textPrimary)
-                                            Text("support@fleetos.com")
-                                                .font(.caption)
-                                                .foregroundStyle(AppTheme.textSecondary)
-                                        }
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption)
-                                            .foregroundStyle(AppTheme.textSecondary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
+
                     // Frequently Asked Questions
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Frequently Asked Questions")
@@ -183,15 +120,13 @@ struct HelpSupportView: View {
                                         submitFeedback()
                                     } label: {
                                         Text("Submit Feedback")
-                                            .font(.subheadline.weight(.bold))
-                                            .foregroundStyle(.white)
+                                            .font(.system(.headline, design: .rounded).bold())
                                             .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 12)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .fill(roleColor)
-                                            )
                                     }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.large)
+                                    .buttonBorderShape(.capsule)
+                                    .tint(feedbackText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray.opacity(0.5) : roleColor)
                                     .disabled(feedbackText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                                 }
                             }

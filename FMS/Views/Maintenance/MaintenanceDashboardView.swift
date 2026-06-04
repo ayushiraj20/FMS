@@ -4,8 +4,6 @@ import SwiftUI
 
 struct MaintenanceDashboardView: View {
     @Environment(AppViewModel.self) private var appViewModel
-    // Previous state owner kept for rollback:
-    // @StateObject private var viewModel = MaintenanceDashboardViewModel()
     @State private var isLoading = true
 
     var body: some View {
@@ -45,11 +43,11 @@ struct MaintenanceDashboardView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 8) {
-                    NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
-                        ChatToolbarIcon()
+                    NavigationLink(destination: NotificationsView()) {
+                        MaintenanceNotificationToolbarIcon()
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("CHAT_BUTTON")
+                    .accessibilityIdentifier("BELL_BUTTON")
 
                     NavigationLink(destination: BroadcastInboxView()) {
                         Image(systemName: "megaphone.fill")
@@ -58,12 +56,12 @@ struct MaintenanceDashboardView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("BROADCAST_BUTTON")
-                    
-                    NavigationLink(destination: NotificationsView()) {
-                        MaintenanceNotificationToolbarIcon()
+
+                    NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
+                        ChatToolbarIcon()
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("BELL_BUTTON")
+                    .accessibilityIdentifier("CHAT_BUTTON")
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
@@ -107,10 +105,6 @@ struct MaintenanceDashboardView: View {
             }
     }
     private var assignedVehicleIDs: Set<UUID> { Set(assignedOrders.map(\.vehicleID)) }
-    private var upcomingSchedules: [MaintenanceSchedule] {
-        let schedules = appViewModel.service.schedules(for: assignedVehicleIDs.isEmpty ? nil : assignedVehicleIDs)
-        return schedules.filter { $0.status != .completed }
-    }
     private var criticalOrders: [WorkOrder] {
         assignedOrders.filter { $0.priority == .critical && $0.status != .completed }
     }
@@ -220,22 +214,8 @@ struct MaintenanceDashboardView: View {
         .padding(.top, 4)
     }
 
-
-    private var userInitials: String {
-        guard let name = currentUser?.name else { return "MS" }
-        let initials = name
-            .split(separator: " ")
-            .prefix(2)
-            .compactMap { $0.first }
-            .map(String.init)
-            .joined()
-        return initials.isEmpty ? "MS" : initials.uppercased()
-    }
-
     private var maintenanceAccent: Color { Color(hex: "#FF9500") }
     private var warmPrimaryText: Color { Color.dynamic(light: "#1F2024", dark: "#F2E8E4") }
-    private var warmSecondaryText: Color { Color.dynamic(light: "#715B54", dark: "#D7B8AC") }
-    private var noticeColor: Color { activeAssignedOrders.isEmpty ? AppTheme.success : maintenanceAccent.opacity(0.9) }
 
     private func priorityRank(_ priority: WorkOrderPriority) -> Int {
         switch priority {
@@ -389,42 +369,6 @@ private struct MaintenancePriorityOrderCard: View {
     }
 }
 
-private struct MaintenanceSchedulePreviewCard: View {
-    let schedule: MaintenanceSchedule
-    let vehicle: Vehicle?
-
-    var body: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "clock")
-                        .foregroundStyle(AppTheme.brand)
-                    Text(schedule.dueDate.formatted(date: .abbreviated, time: .omitted))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-                .font(.caption2.monospaced().weight(.semibold))
-
-                Text(schedule.serviceType)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
-                    .lineLimit(2)
-                    .frame(height: 36, alignment: .topLeading)
-
-                Text(vehicle?.displayName ?? "Vehicle")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .lineLimit(1)
-
-                Text(schedule.status.rawValue)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(schedule.status == .overdue ? Color(hex: "#FF9500") : AppTheme.brand)
-            }
-        }
-        .frame(width: 200, alignment: .leading)
-    }
-}
 
 private struct MaintenanceAssignedOrderPreviewCard: View {
     let order: WorkOrder
@@ -492,30 +436,29 @@ private struct MaintenanceNotificationToolbarIcon: View {
     var body: some View {
         let unreadCount = appViewModel.unreadNotificationsCount
         
-        ZStack(alignment: .center) {
-            Image(systemName: "bell.fill")
-                .imageScale(.large)
-            
-            if unreadCount > 0 {
-                Text(unreadCount > 99 ? "99+" : "\(unreadCount)")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .padding(.horizontal, unreadCount > 9 ? 4 : 3)
-                    .frame(minWidth: 14, minHeight: 14)
-                    .background(Capsule().fill(Color.red))
-                    .overlay(Capsule().stroke(Color.white, lineWidth: 1.0))
-                    .offset(x: 10, y: -10)
-                    .accessibilityHidden(true)
+        Image(systemName: "bell.fill")
+            .imageScale(.large)
+            .frame(width: 32, height: 32)
+            .overlay(alignment: .topTrailing) {
+                if unreadCount > 0 {
+                    Text(unreadCount > 99 ? "99+" : "\(unreadCount)")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .padding(.horizontal, unreadCount > 9 ? 4 : 3)
+                        .frame(minWidth: 14, minHeight: 14)
+                        .background(Capsule().fill(Color.red))
+                        .overlay(Capsule().stroke(Color.white, lineWidth: 1.0))
+                        .offset(x: -2, y: 2)
+                        .accessibilityHidden(true)
+                }
             }
-        }
-        .frame(width: 32, height: 32)
-        .accessibilityLabel(
-            unreadCount > 0
-            ? "Notifications, \(unreadCount) unread"
-            : "Notifications"
-        )
+            .accessibilityLabel(
+                unreadCount > 0
+                ? "Notifications, \(unreadCount) unread"
+                : "Notifications"
+            )
     }
 }
 

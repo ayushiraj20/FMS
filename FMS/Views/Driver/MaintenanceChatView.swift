@@ -83,14 +83,20 @@ struct MaintenanceChatView: View {
             .navigationTitle("Maintenance Team")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         dismiss()
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title3)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(DriverTheme.textSecondary)
+                        ZStack {
+                            Circle()
+                                .fill(DriverTheme.textSecondary.opacity(0.15))
+                                .frame(width: 30, height: 30)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(DriverTheme.textSecondary)
+                        }
+                        .padding(.leading, 8)
+                        .padding(.top, 8)
                     }
                 }
             }
@@ -293,12 +299,6 @@ struct DriverManagerChatView: View {
             }
 
             Spacer()
-
-            Image(systemName: "message.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(accent)
-                .frame(width: 34, height: 34)
-                .background(accent.opacity(0.12), in: Circle())
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
