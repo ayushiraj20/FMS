@@ -64,10 +64,6 @@ struct DriverProfileView: View {
                 
                 // Actions & Settings Section
                 Section(header: Text("Settings").font(.footnote.bold()).foregroundStyle(DriverTheme.textSecondary)) {
-                    Button(action: { }) {
-                        settingsRow(icon: "lock.fill", iconBg: Color.blue, title: "Change Password")
-                    }
-                    
                     Button(action: { showDefectSheet = true }) {
                         settingsRow(icon: "exclamationmark.triangle.fill", iconBg: Color.orange, title: "Report Defect")
                     }
@@ -78,10 +74,6 @@ struct DriverProfileView: View {
 
                     Button(action: { showManagerChatSheet = true }) {
                         settingsRow(icon: "message.fill", iconBg: DriverTheme.accent, title: "Fleet Manager Chat")
-                    }
-                    
-                    Button(action: { }) {
-                        settingsRow(icon: "info.circle.fill", iconBg: Color.gray, title: "About")
                     }
                 }
                 .listRowBackground(DriverTheme.elevatedCard)

@@ -22,57 +22,80 @@ struct DriverVoiceLoggerView: View {
     @State private var ignoredTranscriptPrefix = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Button {
-                    Task { await toggleListening() }
-                } label: {
-                    Image(systemName: mode.iconName)
-                        .font(.title3)
-                        .foregroundStyle(.white)
-                        .frame(width: 46, height: 46)
-                        .background(mode.tint, in: Circle())
-                        .symbolEffect(.pulse, isActive: speech.isRecording)
-                }
-                .buttonStyle(.plain)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Voice Logger")
-                        .font(.system(.headline, design: .rounded).bold())
-                        .foregroundStyle(DriverTheme.textPrimary)
+        HStack(spacing: 12) {
+            if mode != .idle {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(mode == .processing ? "Processing..." : (mode == .commandListening ? "Listening..." : "Voice Logger"))
+                        .font(.system(.caption2, design: .rounded).bold())
+                        .foregroundStyle(DriverTheme.accent)
+                    
                     Text(statusText)
                         .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(DriverTheme.textSecondary)
-                        .lineLimit(2)
+                        .foregroundStyle(DriverTheme.textPrimary)
+                        .lineLimit(1)
+                    
+                    if !lastHeardText.isEmpty {
+                        Text(lastHeardText)
+                            .font(.system(.subheadline, design: .rounded).bold())
+                            .foregroundStyle(DriverTheme.textPrimary)
+                            .lineLimit(1)
+                    }
                 }
-
-                Spacer()
-
+                .padding(.leading, 16)
+                .padding(.trailing, 4)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .trailing).combined(with: .opacity)
+                ))
+                
                 if mode == .commandListening {
                     Button("Done") {
                         processCurrentCommand()
                     }
                     .font(.system(.caption, design: .rounded).bold())
                     .foregroundStyle(DriverTheme.accent)
+                    .padding(.trailing, 4)
+                    .transition(.opacity)
                 }
             }
-
-            if !lastHeardText.isEmpty {
-                Text("Heard: \(lastHeardText)")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(DriverTheme.textPrimary)
-                    .lineLimit(3)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            
+            Button {
+                Task { await toggleListening() }
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(mode.tint)
+                        .frame(width: 56, height: 56)
+                        .shadow(color: mode.tint.opacity(0.3), radius: 8, x: 0, y: 4)
+                    
+                    Image(systemName: mode.iconName)
+                        .font(.title2)
+                        .foregroundStyle(.white)
+                        .symbolEffect(.pulse, isActive: speech.isRecording)
+                }
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("VOICE_LOGGER_FAB")
         }
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(mode.tint.opacity(mode == .idle ? 0.16 : 0.35), lineWidth: 1)
+        .padding(mode != .idle ? 6 : 0)
+        .background(
+            Group {
+                if mode != .idle {
+                    RoundedRectangle(cornerRadius: 32, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+                }
+            }
         )
+        .overlay(
+            Group {
+                if mode != .idle {
+                    RoundedRectangle(cornerRadius: 32, style: .continuous)
+                        .stroke(mode.tint.opacity(0.2), lineWidth: 1)
+                }
+            }
+        )
+        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: mode)
         .onChange(of: speech.partialTranscript) { _, transcript in
             handleTranscript(transcript)
         }
@@ -97,11 +120,13 @@ struct DriverVoiceLoggerView: View {
             commandTask?.cancel()
             commandTimeoutTask?.cancel()
             speech.cancelRecording()
-            mode = .idle
-            commandText = ""
-            lastHeardText = ""
-            ignoredTranscriptPrefix = ""
-            statusText = "Tap, then say \"Hey Fleet\""
+            withAnimation {
+                mode = .idle
+                commandText = ""
+                lastHeardText = ""
+                ignoredTranscriptPrefix = ""
+                statusText = "Tap, then say \"Hey Fleet\""
+            }
             return
         }
 
@@ -117,14 +142,18 @@ struct DriverVoiceLoggerView: View {
         }
 
         do {
-            mode = .wakeListening
-            commandText = ""
-            lastHeardText = ""
-            ignoredTranscriptPrefix = ""
-            statusText = "Listening for \"Hey Fleet\""
+            withAnimation {
+                mode = .wakeListening
+                commandText = ""
+                lastHeardText = ""
+                ignoredTranscriptPrefix = ""
+                statusText = "Listening for \"Hey Fleet\""
+            }
             try await speech.startRecording()
         } catch {
-            mode = .idle
+            withAnimation {
+                mode = .idle
+            }
             speech.errorMessage = error.localizedDescription
             showSpeechError = true
         }
@@ -144,10 +173,12 @@ struct DriverVoiceLoggerView: View {
             if command.isEmpty {
                 activateCommandListening()
             } else {
-                mode = .commandListening
-                commandText = command
-                lastHeardText = command
-                statusText = "Command captured"
+                withAnimation {
+                    mode = .commandListening
+                    commandText = command
+                    lastHeardText = command
+                    statusText = "Command captured"
+                }
                 scheduleCommandProcessingIfNeeded()
             }
         case .commandListening:
@@ -204,10 +235,12 @@ struct DriverVoiceLoggerView: View {
     private func activateCommandListening() {
         commandTask?.cancel()
         commandTimeoutTask?.cancel()
-        mode = .commandListening
-        commandText = ""
-        lastHeardText = "hey fleet"
-        statusText = "Listening now. Say your command."
+        withAnimation {
+            mode = .commandListening
+            commandText = ""
+            lastHeardText = "hey fleet"
+            statusText = "Listening now. Say your command."
+        }
         startCommandTimeout()
     }
 
@@ -236,9 +269,11 @@ struct DriverVoiceLoggerView: View {
                     lastHeardText = candidate
                     processCurrentCommand()
                 } else if mode == .commandListening {
-                    commandText = ""
-                    statusText = "No command heard. Listening for \"Hey Fleet\""
-                    mode = .wakeListening
+                    withAnimation {
+                        commandText = ""
+                        statusText = "No command heard. Listening for \"Hey Fleet\""
+                        mode = .wakeListening
+                    }
                 }
             }
         }
@@ -253,7 +288,9 @@ struct DriverVoiceLoggerView: View {
 
         commandTask?.cancel()
         commandTimeoutTask?.cancel()
-        mode = .processing
+        withAnimation {
+            mode = .processing
+        }
 
         let result = execute(command)
         statusText = result
@@ -266,15 +303,17 @@ struct DriverVoiceLoggerView: View {
 
     private func scheduleWakeListeningAfterResult() {
         commandTask = Task {
-            try? await Task.sleep(for: .seconds(1.2))
+            try? await Task.sleep(for: .seconds(1.8))
             guard !Task.isCancelled else { return }
             await MainActor.run {
-                if speech.isRecording {
-                    mode = .wakeListening
-                    statusText = "Listening for \"Hey Fleet\""
-                } else {
-                    mode = .idle
-                    statusText = "Tap, then say \"Hey Fleet\""
+                withAnimation {
+                    if speech.isRecording {
+                        mode = .wakeListening
+                        statusText = "Listening for \"Hey Fleet\""
+                    } else {
+                        mode = .idle
+                        statusText = "Tap, then say \"Hey Fleet\""
+                    }
                 }
             }
         }
