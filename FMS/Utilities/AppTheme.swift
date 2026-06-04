@@ -192,14 +192,30 @@ struct DriverGlassCard<Content: View>: View {
         content
             .padding(16)
             .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(DriverTheme.elevatedCard)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(DriverTheme.cardBorder, lineWidth: 1)
-                    )
-                    .shadow(color: DriverTheme.cardShadow, radius: 10, x: 0, y: 4)
+                .regularMaterial,
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
             )
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(DriverTheme.elevatedCard.opacity(0.6))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                .white.opacity(0.4),
+                                DriverTheme.cardBorder.opacity(0.4),
+                                .clear,
+                                DriverTheme.cardBorder.opacity(0.2)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.2
+                    )
+            )
+            .shadow(color: DriverTheme.cardShadow.opacity(0.5), radius: 10, x: 0, y: 4)
     }
 }
 

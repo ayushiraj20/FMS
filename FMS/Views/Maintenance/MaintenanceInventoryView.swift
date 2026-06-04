@@ -368,7 +368,7 @@ private struct SparePartRow: View {
     }
 
     private var statusColor: Color {
-        if part.isOutOfStock { return Color.dynamic(light: "#BA1A1A", dark: "#FF8989") }
+        if part.isOutOfStock { return .red }
         if part.isCriticallyLow { return .orange }
         if part.isLowStock { return Color.dynamic(light: "#8F4E00", dark: "#FFB874") }
         return Color.dynamic(light: "#1E5BE4", dark: "#7EA5FF")

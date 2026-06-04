@@ -1,7 +1,7 @@
 import Foundation
 import MapKit
 
-/// Planned driving routes for a trip: one recommended ideal route and one approved alternative.
+/// Planned optimal driving route for a trip (MapKit), with a 200 m corridor geofence along every coordinate.
 struct TripRoutePlan: Identifiable, Codable {
     let tripID: UUID
     let origin: CLLocationCoordinate2D
@@ -14,7 +14,7 @@ struct TripRoutePlan: Identifiable, Codable {
 
     var id: UUID { tripID }
 
-    static let corridorToleranceMeters: CLLocationDistance = 50
+    static let corridorToleranceMeters: CLLocationDistance = 200
 
     var allRoutes: [[CLLocationCoordinate2D]] {
         [mainRouteCoordinates] + alternativeRouteCoordinates

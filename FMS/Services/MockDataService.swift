@@ -30,6 +30,8 @@ final class MockDataService {
     var geofenceAlertedVehicleIDs: Set<UUID>
     var tripRoutePlansByTripID: [UUID: TripRoutePlan] = [:]
     var routeGeofenceAlertStates: [UUID: RouteGeofenceAlertState] = [:]
+    /// Latest GPS from each driver's phone (keyed by driver user id).
+    var driverPhoneLocationsByDriverID: [UUID: DriverPhoneLocation] = [:]
 
     /// IDs of users that have been locally deleted but may not yet be
     /// removed from the remote database. syncWithDatabase filters these out

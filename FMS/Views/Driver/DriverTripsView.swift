@@ -283,7 +283,12 @@ struct ActiveTripMapView: View {
 
     private func evaluateRouteCompliance() {
         guard let plan = routePlan else { return }
-        let status = TripRouteGeofenceEvaluator.corridorStatus(for: currentPosition, plan: plan)
+        guard let phoneCoordinate = driverVM.currentLocation else {
+            corridorStatus = .unavailable
+            return
+        }
+
+        let status = TripRouteGeofenceEvaluator.corridorStatus(for: phoneCoordinate, plan: plan)
         corridorStatus = status
 
         guard let vehicle = appViewModel.service.vehicles.first(where: { $0.id == trip.vehicleID }),
@@ -294,9 +299,10 @@ struct ActiveTripMapView: View {
                 trip: trip,
                 vehicle: vehicle,
                 driver: driver,
-                coordinate: currentPosition,
+                coordinate: phoneCoordinate,
                 locality: trip.destination,
-                manager: appViewModel.service.users.first { $0.role == .fleetManager && $0.organizationID == driver.organizationID }
+                manager: appViewModel.service.users.first { $0.role == .fleetManager && $0.organizationID == driver.organizationID },
+                fromDriverPhone: true
             )
         }
     }
@@ -315,7 +321,7 @@ struct ActiveTripMapView: View {
                 .background(.ultraThinMaterial, in: Capsule())
                 .padding(.top, 6)
         case .outsideCorridor:
-            Text("Outside 50 m approved geofence. Return to the ideal or approved alternate route.")
+            Text("Outside the 200 m route geofence. Return to the optimal route.")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(DriverTheme.criticalRed)
                 .padding(.horizontal, 14)
@@ -430,32 +436,38 @@ struct ActiveTripMapView: View {
             } label: {
                 Label("Navigate", systemImage: "location.fill")
                     .font(.system(.headline, design: .rounded).bold())
-                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 60)
-                    .background(DriverTheme.accent, in: Capsule())
             }
+            .buttonStyle(.borderedProminent)
+            .tint(DriverTheme.accent)
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
 
             Button {
                 showReportSheet = true
             } label: {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.title2)
-                    .foregroundStyle(.white)
-                    .frame(width: 60, height: 60)
-                    .background(.regularMaterial, in: Circle())
             }
+            .buttonStyle(.bordered)
+            .tint(DriverTheme.warningAmber)
+            .controlSize(.large)
+            .buttonBorderShape(.circle)
 
             Button {
                 driverVM.startSOSCountdown(service: appViewModel.service, user: appViewModel.currentUser)
             } label: {
-                Text("SOS")
-                    .font(.system(.headline, design: .rounded).bold())
-                    .foregroundStyle(.white)
-                    .frame(width: 80, height: 60)
-                    .background(DriverTheme.criticalRed, in: Capsule())
-                    .symbolEffect(.pulse)
+                HStack(spacing: 4) {
+                    Image(systemName: "light.beacon.max.fill")
+                        .symbolEffect(.pulse)
+                    Text("SOS")
+                        .font(.system(.headline, design: .rounded).bold())
+                }
             }
+            .buttonStyle(.borderedProminent)
+            .tint(DriverTheme.criticalRed)
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 30)

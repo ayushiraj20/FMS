@@ -14,7 +14,7 @@ struct FleetMapFullView: View {
 
         ZStack(alignment: .top) {
             Map(position: $mapPosition) {
-                ForEach(activeTripPlans(locations: locations), id: \.plan.tripID) { item in
+                ForEach(service.activeInProgressRoutePlans(for: manager), id: \.plan.tripID) { item in
                     TripRoutesMapContent(plan: item.plan, showLabels: false)
                 }
 
@@ -48,7 +48,7 @@ struct FleetMapFullView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     var coordinates = locations.map(\.coordinate)
-                    for item in activeTripPlans(locations: locations) {
+                    for item in service.activeInProgressRoutePlans(for: manager) {
                         coordinates.append(contentsOf: item.plan.mainRouteCoordinates)
                     }
                     mapPosition = .region(FleetMapRegion.region(for: coordinates))
@@ -65,23 +65,13 @@ struct FleetMapFullView: View {
         .task {
             await service.prefetchRoutePlansForActiveTrips()
             var coordinates = locations.map(\.coordinate)
-            for item in activeTripPlans(locations: locations) {
+            for item in service.activeInProgressRoutePlans(for: manager) {
                 coordinates.append(contentsOf: item.plan.mainRouteCoordinates)
             }
             mapPosition = .region(FleetMapRegion.region(for: coordinates))
         }
         .task(id: locations.map(\.id.uuidString).joined()) {
             await service.sendRouteGeofenceMonitoringAlerts(for: manager, locations: locations)
-        }
-    }
-
-    private func activeTripPlans(locations: [FleetVehicleLocation]) -> [(trip: Trip, plan: TripRoutePlan)] {
-        locations.compactMap { location in
-            guard let trip = location.activeTrip,
-                  let plan = service.tripRoutePlansByTripID[trip.id] else {
-                return nil
-            }
-            return (trip, plan)
         }
     }
 

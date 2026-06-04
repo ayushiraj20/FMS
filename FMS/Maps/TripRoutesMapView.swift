@@ -1,8 +1,7 @@
 import MapKit
 import SwiftUI
 
-/// Shared map overlay for fleet manager and driver. Alternatives are approved for geofencing,
-/// but hidden by default so the ideal route is the first route shown.
+/// Shared map overlay for fleet manager and driver — one optimal route polyline per trip.
 struct TripRoutesMapContent: MapContent {
     let plan: TripRoutePlan
     var showLabels: Bool = true
@@ -55,7 +54,7 @@ struct TripRouteLegendView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            legendItem(color: .blue, label: "Ideal", dashed: false)
+            legendItem(color: .blue, label: "Optimal", dashed: false)
             if showAlternatives {
                 legendItem(color: .orange, label: "Alt", dashed: true)
             }

@@ -10,6 +10,8 @@ struct FleetVehicleLocation: Identifiable {
     let locality: String
     let lastUpdated: Date
     let route: FleetVehicleRoute
+    /// True when coordinate comes from the assigned driver's phone GPS (used for geofence checks).
+    let isDriverPhoneFix: Bool
 
     var id: UUID { vehicle.id }
 
@@ -65,8 +67,9 @@ extension MockDataService {
                 activeTrip: activeTrip,
                 coordinate: location.coordinate,
                 locality: location.locality,
-                lastUpdated: .now,
-                route: route
+                lastUpdated: location.lastUpdated,
+                route: route,
+                isDriverPhoneFix: location.isDriverPhoneFix
             )
         }
     }
@@ -83,19 +86,54 @@ extension MockDataService {
         Array(allFleetLocations().prefix(limit))
     }
 
-    private func liveLocation(for vehicle: Vehicle) -> (coordinate: CLLocationCoordinate2D, locality: String)? {
-        if let trip = trips.first(where: { $0.vehicleID == vehicle.id && $0.status == .inProgress }),
-           let originLat = trip.originLat,
-           let originLng = trip.originLng,
-           let destinationLat = trip.destinationLat,
-           let destinationLng = trip.destinationLng {
-            let progress = tripProgress(for: trip)
-            let latitude = originLat + ((destinationLat - originLat) * progress)
-            let longitude = originLng + ((destinationLng - originLng) * progress)
-            return (
-                CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
-                trip.destination
-            )
+    private struct ResolvedFleetLocation {
+        let coordinate: CLLocationCoordinate2D
+        let locality: String
+        let lastUpdated: Date
+        let isDriverPhoneFix: Bool
+    }
+
+    func updateDriverPhoneLocation(driverID: UUID, from location: CLLocation) {
+        var speedMetersPerSecond = max(0, location.speed)
+        if speedMetersPerSecond <= 0,
+           let previous = driverPhoneLocationsByDriverID[driverID] {
+            let elapsed = location.timestamp.timeIntervalSince(previous.timestamp)
+            if elapsed > 0 {
+                let previousLocation = CLLocation(
+                    latitude: previous.coordinate.latitude,
+                    longitude: previous.coordinate.longitude
+                )
+                speedMetersPerSecond = location.distance(from: previousLocation) / elapsed
+            }
+        }
+
+        driverPhoneLocationsByDriverID[driverID] = DriverPhoneLocation(
+            coordinate: location.coordinate,
+            timestamp: location.timestamp,
+            speedMetersPerSecond: speedMetersPerSecond,
+            horizontalAccuracy: location.horizontalAccuracy
+        )
+    }
+
+    func driverPhoneLocation(for driverID: UUID) -> DriverPhoneLocation? {
+        guard let fix = driverPhoneLocationsByDriverID[driverID], fix.isFresh, fix.hasUsableAccuracy else {
+            return nil
+        }
+        return fix
+    }
+
+    private func liveLocation(for vehicle: Vehicle) -> ResolvedFleetLocation? {
+        if let trip = trips.first(where: { $0.vehicleID == vehicle.id && $0.status == .inProgress }) {
+            let driverID = vehicle.assignedDriverID ?? trip.driverID
+            if let phone = driverPhoneLocation(for: driverID) {
+                return ResolvedFleetLocation(
+                    coordinate: phone.coordinate,
+                    locality: trip.destination,
+                    lastUpdated: phone.timestamp,
+                    isDriverPhoneFix: true
+                )
+            }
+            return nil
         }
 
         if let scheduledTrip = trips.first(where: {
@@ -103,9 +141,11 @@ extension MockDataService {
         }),
            let originLat = scheduledTrip.originLat,
            let originLng = scheduledTrip.originLng {
-            return (
-                CLLocationCoordinate2D(latitude: originLat, longitude: originLng),
-                scheduledTrip.origin
+            return ResolvedFleetLocation(
+                coordinate: CLLocationCoordinate2D(latitude: originLat, longitude: originLng),
+                locality: scheduledTrip.origin,
+                lastUpdated: .now,
+                isDriverPhoneFix: false
             )
         }
 

@@ -473,10 +473,8 @@ struct FleetManagerDashboardView: View {
         let locations = appViewModel.service.fleetMapPreviewLocations(for: appViewModel.currentUser)
         let breaches = appViewModel.service.routeGeofenceBreaches(for: appViewModel.currentUser, locations: locations)
         var mapCoordinates = locations.map(\.coordinate)
-        for tripID in locations.compactMap(\.activeTrip?.id) {
-            if let plan = appViewModel.service.tripRoutePlansByTripID[tripID] {
-                mapCoordinates.append(contentsOf: plan.mainRouteCoordinates)
-            }
+        for item in appViewModel.service.activeInProgressRoutePlans(for: appViewModel.currentUser) {
+            mapCoordinates.append(contentsOf: item.plan.mainRouteCoordinates)
         }
 
         return VStack(alignment: .leading, spacing: 12) {
@@ -495,6 +493,7 @@ struct FleetManagerDashboardView: View {
             FleetMapPreview(
                 locations: locations,
                 service: appViewModel.service,
+                manager: appViewModel.currentUser,
                 initialRegion: FleetMapRegion.region(for: mapCoordinates),
                 routeBreaches: breaches
             )
@@ -662,7 +661,7 @@ struct FleetManagerDashboardView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(title: "Quick Access", subtitle: "Navigate to key management modules")
             
-            NavigationLink(destination: AssignDriverView(service: appViewModel.service, organizationID: appViewModel.currentOrganization?.id)) {
+            NavigationLink(destination: AssignDriverView(service: appViewModel.service)) {
                 quickLink(title: "Assign Driver", subtitle: "Pair available vehicles & drivers", icon: "person.badge.key.fill")
             }
             

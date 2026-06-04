@@ -77,13 +77,21 @@ struct NotificationsView: View {
                     // Native List with clean swipe and tap behaviors
                     List {
                         ForEach(filteredNotifications) { notification in
-                            Button {
-                                if !notification.isRead {
-                                    Task {
-                                        await appViewModel.markNotificationAsRead(id: notification.id)
-                                    }
+                            ZStack(alignment: .leading) {
+                                NavigationLink {
+                                    destinationView(for: notification)
+                                        .onAppear {
+                                            if !notification.isRead {
+                                                Task {
+                                                    await appViewModel.markNotificationAsRead(id: notification.id)
+                                                }
+                                            }
+                                        }
+                                } label: {
+                                    EmptyView()
                                 }
-                            } label: {
+                                .opacity(0)
+
                                 HStack(alignment: .top, spacing: 12) {
                                     // Unread Dot Indicator
                                     Circle()
@@ -140,7 +148,6 @@ struct NotificationsView: View {
                                 .padding(.vertical, 2)
                                 .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
                             .listRowBackground(Color.clear)
                             .listRowSeparatorTint(DriverTheme.accent.opacity(0.15))
                         }
@@ -165,6 +172,212 @@ struct NotificationsView: View {
             }
         }
         .hidesTabBarWhileSheet(isPresented: showReportShareSheet)
+    }
+
+    // MARK: - Redirection & Resolution Helpers
+
+    @ViewBuilder
+    private func destinationView(for notification: AppNotification) -> some View {
+        if let role = appViewModel.currentRole {
+            switch role {
+            case .maintenance:
+                destinationForMaintenance(notification)
+            case .fleetManager:
+                destinationForFleetManager(notification)
+            case .driver:
+                destinationForDriver(notification)
+            }
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func destinationForMaintenance(_ notification: AppNotification) -> some View {
+        let isChat = notification.title.localizedCaseInsensitiveContains("Message") ||
+                     notification.title.localizedCaseInsensitiveContains("Chat") ||
+                     notification.title.localizedCaseInsensitiveContains("message")
+        
+        let isStock = notification.title.localizedCaseInsensitiveContains("Stock") ||
+                      notification.title.localizedCaseInsensitiveContains("Part Out") ||
+                      notification.inventoryReportID != nil
+        
+        if isChat {
+            let chat = findChatDetails(for: notification)
+            WorkOrderChatView(workOrderID: chat.workOrderID, defectReportID: chat.defectReportID)
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        } else if isStock {
+            MaintenanceInventoryView()
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        } else if let order = findWorkOrder(for: notification) {
+            MaintenanceWorkOrdersView.MaintenanceWorkOrderDetailView(workOrder: order)
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        } else {
+            MaintenanceWorkOrdersView()
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        }
+    }
+
+    @ViewBuilder
+    private func destinationForFleetManager(_ notification: AppNotification) -> some View {
+        let isChat = notification.title.localizedCaseInsensitiveContains("Message") ||
+                     notification.title.localizedCaseInsensitiveContains("Chat") ||
+                     notification.title.localizedCaseInsensitiveContains("message")
+        
+        let isStock = notification.title.localizedCaseInsensitiveContains("Stock") ||
+                      notification.title.localizedCaseInsensitiveContains("Part Out") ||
+                      notification.inventoryReportID != nil
+        
+        let isSOS = notification.title.localizedCaseInsensitiveContains("ACTIVE EMERGENCY") ||
+                    notification.title.localizedCaseInsensitiveContains("SOS")
+        
+        let isGeofence = notification.title.localizedCaseInsensitiveContains("Geofence")
+        let isOffRoute = notification.title.localizedCaseInsensitiveContains("Off-Route")
+        
+        let isCompliance = notification.title.localizedCaseInsensitiveContains("Expired") ||
+                           notification.title.localizedCaseInsensitiveContains("Compliance")
+        
+        if isSOS {
+            PriorityAlertDetailView(category: "SOS Alerts", count: 1)
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        } else if isGeofence {
+            PriorityAlertDetailView(category: "Geofence", count: 1)
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        } else if isOffRoute {
+            PriorityAlertDetailView(category: "Off-Route", count: 1)
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        } else if isCompliance {
+            VehicleManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        } else if isChat {
+            let chat = findChatDetails(for: notification)
+            if chat.workOrderID != nil || chat.defectReportID != nil {
+                WorkOrderChatView(workOrderID: chat.workOrderID, defectReportID: chat.defectReportID)
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            } else if let sender = findSenderUser(for: notification) {
+                DriverManagerChatView(driverID: sender.id)
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            } else {
+                DriverManagerChatView()
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            }
+        } else if isStock {
+            FleetReportsAnalyticsView()
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        } else if let order = findWorkOrder(for: notification) {
+            WorkOrderChatView(workOrderID: order.id)
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        } else {
+            PriorityAlertsListView()
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        }
+    }
+
+    @ViewBuilder
+    private func destinationForDriver(_ notification: AppNotification) -> some View {
+        let isChat = notification.title.localizedCaseInsensitiveContains("Message") ||
+                     notification.title.localizedCaseInsensitiveContains("Chat") ||
+                     notification.title.localizedCaseInsensitiveContains("message")
+        
+        if isChat {
+            let chat = findChatDetails(for: notification)
+            if chat.workOrderID != nil || chat.defectReportID != nil {
+                WorkOrderChatView(workOrderID: chat.workOrderID, defectReportID: chat.defectReportID)
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            } else {
+                DriverManagerChatView()
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            }
+        } else if let trip = findTrip(for: notification) {
+            TripDetailView(trip: trip)
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        } else {
+            DriverManagerChatView()
+                .environment(appViewModel)
+                .hideTabBarOnPush()
+        }
+    }
+
+    private func findWorkOrder(for notification: AppNotification) -> WorkOrder? {
+        let workOrders = appViewModel.service.workOrders
+        for order in workOrders {
+            if notification.message.localizedCaseInsensitiveContains(order.title) ||
+               notification.title.localizedCaseInsensitiveContains(order.title) {
+                return order
+            }
+        }
+        return nil
+    }
+
+    private func findDefectReport(for notification: AppNotification) -> DefectReport? {
+        let defects = appViewModel.service.defects
+        for defect in defects {
+            if let defectTitle = defect.title,
+               (notification.message.localizedCaseInsensitiveContains(defectTitle) ||
+                notification.title.localizedCaseInsensitiveContains(defectTitle)) {
+                return defect
+            }
+        }
+        return nil
+    }
+
+    private func findChatDetails(for notification: AppNotification) -> (workOrderID: UUID?, defectReportID: UUID?) {
+        let messages = appViewModel.service.chatMessages
+        for msg in messages {
+            if notification.message.localizedCaseInsensitiveContains(msg.message) {
+                return (msg.workOrderID, msg.defectReportID)
+            }
+        }
+        
+        if let order = findWorkOrder(for: notification) {
+            return (order.id, nil)
+        }
+        if let defect = findDefectReport(for: notification) {
+            return (nil, defect.id)
+        }
+        
+        return (nil, nil)
+    }
+
+    private func findSenderUser(for notification: AppNotification) -> User? {
+        let message = notification.message
+        guard let colonIndex = message.range(of: ":") else { return nil }
+        let prefix = message[..<colonIndex.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanName: String
+        if let parenIndex = prefix.range(of: " (") {
+            cleanName = String(prefix[..<parenIndex.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            cleanName = prefix
+        }
+        return appViewModel.service.users.first { $0.name.localizedCaseInsensitiveContains(cleanName) }
+    }
+
+    private func findTrip(for notification: AppNotification) -> Trip? {
+        let trips = appViewModel.service.trips
+        for trip in trips {
+            if notification.message.localizedCaseInsensitiveContains(trip.origin) ||
+               notification.message.localizedCaseInsensitiveContains(trip.destination) {
+                return trip
+            }
+        }
+        return nil
     }
 
     private func color(for category: NotificationCategory) -> Color {
