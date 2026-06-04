@@ -140,8 +140,12 @@ final class MockDataService {
             let assignedVehicle = vehicles.first { $0.assignedDriverID == driverID }
             users[index].assignedVehicleID = assignedVehicle?.id
         }
-        if let docs = try? await SupabaseService.shared.fetchDocuments() {
+        do {
+            let docs = try await SupabaseService.shared.fetchDocuments()
             self.documents = docs
+            print("[Sync] Successfully fetched \(docs.count) documents from Supabase.")
+        } catch {
+            print("[Sync ERROR] Failed to fetch documents from Supabase: \(error)")
         }
         if let tripsList = try? await SupabaseService.shared.fetchTrips() {
             self.trips = tripsList
@@ -509,6 +513,21 @@ final class MockDataService {
             (linkedWO != nil && $0.workOrderID == linkedWO!.id)
         }
         .sorted { $0.timestamp < $1.timestamp }
+    }
+
+    func markChatMessagesRead(between userA: UUID, and userB: UUID) {
+        for index in chatMessages.indices {
+            let msg = chatMessages[index]
+            if msg.receiverID == userA && msg.senderID == userB && !msg.isRead {
+                chatMessages[index].isRead = true
+                if SupabaseConfig.isConfigured {
+                    let updated = chatMessages[index]
+                    Task {
+                        try? await SupabaseService.shared.updateChatMessage(updated)
+                    }
+                }
+            }
+        }
     }
 
     func todayInspection(for driverID: UUID) -> InspectionRecord? {
@@ -924,17 +943,15 @@ final class MockDataService {
         }
     }
 
-    func addVehicle(_ vehicle: Vehicle) {
+    func addVehicle(_ vehicle: Vehicle) async {
         vehicles.insert(vehicle, at: 0)
         
         if SupabaseConfig.isConfigured {
-            Task {
-                do {
-                    try await SupabaseService.shared.addVehicle(vehicle)
-                    print("[Supabase] Vehicle successfully inserted: \(vehicle.displayName) (\(vehicle.plateNumber))")
-                } catch {
-                    print("[Supabase ERROR] Failed to insert vehicle: \(error)")
-                }
+            do {
+                try await SupabaseService.shared.addVehicle(vehicle)
+                print("[Supabase] Vehicle successfully inserted: \(vehicle.displayName) (\(vehicle.plateNumber))")
+            } catch {
+                print("[Supabase ERROR] Failed to insert vehicle: \(error)")
             }
         }
     }
@@ -1003,22 +1020,18 @@ final class MockDataService {
         }
     }
 
-    func addDocument(vehicleID: UUID, type: DocumentType, number: String, expiryDate: Date, imageUrl: String? = nil) {
+    func addDocument(vehicleID: UUID, type: DocumentType, number: String, expiryDate: Date, imageUrl: String? = nil) async {
         if let index = documents.firstIndex(where: { $0.vehicleID == vehicleID && $0.type == type }) {
             documents[index].documentNumber = number
             documents[index].expiryDate = expiryDate
-            if let imgUrl = imageUrl {
-                documents[index].imageUrl = imgUrl
-            }
+            documents[index].imageUrl = imageUrl
             let doc = documents[index]
             if SupabaseConfig.isConfigured {
-                Task {
-                    do {
-                        try await SupabaseService.shared.updateDocument(doc)
-                        print("[Supabase] Document successfully updated: \(doc.type.rawValue) -> image_url: \(doc.imageUrl ?? "nil")")
-                    } catch {
-                        print("[Supabase ERROR] Failed to update document: \(error)")
-                    }
+                do {
+                    try await SupabaseService.shared.updateDocument(doc)
+                    print("[Supabase] Document successfully updated: \(doc.type.rawValue) -> image_url: \(doc.imageUrl ?? "nil")")
+                } catch {
+                    print("[Supabase ERROR] Failed to update document: \(error)")
                 }
             }
         } else {
@@ -1034,13 +1047,11 @@ final class MockDataService {
             documents.insert(document, at: 0)
             
             if SupabaseConfig.isConfigured {
-                Task {
-                    do {
-                        try await SupabaseService.shared.addDocument(document)
-                        print("[Supabase] Document successfully inserted: \(document.type.rawValue) -> image_url: \(document.imageUrl ?? "nil")")
-                    } catch {
-                        print("[Supabase ERROR] Failed to insert document: \(error)")
-                    }
+                do {
+                    try await SupabaseService.shared.addDocument(document)
+                    print("[Supabase] Document successfully inserted: \(document.type.rawValue) -> image_url: \(document.imageUrl ?? "nil")")
+                } catch {
+                    print("[Supabase ERROR] Failed to insert document: \(error)")
                 }
             }
         }
@@ -1696,11 +1707,18 @@ final class MockDataService {
     func markNotificationRead(_ notification: AppNotification) {
         guard let index = notifications.firstIndex(where: { $0.id == notification.id }) else { return }
         notifications[index].isRead = true
-        
-        if SupabaseConfig.isConfigured {
-            let updated = notifications[index]
-            Task {
-                try? await SupabaseService.shared.updateNotification(updated)
+    }
+
+    func markAllNotificationsRead(for user: User?) {
+        guard let user else { return }
+        for index in notifications.indices {
+            let n = notifications[index]
+            let isVisible = n.userID == user.id ||
+                            n.roleTarget == user.role ||
+                            (n.userID == nil && n.roleTarget == nil)
+            
+            if isVisible && !n.isRead {
+                notifications[index].isRead = true
             }
         }
     }

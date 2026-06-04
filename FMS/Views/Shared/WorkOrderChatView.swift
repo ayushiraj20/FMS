@@ -139,9 +139,20 @@ struct WorkOrderChatView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(spacing: 14) {
-                            ForEach(messages) { msg in
-                                chatBubble(msg)
+                        LazyVStack(spacing: 4) {
+                            ForEach(0..<messages.count, id: \.self) { index in
+                                let msg = messages[index]
+                                let prevMessage = index > 0 ? messages[index - 1] : nil
+                                let nextMessage = index < messages.count - 1 ? messages[index + 1] : nil
+                                
+                                let showSenderInfo = msg.senderID != currentUser?.id &&
+                                    (prevMessage == nil || prevMessage?.senderID != msg.senderID || msg.timestamp.timeIntervalSince(prevMessage!.timestamp) > 60)
+                                
+                                let showTimestamp = nextMessage == nil || nextMessage?.senderID != msg.senderID || nextMessage!.timestamp.timeIntervalSince(msg.timestamp) > 60
+                                
+                                let isSameSenderAsNext = nextMessage != nil && nextMessage?.senderID == msg.senderID && nextMessage!.timestamp.timeIntervalSince(msg.timestamp) <= 60
+                                
+                                chatBubble(msg, showSenderInfo: showSenderInfo, showTimestamp: showTimestamp, isSameSenderAsNext: isSameSenderAsNext)
                                     .id(msg.id)
                             }
                         }
@@ -222,7 +233,7 @@ struct WorkOrderChatView: View {
         }
     }
     
-    private func chatBubble(_ message: ChatMessage) -> some View {
+    private func chatBubble(_ message: ChatMessage, showSenderInfo: Bool, showTimestamp: Bool, isSameSenderAsNext: Bool) -> some View {
         guard let currentUserID = currentUser?.id else { return AnyView(EmptyView()) }
         let isSent = message.senderID == currentUserID
         
@@ -235,12 +246,17 @@ struct WorkOrderChatView: View {
                 if isSent { Spacer(minLength: 60) }
                 
                 if !isSent {
-                    initialsAvatar(name: senderName, role: role)
-                        .padding(.bottom, 2)
+                    if showSenderInfo {
+                        initialsAvatar(name: senderName, role: role)
+                            .padding(.bottom, 2)
+                    } else {
+                        Color.clear
+                            .frame(width: 32, height: 32)
+                    }
                 }
                 
-                VStack(alignment: isSent ? .trailing : .leading, spacing: 4) {
-                    if !isSent {
+                VStack(alignment: isSent ? .trailing : .leading, spacing: 2) {
+                    if !isSent && showSenderInfo {
                         HStack(spacing: 6) {
                             Text(senderName)
                                 .font(.system(size: 12, weight: .bold))
@@ -249,6 +265,7 @@ struct WorkOrderChatView: View {
                             roleTag(role)
                         }
                         .padding(.horizontal, 4)
+                        .padding(.bottom, 2)
                     }
                     
                     Text(message.message)
@@ -261,14 +278,18 @@ struct WorkOrderChatView: View {
                                 .fill(isSent ? AppTheme.brand : AppTheme.surfaceSecondary)
                         )
                     
-                    Text(message.timestamp.formatted(date: .omitted, time: .shortened))
-                        .font(.system(size: 10))
-                        .foregroundStyle(AppTheme.textSecondary)
-                        .padding(.horizontal, 4)
+                    if showTimestamp {
+                        Text(message.timestamp.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 10))
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .padding(.horizontal, 4)
+                            .padding(.top, 2)
+                    }
                 }
                 
                 if !isSent { Spacer(minLength: 60) }
             }
+            .padding(.bottom, isSameSenderAsNext ? 0 : 8)
         )
     }
     

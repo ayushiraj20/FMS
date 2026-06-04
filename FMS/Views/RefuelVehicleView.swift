@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import PhotosUI
 
 struct RefuelVehicleView: View {
     @Environment(\.dismiss) private var dismiss
@@ -18,10 +17,7 @@ struct RefuelVehicleView: View {
 
     @State private var fuelVM: FuelViewModel
 
-    // PhotosPicker state
-    @State private var selectedPhotoItem: PhotosPickerItem? = nil
-    @State private var showSourcePicker = false
-    @State private var showPhotoLibrary = false
+    @State private var showReceiptCapture = false
     @State private var showFullScreenReceipt = false
 
     init(vehicleID: UUID, driverID: UUID, tripID: UUID?, repo: FuelRepository) {
@@ -37,6 +33,7 @@ struct RefuelVehicleView: View {
                 VStack(spacing: 20) {
                     headerSection
                     amountField
+                    litresField
                     odometerField
                     receiptSection
                     errorBanner
@@ -58,20 +55,18 @@ struct RefuelVehicleView: View {
             }
         }
         .presentationDetents([.large])
-        .photosPicker(
-            isPresented: $showPhotoLibrary,
-            selection: $selectedPhotoItem,
-            matching: .images
-        )
-        .onChange(of: selectedPhotoItem) { _, newItem in
-            Task {
-                guard let item = newItem else { return }
-                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-                if let uiImage = await loadUIImage(from: data) {
-                    let swiftUIImage = Image(uiImage: uiImage)
-                    fuelVM.setReceipt(data: data, image: swiftUIImage)
+        .sheet(isPresented: $showReceiptCapture) {
+            FuelReceiptView { image, ocrResult in
+                handleReceiptImage(image)
+
+                if fuelVM.amountText.isEmpty, let amount = ocrResult?.amount, !amount.isEmpty {
+                    fuelVM.amountText = amount
+                }
+                if fuelVM.litresText.isEmpty, let litres = ocrResult?.litres, !litres.isEmpty {
+                    fuelVM.litresText = litres
                 }
             }
+            .environment(appViewModel)
         }
         .alert("Fuel Logged!", isPresented: $fuelVM.submissionSuccess) {
             Button("Done") { dismiss() }
@@ -80,11 +75,10 @@ struct RefuelVehicleView: View {
         }
     }
 
-    // MARK: - Load Image Helper
-
     @MainActor
-    private func loadUIImage(from data: Data) async -> UIImage? {
-        UIImage(data: data)
+    private func handleReceiptImage(_ image: UIImage) {
+        guard let data = image.jpegData(compressionQuality: 0.85) else { return }
+        fuelVM.setReceipt(data: data, image: Image(uiImage: image))
     }
 
     // MARK: - Header
@@ -119,6 +113,30 @@ struct RefuelVehicleView: View {
                 TextField("0", text: $fuelVM.amountText)
                     .keyboardType(.decimalPad)
                     .font(.system(size: 22, weight: .bold))
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color(uiColor: .secondarySystemBackground))
+            )
+        }
+    }
+
+    // MARK: - Litres Field
+
+    private var litresField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Fuel Filled (Litres)")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            HStack {
+                TextField("e.g. 42.5", text: $fuelVM.litresText)
+                    .keyboardType(.decimalPad)
+                    .font(.system(size: 22, weight: .bold))
+                Text("L")
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: 16, weight: .medium))
             }
             .padding(16)
             .background(
@@ -167,39 +185,48 @@ struct RefuelVehicleView: View {
 
             if fuelVM.receiptUploadSucceeded, let image = fuelVM.receiptImage {
                 // Preview
-                ZStack(alignment: .topTrailing) {
-                    ZStack(alignment: .bottomTrailing) {
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxHeight: 200)
-                            .clipShape(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            )
-                        
-                        Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.white.opacity(0.85))
-                            .background(Circle().fill(.black.opacity(0.35)))
-                            .padding(10)
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        showFullScreenReceipt = true
+                VStack(alignment: .leading, spacing: 12) {
+                    ZStack(alignment: .topTrailing) {
+                        ZStack(alignment: .bottomTrailing) {
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxHeight: 200)
+                                .clipShape(
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                )
+
+                            Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.white.opacity(0.85))
+                                .background(Circle().fill(.black.opacity(0.35)))
+                                .padding(10)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            showFullScreenReceipt = true
+                        }
+
+                        Button {
+                            fuelVM.clearReceipt()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 26))
+                                .foregroundStyle(.red)
+                                .background(
+                                    Circle().fill(Color(uiColor: .systemBackground))
+                                )
+                        }
+                        .padding(8)
                     }
 
                     Button {
-                        fuelVM.clearReceipt()
-                        selectedPhotoItem = nil
+                        showReceiptCapture = true
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 26))
-                            .foregroundStyle(.red)
-                            .background(
-                                Circle().fill(Color(uiColor: .systemBackground))
-                            )
+                        Label("Retake or Upload Different Receipt", systemImage: "camera.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(DriverTheme.accent)
                     }
-                    .padding(8)
                 }
 
                 Label("Receipt captured", systemImage: "checkmark.circle.fill")
@@ -207,16 +234,15 @@ struct RefuelVehicleView: View {
                     .foregroundStyle(.green)
 
             } else {
-                // Upload CTA
                 Button {
-                    showPhotoLibrary = true
+                    showReceiptCapture = true
                 } label: {
                     VStack(spacing: 10) {
                         Image(systemName: "camera.fill")
                             .font(.system(size: 28))
-                        Text("Upload Receipt")
+                        Text("Add Receipt")
                             .font(.system(size: 16, weight: .semibold))
-                        Text("Tap to choose from Photo Library")
+                        Text("Open receipt capture to take or upload a photo")
                             .font(.system(size: 13))
                             .foregroundStyle(.secondary)
                     }

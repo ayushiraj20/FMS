@@ -28,15 +28,29 @@ struct VehicleManagementView: View {
     var body: some View {
         @Bindable var bindableViewModel = viewModel
         ZStack(alignment: .bottomTrailing) {
-            List {
-                // Section 1: Fleet Status Dashboard
-                Section {
-                    HStack(alignment: .center, spacing: 16) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Fleet Readiness")
-                                .font(.footnote.weight(.medium))
-                                .foregroundStyle(.secondary)
-                            
+            VStack(spacing: 0) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        bubbleFilterChip("All", status: nil)
+                        bubbleFilterChip("Active", status: .active)
+                        bubbleFilterChip("Transit", status: .inService)
+                        bubbleFilterChip("Idle", status: .idle)
+                        bubbleFilterChip("Service", status: .outOfService)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                }
+                .background(AppTheme.background)
+                
+                List {
+                    // Section 1: Fleet Status Dashboard
+                    Section {
+                        HStack(alignment: .center, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Fleet Readiness")
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(.secondary)
+                                
                             HStack(spacing: 8) {
                                 Circle()
                                     .fill(viewModel.readinessScore > 80 ? Color.green : Color.orange)
@@ -45,140 +59,127 @@ struct VehicleManagementView: View {
                                     .font(.title2.bold())
                                     .foregroundStyle(.primary)
                             }
+                            }
+                            
+                            Spacer()
+                            
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text("\(viewModel.activeCount + viewModel.inTransitCount) Active")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Color.blue)
+                                Text("\(viewModel.liveTrackingCount) Live Tracked")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        .padding(.vertical, 4)
                         
-                        Spacer()
-                        
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text("\(viewModel.activeCount + viewModel.inTransitCount) Active")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Color.blue)
-                            Text("\(viewModel.liveTrackingCount) Live Tracked")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                        HStack(spacing: 0) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Idle")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("\(viewModel.idleCount)")
+                                    .font(.headline)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            Divider()
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Service")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("\(viewModel.maintenanceCount)")
+                                    .font(.headline)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, 16)
+                            
+                            Divider()
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Avg Fuel")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("\(viewModel.averageFuelLevel)%")
+                                    .font(.headline)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, 16)
                         }
+                        .padding(.vertical, 4)
+                    } header: {
+                        Text("Fleet Summary")
                     }
-                    .padding(.vertical, 4)
                     
-                    HStack(spacing: 0) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Idle")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(viewModel.idleCount)")
-                                .font(.headline)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        
-                        Divider()
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Service")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(viewModel.maintenanceCount)")
-                                .font(.headline)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 16)
-                        
-                        Divider()
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Avg Fuel")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(viewModel.averageFuelLevel)%")
-                                .font(.headline)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 16)
-                    }
-                    .padding(.vertical, 4)
-                } header: {
-                    Text("Fleet Summary")
-                }
-                
-                // Section 2: Segmented Status Filter
-                Section {
-                    Picker("Status Filter", selection: $bindableViewModel.selectedStatusFilter) {
-                        Text("All").tag(nil as VehicleStatus?)
-                        Text("Active").tag(VehicleStatus.active as VehicleStatus?)
-                        Text("Transit").tag(VehicleStatus.inService as VehicleStatus?)
-                        Text("Idle").tag(VehicleStatus.idle as VehicleStatus?)
-                        Text("Service").tag(VehicleStatus.outOfService as VehicleStatus?)
-                    }
-                    .pickerStyle(.segmented)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
-                }
-                
-                // Section 3: Vehicles List
-                Section {
-                    if displayedVehicles.isEmpty {
-                        VStack(spacing: 8) {
-                            Image(systemName: "car.2")
-                                .font(.largeTitle)
-                                .foregroundStyle(.secondary)
-                            Text("No Matches Found")
-                                .font(.headline)
-                            Text("Try adjusting your filters or search text.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                        .listRowBackground(Color.clear)
-                    } else {
-                        ForEach(displayedVehicles) { vehicle in
-                            NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id).hideTabBarOnPush()) {
-                                HStack(spacing: 16) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(vehicle.status.dashboardColor.opacity(0.12))
-                                            .frame(width: 38, height: 38)
-                                        Image(systemName: vehicle.status == .outOfService ? "wrench.and.screwdriver.fill" : "car.side.fill")
-                                            .font(.subheadline)
+                    // Section 3: Vehicles List
+                    Section {
+                        if displayedVehicles.isEmpty {
+                            VStack(spacing: 8) {
+                                Image(systemName: "car.2")
+                                    .font(.largeTitle)
+                                    .foregroundStyle(.secondary)
+                                Text("No Matches Found")
+                                    .font(.headline)
+                                Text("Try adjusting your filters or search text.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
+                            .listRowBackground(Color.clear)
+                        } else {
+                            ForEach(displayedVehicles) { vehicle in
+                                NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id).hideTabBarOnPush()) {
+                                    HStack(spacing: 16) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(vehicle.status.dashboardColor.opacity(0.12))
+                                                .frame(width: 38, height: 38)
+                                            Image(systemName: vehicle.status == .outOfService ? "wrench.and.screwdriver.fill" : "car.side.fill")
+                                                .font(.subheadline)
+                                                .foregroundStyle(vehicle.status.dashboardColor)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(vehicle.displayName)
+                                                .font(.body.weight(.semibold))
+                                                .foregroundStyle(.primary)
+                                            Text(vehicle.plateNumber)
+                                                .font(.footnote)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Text(vehicle.status.displayName)
+                                            .font(.caption2.weight(.bold))
                                             .foregroundStyle(vehicle.status.dashboardColor)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(vehicle.status.dashboardColor.opacity(0.12))
+                                            .clipShape(Capsule())
                                     }
-                                    
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(vehicle.displayName)
-                                            .font(.body.weight(.semibold))
-                                            .foregroundStyle(.primary)
-                                        Text(vehicle.plateNumber)
-                                            .font(.footnote)
-                                            .foregroundStyle(.secondary)
+                                }
+                                .contextMenu {
+                                    Button { viewModel.prepareForEdit(vehicle) } label: {
+                                        Label("Edit", systemImage: "pencil")
                                     }
-                                    
-                                    Spacer()
-                                    
-                                    Text(vehicle.status.rawValue.capitalized)
-                                        .font(.caption2.weight(.bold))
-                                        .foregroundStyle(vehicle.status.dashboardColor)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(vehicle.status.dashboardColor.opacity(0.12))
-                                        .clipShape(Capsule())
-                                }
-                            }
-                            .contextMenu {
-                                Button { viewModel.prepareForEdit(vehicle) } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                Button(role: .destructive) { viewModel.confirmDelete(vehicle) } label: {
-                                    Label("Delete", systemImage: "trash")
+                                    Button(role: .destructive) { viewModel.confirmDelete(vehicle) } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
                             }
                         }
+                    } header: {
+                        Text("Vehicles (\(displayedVehicles.count))")
                     }
-                } header: {
-                    Text("Vehicles (\(displayedVehicles.count))")
                 }
-            }
-            .listStyle(.insetGrouped)
-            .refreshable {
-                await viewModel.refresh()
+                .listStyle(.insetGrouped)
+                .refreshable {
+                    await viewModel.refresh()
+                }
             }
             .searchable(text: $bindableViewModel.searchText, prompt: "Search fleet...")
 
@@ -381,6 +382,29 @@ struct VehicleManagementView: View {
         .padding(.bottom, 24)
     }
 
+    private func bubbleFilterChip(_ title: String, status: VehicleStatus?) -> some View {
+        let count: Int
+        let icon: String
+        switch status {
+        case .none:
+            count = viewModel.allCount
+            icon = "car.2.fill"
+        case .active:
+            count = viewModel.activeCount
+            icon = "checkmark.circle.fill"
+        case .inService:
+            count = viewModel.inTransitCount
+            icon = "arrow.triangle.turn.up.right.circle.fill"
+        case .idle:
+            count = viewModel.idleCount
+            icon = "pause.circle.fill"
+        case .outOfService:
+            count = viewModel.maintenanceCount
+            icon = "wrench.and.screwdriver.fill"
+        }
+        return filterChip(title: title, count: count, status: status, icon: icon)
+    }
+
 // Removed unused resultLabel.
 }
 
@@ -412,7 +436,7 @@ private struct VehicleFormSheet: View {
         return !cleanOdo.isEmpty && Int(cleanOdo) != nil
     }
 
-    private var canSave: Bool { step1Valid && step2Valid }
+    private var canSave: Bool { step1Valid && step2Valid && viewModel.uploadingDocuments.isEmpty }
 
     private let stepTitles = ["Identity", "Operations", "Compliance"]
 
@@ -532,12 +556,11 @@ private struct VehicleFormSheet: View {
                             Image(systemName: "chevron.left").font(.system(size: 12, weight: .semibold))
                             Text("Back").font(.system(size: 15, weight: .semibold))
                         }
-                        .foregroundStyle(VehicleStudioTheme.accent)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(VehicleStudioTheme.accent.opacity(0.08)))
                     }
-                    .buttonStyle(VehiclePressableStyle())
+                    .buttonStyle(.bordered)
+                    .tint(VehicleStudioTheme.accent)
+                    .controlSize(.large)
                 }
 
                 if currentStep < 2 {
@@ -549,15 +572,11 @@ private struct VehicleFormSheet: View {
                             Text("Continue").font(.system(size: 15, weight: .semibold))
                             Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
                         }
-                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(stepInvalid ? Color(UIColor.systemGray4) : VehicleStudioTheme.accent)
-                        )
                     }
-                    .buttonStyle(VehiclePressableStyle())
+                    .buttonStyle(.borderedProminent)
+                    .tint(VehicleStudioTheme.accent)
+                    .controlSize(.large)
                     .disabled(stepInvalid)
                 } else {
                     Button {
@@ -570,15 +589,11 @@ private struct VehicleFormSheet: View {
                             Text(isEditing ? "Save Changes" : "Add Vehicle")
                                 .font(.system(size: 15, weight: .semibold))
                         }
-                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(canSave ? VehicleStudioTheme.accent : Color(UIColor.systemGray4))
-                        )
                     }
-                    .buttonStyle(VehiclePressableStyle())
+                    .buttonStyle(.borderedProminent)
+                    .tint(VehicleStudioTheme.accent)
+                    .controlSize(.large)
                     .disabled(!canSave)
                 }
             }
@@ -645,7 +660,6 @@ private struct VehicleFormSheet: View {
 
             ForEach(DocumentType.allCases) { docType in
                 let number = viewModel.documentNumbers[docType] ?? ""
-                let expiry = viewModel.documentExpiries[docType] ?? Date.now.addingTimeInterval(86400 * 120)
                 let hasDoc = !number.trimmingCharacters(in: .whitespaces).isEmpty
 
                 Section {
@@ -706,27 +720,23 @@ private struct VehicleFormSheet: View {
                     }
                     .buttonStyle(.plain)
 
-                    // Expiry status
-                    let daysLeft = Calendar.current.dateComponents([.day], from: .now, to: expiry).day ?? 0
-                    HStack(spacing: 5) {
-                        if daysLeft < 0 {
-                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red).font(.caption2)
-                            Text("Expired \(-daysLeft)d ago").font(.caption).foregroundStyle(.red)
-                        } else if daysLeft <= 30 {
-                            Image(systemName: "clock.badge.exclamationmark").foregroundStyle(.orange).font(.caption2)
-                            Text("Expires in \(daysLeft) days").font(.caption).foregroundStyle(.orange)
-                        } else {
-                            Image(systemName: "checkmark.shield.fill").foregroundStyle(.green).font(.caption2)
-                            Text("Valid · \(daysLeft) days remaining").font(.caption).foregroundStyle(.green)
-                        }
-                        Spacer()
-                        if hasDoc {
-                            Image(systemName: "checkmark.circle.fill")
+                    if let ocrStatus = viewModel.documentOCRStatus[docType], !ocrStatus.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "text.viewfinder")
                                 .font(.caption)
-                                .foregroundStyle(VehicleStudioTheme.success)
+                                .foregroundStyle(VehicleStudioTheme.accent)
+                            Text(ocrStatus)
+                                .font(.caption)
+                                .foregroundStyle(VehicleStudioTheme.secondary)
+                            Spacer()
+                            if hasDoc {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(VehicleStudioTheme.success)
+                            }
                         }
+                        .listRowSeparator(.hidden)
                     }
-                    .listRowSeparator(.hidden)
                 } header: {
                     Label(docType.rawValue, systemImage: docTypeIcon(docType))
                 }
@@ -900,7 +910,7 @@ private struct VehicleDetailView: View {
                     .padding(.vertical, 4)
                     
                     LabeledContent("Status") {
-                        Text(vehicle.status.rawValue.capitalized)
+                        Text(vehicle.status.displayName)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(vehicle.status.dashboardColor)
                     }
@@ -915,7 +925,7 @@ private struct VehicleDetailView: View {
                 // Section 2: Metrics
                 Section("Metrics") {
                     LabeledContent {
-                        Text("\(vehicle.fuelLevel)%")
+                        Text(vehicle.fuelDisplayString)
                             .foregroundStyle(fuelTint(for: vehicle.fuelLevel))
                     } label: {
                         Label("Fuel Level", systemImage: "fuelpump.fill")
@@ -1052,6 +1062,9 @@ private struct VehicleDetailView: View {
                 DocumentPreviewSheet(document: document, viewModel: viewModel)
                     .registersSheetPresentation()
             }
+            .task {
+                await viewModel.refresh()
+            }
             .sheet(item: $activeSheet) { sheet in
                 NavigationStack {
                     ZStack {
@@ -1135,7 +1148,7 @@ private struct VehicleDetailView: View {
                 }
 
                 HStack(spacing: 8) {
-                    VehicleStatusBadge(title: vehicle.status.rawValue, tint: vehicle.status.dashboardColor, icon: vehicle.status.iconName)
+                    VehicleStatusBadge(title: vehicle.status.displayName, tint: vehicle.status.dashboardColor, icon: vehicle.status.iconName)
                     VehicleStatusBadge(
                         title: viewModel.isLiveTracked(vehicle) ? "Live Tracking" : "Standby",
                         tint: viewModel.isLiveTracked(vehicle) ? Color.blue : Color(.secondaryLabel),
@@ -1192,7 +1205,7 @@ private struct VehicleDetailView: View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
             VehicleMetricTile(
                 title: "Fuel",
-                value: "\(vehicle.fuelLevel)%",
+                value: vehicle.fuelDisplayString,
                 caption: "Reserve",
                 tint: fuelTint(for: vehicle.fuelLevel),
                 icon: "fuelpump.fill"
@@ -1446,9 +1459,12 @@ private struct DocumentUploadSheet: View {
                         viewModel.saveDocument(for: vehicleID)
                         dismiss()
                     }
-                    .disabled(DocumentType.allCases.contains { type in
-                        (viewModel.documentNumbers[type] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
-                    })
+                    .disabled(
+                        !viewModel.uploadingDocuments.isEmpty ||
+                        DocumentType.allCases.allSatisfy { type in
+                            (viewModel.documentNumbers[type] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
+                        }
+                    )
                 }
             }
             .photosPicker(isPresented: $viewModel.isPresentingImagePicker, selection: $selectedPhotoItem, matching: .images)
@@ -1562,6 +1578,8 @@ private struct DocumentUploadSheet: View {
                                 withAnimation {
                                     viewModel.documentImages[type] = nil
                                     viewModel.documentImageURLs[type] = nil
+                                    viewModel.documentOCRStatus[type] = nil
+                                    viewModel.documentResolvedTypes[type] = type
                                 }
                             } label: {
                                 Label("Remove", systemImage: "trash")
@@ -1592,6 +1610,12 @@ private struct DocumentUploadSheet: View {
                         }
                         
                         Spacer()
+                    }
+
+                    if let ocrStatus = viewModel.documentOCRStatus[type], !ocrStatus.isEmpty {
+                        Label(ocrStatus, systemImage: "text.viewfinder")
+                            .font(.caption)
+                            .foregroundStyle(VehicleStudioTheme.secondary)
                     }
                 }
             }
@@ -1871,7 +1895,7 @@ private struct VehicleRowView: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 6) {
-                Text(vehicle.status.rawValue)
+                Text(vehicle.status.displayName)
                     .font(.caption2.weight(.bold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)

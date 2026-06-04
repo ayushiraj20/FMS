@@ -13,6 +13,9 @@ struct MaintenanceTabContentView: View {
 
     @State private var dutyFilter: DutyFilter = .all
     @State private var showAddSheet = false
+    @State private var memberToEdit: User? = nil
+    @State private var memberToDelete: User? = nil
+    @State private var showDeleteConfirmation = false
 
     private var maintenancePersonnel: [User] {
         appViewModel.service.users.filter { $0.role == .maintenance }
@@ -56,6 +59,19 @@ struct MaintenanceTabContentView: View {
                                     maintenanceMemberCard(member)
                                 }
                                 .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button {
+                                        memberToEdit = member
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                    Button(role: .destructive) {
+                                        memberToDelete = member
+                                        showDeleteConfirmation = true
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
                     }
@@ -77,6 +93,29 @@ struct MaintenanceTabContentView: View {
             AddMaintenanceMemberSheet(service: appViewModel.service,
                                      orgID: appViewModel.currentOrganization?.id)
                 .registersSheetPresentation()
+        }
+        .sheet(item: $memberToEdit) { member in
+            EditMaintenanceMemberSheet(member: member, service: appViewModel.service)
+                .registersSheetPresentation()
+        }
+        .confirmationDialog(
+            "Delete Technician",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let m = memberToDelete {
+                    appViewModel.service.deleteUser(m)
+                }
+                memberToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                memberToDelete = nil
+            }
+        } message: {
+            if let m = memberToDelete {
+                Text("Are you sure you want to delete \(m.name)? This action cannot be undone.")
+            }
         }
     }
 
@@ -287,9 +326,50 @@ struct MaintenanceMemberDetailView: View {
                     }
                 }
 
+                NavigationLink {
+                    DriverManagerChatView(driverID: currentMember.id)
+                        .hideTabBarOnPush()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "message.fill")
+                            .font(.title3)
+                            .foregroundStyle(.white)
+                            .frame(width: 42, height: 42)
+                            .background(AppTheme.brand, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Message Technician")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text("Open direct dispatch chat")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
+                    }
+                    .padding(16)
+                    .background(AppTheme.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(AppTheme.border, lineWidth: 0.5)
+                    )
+                }
+                .buttonStyle(.plain)
+
                 // Active Work Orders
                 if !isDeleted {
                     activeWorkOrdersSection
+                }
+
+                // Completed Work Orders
+                if !isDeleted {
+                    completedWorkOrdersSection
                 }
             }
             .padding(.horizontal, 20)
@@ -303,19 +383,15 @@ struct MaintenanceMemberDetailView: View {
                 Button {
                     showEditSheet = true
                 } label: {
-                    Image(systemName: "pencil.circle.fill")
-                        .symbolRenderingMode(.hierarchical)
+                    Image(systemName: "pencil")
                         .foregroundStyle(AppTheme.brand)
-                        .font(.title3)
                 }
 
                 Button(role: .destructive) {
                     showDeleteConfirmation = true
                 } label: {
-                    Image(systemName: "trash.circle.fill")
-                        .symbolRenderingMode(.hierarchical)
+                    Image(systemName: "trash")
                         .foregroundStyle(AppTheme.error)
-                        .font(.title3)
                 }
             }
         }
@@ -401,6 +477,70 @@ struct MaintenanceMemberDetailView: View {
                                 text: order.status.rawValue,
                                 color: order.status == .inProgress ? AppTheme.brand : AppTheme.warning
                             )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var completedWorkOrdersSection: some View {
+        let completedOrders = service.workOrders.filter {
+            $0.assignedMaintenanceID == member.id && $0.status == .completed
+        }
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("COMPLETED WORK ORDERS")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(AppTheme.textSecondary)
+                .padding(.horizontal, 4)
+
+            if completedOrders.isEmpty {
+                EmptyStateView(
+                    icon: "clock.arrow.circlepath",
+                    title: "No past orders",
+                    message: "Completed work orders will appear here."
+                )
+            } else {
+                ForEach(completedOrders) { order in
+                    let vehicle = service.vehicles.first { $0.id == order.vehicleID }
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(order.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                Spacer()
+                                priorityBadge(order.priority)
+                            }
+                            if let v = vehicle {
+                                Label(v.displayName + " · " + v.plateNumber, systemImage: "truck.box.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            Text(order.details)
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .lineLimit(2)
+                            
+                            if !order.repairSummary.isEmpty {
+                                Text("Summary: \(order.repairSummary)")
+                                    .font(.caption.italic())
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            
+                            HStack {
+                                StatusBadgeView(
+                                    text: order.status.rawValue,
+                                    color: AppTheme.success
+                                )
+                                Spacer()
+                                if let completedDate = order.completedDate {
+                                    Text(completedDate, style: .date)
+                                        .font(.caption2)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                }
+                            }
                         }
                     }
                 }

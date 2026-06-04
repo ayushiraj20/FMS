@@ -853,6 +853,11 @@ final class AppViewModel {
         // Always filter by the current user's UUID — never show unread count for other users
         return notifications.filter { !$0.isRead }.count
     }
+
+    var unreadChatMessagesCount: Int {
+        guard let currentUser else { return 0 }
+        return service.chatMessages.filter { $0.receiverID == currentUser.id && !$0.isRead }.count
+    }
     var currentRole: UserRole? {
 
         currentUser?.role
@@ -909,7 +914,40 @@ final class AppViewModel {
         service.markNotificationRead(notification)
         
         if SupabaseConfig.isConfigured {
-            try? await supabase.updateNotification(notification)
+            do {
+                try await supabase.updateNotification(notification)
+            } catch {
+                print("[Notifications] Failed to update notification in Supabase: \(error)")
+            }
+        }
+    }
+
+    func markAllNotificationsAsRead() async {
+        guard let currentUser else { return }
+        let unread = notifications.filter { !$0.isRead }
+        guard !unread.isEmpty else { return }
+        
+        for index in notifications.indices {
+            if !notifications[index].isRead {
+                notifications[index].isRead = true
+            }
+        }
+        service.markAllNotificationsRead(for: currentUser)
+        
+        if SupabaseConfig.isConfigured {
+            await withTaskGroup(of: Void.self) { group in
+                for n in unread {
+                    var updated = n
+                    updated.isRead = true
+                    group.addTask {
+                        do {
+                            try await self.supabase.updateNotification(updated)
+                        } catch {
+                            print("[Notifications] Failed to update notification \(updated.id) in Supabase: \(error)")
+                        }
+                    }
+                }
+            }
         }
     }
 }

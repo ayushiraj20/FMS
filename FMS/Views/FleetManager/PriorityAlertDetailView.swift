@@ -252,7 +252,7 @@ struct PriorityAlertDetailView: View {
                     driverTitle: driver?.title ?? "Driver",
                     vehicleName: vehicle?.displayName ?? "Vehicle",
                     vehiclePlate: alert.vehicleNumber,
-                    vehicleStatus: vehicle?.status.rawValue ?? "Active",
+                    vehicleStatus: vehicle?.status.displayName ?? "Active",
                     vehicleOdometer: "\(vehicle?.odometer ?? 0) km",
                     vehicleFuel: "\(vehicle?.fuelLevel ?? 0)%",
                     extraDetails: [
@@ -291,7 +291,7 @@ struct PriorityAlertDetailView: View {
                         driverTitle: driver?.title ?? "Driver",
                         vehicleName: vehicle?.displayName ?? "Unknown",
                         vehiclePlate: vehicle?.plateNumber ?? "—",
-                        vehicleStatus: vehicle?.status.rawValue ?? "Active",
+                        vehicleStatus: vehicle?.status.displayName ?? "Active",
                         vehicleOdometer: "\(vehicle?.odometer ?? 0) km",
                         vehicleFuel: "\(vehicle?.fuelLevel ?? 0)%",
                         extraDetails: [
@@ -326,7 +326,7 @@ struct PriorityAlertDetailView: View {
                         driverTitle: "Driver",
                         vehicleName: vehicle?.displayName ?? "Unknown",
                         vehiclePlate: vehicle?.plateNumber ?? "—",
-                        vehicleStatus: vehicle?.status.rawValue ?? "Active",
+                        vehicleStatus: vehicle?.status.displayName ?? "Active",
                         vehicleOdometer: "\(vehicle?.odometer ?? 0) km",
                         vehicleFuel: "\(vehicle?.fuelLevel ?? 0)%",
                         extraDetails: [
@@ -337,7 +337,6 @@ struct PriorityAlertDetailView: View {
                 }
 
         default:
-            // Off-Route, Geofence etc. have no backing model yet – show empty state
             return []
         }
     }}
@@ -575,8 +574,13 @@ struct AlertDetailSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Dismiss") {
+                    Button {
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(AppTheme.textSecondary)
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {

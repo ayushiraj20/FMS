@@ -94,11 +94,11 @@ struct TripRoutePlan: Identifiable, Codable {
         try container.encode(generatedAt, forKey: .generatedAt)
     }
 
-    private static func pair(from coordinate: CLLocationCoordinate2D) -> [Double] {
+    nonisolated private static func pair(from coordinate: CLLocationCoordinate2D) -> [Double] {
         [coordinate.latitude, coordinate.longitude]
     }
 
-    private static func coordinate(from pair: [Double]) -> CLLocationCoordinate2D {
+    nonisolated private static func coordinate(from pair: [Double]) -> CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: pair[0], longitude: pair[1])
     }
 }

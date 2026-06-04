@@ -347,6 +347,14 @@ final class SupabaseService {
             .insert(message)
             .execute()
     }
+
+    func updateChatMessage(_ message: ChatMessage) async throws {
+        try await client
+            .from("chat_messages")
+            .update(message)
+            .eq("id", value: message.id)
+            .execute()
+    }
     
     // MARK: - SOS Alerts
     func fetchSOSAlerts() async throws -> [SOSAlert] {
@@ -654,7 +662,7 @@ final class SupabaseService {
     /// Enroll a new TOTP factor. Returns the factor ID, QR code data URI, secret, and OTP URI.
     func enrollMFA(friendlyName: String = "FMS Authenticator") async throws -> (factorID: String, qrCode: String, secret: String, uri: String) {
         let response = try await client.auth.mfa.enroll(
-            params: MFAEnrollParams(
+            params: MFATotpEnrollParams(
                 issuer: "FleetOS",
                 friendlyName: friendlyName
             )

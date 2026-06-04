@@ -77,12 +77,15 @@ struct LoginView: View {
                                 )
                                 .focused($focusedField, equals: .password)
 
-                                Button {
-                                    isShowingForgotPassword = true
-                                } label: {
-                                    Text("FORGOT?")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(AppTheme.brand)
+                                HStack {
+                                    Spacer()
+                                    Button {
+                                        isShowingForgotPassword = true
+                                    } label: {
+                                        Text("FORGOT?")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundStyle(AppTheme.brand)
+                                    }
                                 }
                             }
                             
@@ -125,7 +128,7 @@ struct LoginView: View {
                             .foregroundStyle(.white)
                             .padding(.vertical, 16)
                             .background(AppTheme.brand)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(Capsule())
                             .shadow(color: AppTheme.brand.opacity(0.3), radius: 8, x: 0, y: 4)
                             .disabled(appViewModel.isAuthenticating)
                         }
@@ -248,7 +251,7 @@ struct ForgotPasswordSheet: View {
                             .background(email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                         ? AppTheme.textSecondary
                                         : AppTheme.brand)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(Capsule())
                             .shadow(color: AppTheme.brand.opacity(0.3), radius: 8, x: 0, y: 4)
                             .disabled(email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
                         } else {
@@ -263,7 +266,7 @@ struct ForgotPasswordSheet: View {
                             .foregroundStyle(.white)
                             .padding(.vertical, 16)
                             .background(AppTheme.brand)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(Capsule())
                             .shadow(color: AppTheme.brand.opacity(0.3), radius: 8, x: 0, y: 4)
 
                             Button {
@@ -366,10 +369,10 @@ struct AuthTextField: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            Capsule()
                 .fill(AppTheme.surfaceSecondary)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    Capsule()
                         .stroke(isFocused ? AppTheme.brand : Color.clear, lineWidth: 1.5)
                 )
         )

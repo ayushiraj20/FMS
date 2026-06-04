@@ -6,6 +6,7 @@ import Supabase
 enum FuelServiceError: LocalizedError {
     case negativeAmount
     case zeroAmount
+    case invalidLitres
     case invalidOdometer(previous: Int)
     case receiptUploadFailed(String)
     case saveFailed(String)
@@ -16,6 +17,8 @@ enum FuelServiceError: LocalizedError {
             return "Amount cannot be negative."
         case .zeroAmount:
             return "Amount cannot be zero."
+        case .invalidLitres:
+            return "Litres must be greater than zero."
         case .invalidOdometer(let prev):
             return "Odometer must be greater than last recorded reading (\(prev) km)."
         case .receiptUploadFailed(let msg):
@@ -39,9 +42,10 @@ actor FuelService {
 
     // MARK: - Validate
 
-    func validate(amount: Double, odometer: Int, previousOdometer: Int) throws {
+    func validate(amount: Double, litres: Double, odometer: Int, previousOdometer: Int) throws {
         guard amount >= 0 else { throw FuelServiceError.negativeAmount }
         guard amount > 0  else { throw FuelServiceError.zeroAmount }
+        guard litres > 0 else { throw FuelServiceError.invalidLitres }
         guard odometer > previousOdometer else {
             throw FuelServiceError.invalidOdometer(previous: previousOdometer)
         }

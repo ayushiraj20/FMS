@@ -310,6 +310,7 @@ create table if not exists "fuelTransactions" (
   "driverID" uuid references profiles(id) on delete set null,
   "tripID" uuid references trips(id) on delete set null,
   "manualAmount" numeric(12,2) null,
+  "litres" numeric(12,3) null,
   "odometerReading" integer null,
   "receiptImageUrl" text null,
   "timestamp" timestamptz not null default now(),
@@ -563,6 +564,7 @@ create table if not exists "fuelTransactions" (
   "driverID" uuid references profiles(id) on delete set null,
   "tripID" uuid references trips(id) on delete set null,
   "manualAmount" numeric(12,2) null,
+  "litres" numeric(12,3) null,
   "odometerReading" integer null,
   "receiptImageUrl" text null,
   "timestamp" timestamptz not null default now(),
@@ -573,6 +575,9 @@ create table if not exists "fuelTransactions" (
 
 create index if not exists idx_fuel_transactions_vehicle_id on "fuelTransactions"("vehicleID");
 create index if not exists idx_fuel_transactions_driver_id on "fuelTransactions"("driverID");
+
+alter table "fuelTransactions"
+  add column if not exists "litres" numeric(12,3) null;
 
 -- Migration 6: Add title and images columns to defect_reports table (if not already present)
 alter table defect_reports
@@ -617,7 +622,7 @@ alter table inspection_items   enable row level security;
 alter table defect_reports     enable row level security;
 alter table work_orders        enable row level security;
 alter table maintenance_schedules enable row level security;
-alter table notifications      enable row level security;
+alter table notifications      disable row level security;
 alter table chat_messages      enable row level security;
 alter table broadcast_messages enable row level security;
 alter table "fuelTransactions" enable row level security;
@@ -727,13 +732,18 @@ create policy "Allow authenticated write maintenance_schedules"
   on maintenance_schedules for all to authenticated using (true) with check (true);
 
 -- ── NOTIFICATIONS ────────────────────────────────────────────────────────────
-drop policy if exists "Allow authenticated read notifications" on notifications;
-create policy "Allow authenticated read notifications"
-  on notifications for select to authenticated using (true);
+-- Disable Row Level Security
+alter table notifications disable row level security;
 
+-- Drop old broad policies if they exist
+drop policy if exists "Allow authenticated read notifications" on notifications;
 drop policy if exists "Allow authenticated write notifications" on notifications;
-create policy "Allow authenticated write notifications"
-  on notifications for all to authenticated using (true) with check (true);
+drop policy if exists "Users can read their own, role-based, or global notifications" on notifications;
+drop policy if exists "Users can update their own notifications" on notifications;
+drop policy if exists "Users can update their own, role-based, or global notifications" on notifications;
+drop policy if exists "Allow authenticated insert notifications" on notifications;
+drop policy if exists "Users can delete their own notifications" on notifications;
+
 
 -- ── CHAT MESSAGES ────────────────────────────────────────────────────────────
 drop policy if exists "Allow authenticated read chat_messages" on chat_messages;
@@ -857,4 +867,3 @@ alter table vehicles
 
 alter table vehicle_documents
   add column if not exists image_url text null;
-
