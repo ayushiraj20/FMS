@@ -405,10 +405,6 @@ struct MaintenanceWorkOrdersView: View {
         
         private var vehicle: Vehicle? { appViewModel.service.vehicle(for: workOrder.vehicleID) }
         private var accent: Color { Color(hex: "#FF9500") }
-        private var dangerAccent: Color { Color(hex: "#D70B1B") }
-        private var cardBackground: Color { Color.dynamic(light: "#FFFFFF", dark: "#1B1C22") }
-        private var detailText: Color { Color.dynamic(light: "#715B54", dark: "#E3C8BE") }
-        private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }
         
         private var statusColor: Color {
             switch selectedStatus {
@@ -420,26 +416,205 @@ struct MaintenanceWorkOrdersView: View {
         }
         
         var body: some View {
-            ScrollView {
-                VStack(spacing: 18) {
-                    heroCard
-                    progressCard
-                    scheduleCard
-                    descriptionCard
-                    labourCard
-                    partsCard
-                    chatCard
-                    updateButton
+            Form {
+                // MARK: Hero Section
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("\(workOrder.priority.rawValue.uppercased()) PRIORITY")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(workOrder.isOverdue ? .white : AppTheme.warning)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(workOrder.isOverdue ? Color.red : AppTheme.warning.opacity(0.12), in: Capsule())
+                            
+                            Spacer()
+                            
+                            if workOrder.isOverdue {
+                                Label("OVERDUE", systemImage: "exclamationmark.clock.fill")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.red, in: Capsule())
+                            } else {
+                                Label(selectedStatus.displayTitle.uppercased(), systemImage: selectedStatus.detailIcon)
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(statusColor)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(statusColor.opacity(0.12), in: Capsule())
+                            }
+                        }
+                        
+                        Text(workOrder.title)
+                            .font(.title3.bold())
+                            .foregroundStyle(.primary)
+                        
+                        HStack(spacing: 12) {
+                            Label(vehicle?.displayName ?? "Vehicle", systemImage: "car.fill")
+                            Label(workOrder.scheduledDate.formatted(date: .omitted, time: .shortened), systemImage: "clock")
+                        }
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    }
+                    .listRowInsets(EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16))
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-                .padding(.bottom, 96)
+                
+                // MARK: Progress Section
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Progress")
+                                .font(.headline)
+                            Spacer()
+                            Text("\(progressValue)%")
+                                .font(.headline)
+                                .foregroundStyle(accent)
+                        }
+                        
+                        ProgressView(value: Double(progressValue), total: 100)
+                            .tint(accent)
+                    }
+                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                    
+                    // Status picker — native iOS Picker
+                    Picker("Status", selection: $selectedStatus.animation(.spring(duration: 0.3))) {
+                        ForEach(Self.progressStatuses, id: \.self) { status in
+                            Text(status.displayTitle).tag(status)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 12, trailing: 16))
+                } footer: {
+                    Label("Scheduled: \(workOrder.scheduledDate.formatted(date: .abbreviated, time: .shortened))", systemImage: "calendar.badge.clock")
+                        .font(.caption2)
+                }
+                
+                // MARK: Schedule Info Section
+                Section("Details") {
+                    LabeledContent("Location", value: "Bay \(bayNumber)")
+                    LabeledContent("Scheduled", value: workOrder.scheduledDate.formatted(date: .omitted, time: .shortened))
+                    LabeledContent("Est. Duration", value: estimatedDuration)
+                }
+                
+                // MARK: Description Section
+                Section("Description") {
+                    Text(workOrder.details)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .lineSpacing(4)
+                }
+                
+                // MARK: Labour Section
+                Section {
+                    Stepper(value: Binding(
+                        get: { Int(labourHours) ?? 0 },
+                        set: { labourHours = "\($0)" }
+                    ), in: 0...72) {
+                        LabeledContent("Hours", value: labourHours)
+                    }
+                    
+                    Stepper(value: Binding(
+                        get: { Int(labourMinutes) ?? 0 },
+                        set: { labourMinutes = "\($0)" }
+                    ), in: 0...55, step: 5) {
+                        LabeledContent("Minutes", value: labourMinutes)
+                    }
+                    
+                    HStack(spacing: 10) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(accent)
+                            .frame(width: 4, height: 36)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(currentMechanicName)
+                                .font(.subheadline.weight(.semibold))
+                            Text("ID: \(String(appViewModel.currentUser?.id.uuidString.prefix(8) ?? "N/A").uppercased())")
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Text("\(labourTotalText) hrs")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(accent)
+                    }
+                } header: {
+                    Text("Labour")
+                }
+                
+                // MARK: Spare Parts Section
+                Section {
+                    if selectedParts.isEmpty {
+                        Text("No spare parts added yet.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(selectedParts) { part in
+                            nativeSparePartRow(part)
+                        }
+                        .onDelete { indexSet in
+                            selectedParts.remove(atOffsets: indexSet)
+                        }
+                    }
+                    
+                    Button {
+                        isShowingPartsSheet = true
+                    } label: {
+                        Label(selectedParts.isEmpty ? "Add Part" : "Change Parts", systemImage: "plus.circle.fill")
+                    }
+                } header: {
+                    Text("Spare Parts")
+                }
+                
+                // MARK: Chat Section
+                Section {
+                    if recentChatMessages.isEmpty {
+                        Text("No coordination messages yet. Start a thread with the fleet manager.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(recentChatMessages) { msg in
+                            let senderName = appViewModel.service.users().first(where: { $0.id == msg.senderID })?.name ?? "Staff"
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(senderName)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(accent)
+                                Text(msg.message)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
+                            }
+                        }
+                    }
+                    
+                    NavigationLink(destination: WorkOrderChatView(workOrderID: workOrder.id).environment(appViewModel).hideTabBarOnPush()) {
+                        Label("Open Coordination Chat", systemImage: "message.fill")
+                    }
+                } header: {
+                    Text("Work Order Chat")
+                }
+                
+                // MARK: Save Button Section
+                Section {
+                    Button {
+                        saveTechnicianUpdate()
+                    } label: {
+                        Label("Update Progress", systemImage: "checkmark.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(accent)
+                    .controlSize(.large)
+                    .buttonBorderShape(.capsule)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
+                }
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .formStyle(.grouped)
             .navigationTitle("#WO-\(String(workOrder.id.uuidString.prefix(4)))")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
             .sheet(isPresented: $isShowingLabourSheet) {
                 LabourEntrySheet(hours: $labourHours, minutes: $labourMinutes)
                     .presentationDetents([.height(300), .medium])
@@ -461,348 +636,51 @@ struct MaintenanceWorkOrdersView: View {
             }
         }
         
-        private var heroCard: some View {
-            GlassCard {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(alignment: .top) {
-                    Text("\(workOrder.priority.rawValue.uppercased()) PRIORITY")
-                        .font(.system(.caption2, design: .rounded).monospaced().weight(.bold))
-                        .foregroundStyle(workOrder.isOverdue ? .white : AppTheme.warning)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(workOrder.isOverdue ? Color.red : AppTheme.warning.opacity(0.12), in: Capsule())
-                    
-                    Spacer()
-                    
-                    // AC3: Show OVERDUE badge in the detail hero card too.
-                    if workOrder.isOverdue {
-                        HStack(spacing: 4) {
-                            Image(systemName: "exclamationmark.clock.fill")
-                                .font(.system(.caption2, design: .rounded).bold())
-                            Text("OVERDUE")
-                                .font(.system(.caption2, design: .rounded).monospaced().weight(.bold))
-                        }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                            .background(Color.red, in: Capsule())
-                    } else {
-                        HStack(spacing: 4) {
-                            Image(systemName: selectedStatus.detailIcon)
-                                .font(.system(.caption2, design: .rounded).bold())
-                            Text(selectedStatus.displayTitle.uppercased())
-                                .font(.system(.caption2, design: .rounded).monospaced().weight(.bold))
-                        }
-                        .foregroundStyle(statusColor)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(statusColor.opacity(0.12), in: Capsule())
-                    }
-                }
-                
-                Text(workOrder.title)
-                    .font(.system(.title3, design: .rounded).weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                
-                HStack(spacing: 12) {
-                    Label(vehicle?.displayName ?? "Vehicle", systemImage: "truck.box")
-                    Label("Assigned: \(workOrder.scheduledDate.formatted(date: .omitted, time: .shortened))", systemImage: "clock")
-                }
-                .font(.system(.caption, design: .rounded).weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-                }
-            }
-        }
+        // MARK: - Native Spare Part Row
         
-        private var progressCard: some View {
-            DetailSectionCard {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        Text("Update Progress")
-                            .font(.system(.headline, design: .rounded).weight(.bold))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        Text("\(progressValue)%")
-                            .font(.system(.headline, design: .rounded).weight(.bold))
-                            .foregroundStyle(accent)
-                    }
-                    
-                    ProgressView(value: Double(progressValue), total: 100)
-                        .tint(accent)
-                        .background(Color(uiColor: .tertiarySystemGroupedBackground))
-                        .clipShape(Capsule())
-                    
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(Self.progressStatuses, id: \.self) { status in
-                                let isSelected = selectedStatus == status
-                                Button {
-                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
-                                        selectedStatus = status
-                                    }
-                                } label: {
-                                    Text(status.displayTitle)
-                                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                                        .foregroundStyle(isSelected ? .white : .primary)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                        .background(
-                                            Capsule()
-                                                .fill(isSelected ? accent : Color(uiColor: .secondarySystemGroupedBackground))
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                    
-                    Label("Scheduled: \(workOrder.scheduledDate.formatted(date: .abbreviated, time: .shortened))", systemImage: "calendar.badge.clock")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(accent)
-                }
-            }
-        }
-        
-        private var scheduleCard: some View {
-            DetailSectionCard {
-                VStack(spacing: 14) {
-                    DetailKeyValueRow(title: "Location", value: "Bay \(bayNumber)")
-                    DetailDivider()
-                    DetailKeyValueRow(title: "Scheduled", value: workOrder.scheduledDate.formatted(date: .omitted, time: .shortened))
-                    DetailDivider()
-                    DetailKeyValueRow(title: "Est. Duration", value: estimatedDuration)
-                }
-            }
-        }
-        
-        private var descriptionCard: some View {
-            DetailSectionCard {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("DESCRIPTION")
-                        .font(.system(.caption2, design: .monospaced).weight(.bold))
-                        .tracking(1.2)
-                        .foregroundStyle(.secondary)
-                    Text("\"\(workOrder.details)\"")
-                        .font(.system(.subheadline, design: .rounded).italic())
-                        .foregroundStyle(.primary)
-                        .lineSpacing(4)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        
-        private var labourCard: some View {
-            DetailSectionCard {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        Text("Labour Hours")
-                            .font(.system(.headline, design: .rounded).weight(.bold))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        Button {
-                            isShowingLabourSheet = true
-                        } label: {
-                            Label("Add Hours", systemImage: "plus")
-                                .font(.system(.subheadline, design: .rounded).weight(.bold))
-                                .foregroundStyle(accent)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    
-                    HStack(spacing: 12) {
-                        DetailTimeInput(title: "HOURS", value: $labourHours)
-                        DetailTimeInput(title: "MINUTES", value: $labourMinutes)
-                    }
-                    
-                    HStack {
-                        Rectangle()
-                            .fill(accent)
-                            .frame(width: 3)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(currentMechanicName)
-                                .font(.system(.subheadline, design: .rounded).weight(.bold))
-                                .foregroundStyle(.primary)
-                            Text("ID: \(String(appViewModel.currentUser?.id.uuidString.prefix(8) ?? "N/A").uppercased())")
-                                .font(.system(.caption2, design: .monospaced).weight(.bold))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text("\(labourTotalText) hrs")
-                            .font(.system(.subheadline, design: .rounded).weight(.bold))
-                            .foregroundStyle(Color(hex: "#FF9500"))
-                    }
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(.regularMaterial)
-                    )
-                    .glassEffect(.regular, in: .rect(cornerRadius: 12))
-                }
-            }
-        }
-        
-        private var partsCard: some View {
-            DetailSectionCard {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        Text("Spare Parts")
-                            .font(.system(.headline, design: .rounded).weight(.bold))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        
-                        Button {
-                            isShowingPartsSheet = true
-                        } label: {
-                            Label(selectedParts.isEmpty ? "Add Part" : "Change Part", systemImage: "plus.square")
-                                .font(.system(.caption, design: .rounded).weight(.bold))
-                                .foregroundStyle(accent)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .overlay(Capsule().stroke(accent, lineWidth: 1))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    
-                    if selectedParts.isEmpty {
-                        Text("No spare parts added to this work order yet.")
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 4)
-                    } else {
-                        VStack(spacing: 10) {
-                            ForEach(selectedParts) { part in
-                                sparePartRow(part)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        private func sparePartRow(_ part: WorkOrderPartSelection) -> some View {
+        private func nativeSparePartRow(_ part: WorkOrderPartSelection) -> some View {
             let invPart = inventoryParts.first(where: { $0.id == part.id })
             let maxStock = invPart?.quantity ?? part.quantity
-
+            
             return HStack(spacing: 12) {
                 Image(systemName: part.icon)
-                    .font(.system(.title3, design: .rounded).weight(.bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(.ultraThinMaterial))
-                    .glassEffect(.regular, in: .circle)
-
-                VStack(alignment: .leading, spacing: 4) {
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(accent)
+                    .frame(width: 36, height: 36)
+                    .background(accent.opacity(0.1), in: Circle())
+                
+                VStack(alignment: .leading, spacing: 2) {
                     Text(part.name)
-                        .font(.system(.subheadline, design: .rounded).weight(.bold))
-                        .foregroundStyle(.primary)
-                    Text("\(part.partNumber) • \(part.category) • Stock \(maxStock)")
-                        .font(.system(.caption, design: .rounded))
+                        .font(.subheadline.weight(.semibold))
+                    Text("\(part.partNumber) • \(part.category)")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-
+                
                 Spacer()
-
-                HStack(spacing: 8) {
-                    Button {
-                        adjustPartQuantity(part.id, by: -1)
-                    } label: {
-                        Image(systemName: "minus")
-                            .font(.caption.weight(.bold))
-                            .frame(width: 28, height: 28)
+                
+                Stepper(value: Binding(
+                    get: { part.quantity },
+                    set: { newVal in
+                        if newVal <= 0 {
+                            selectedParts.removeAll { $0.id == part.id }
+                        } else if let idx = selectedParts.firstIndex(where: { $0.id == part.id }) {
+                            selectedParts[idx].quantity = newVal
+                        }
                     }
-
+                ), in: 0...maxStock) {
                     Text("\(part.quantity)")
-                        .font(.system(.subheadline, design: .rounded).weight(.bold))
-                        .frame(minWidth: 20)
-
-                    Button {
-                        adjustPartQuantity(part.id, by: 1)
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.caption.weight(.bold))
-                            .frame(width: 28, height: 28)
-                    }
-                    .disabled(part.quantity >= maxStock)
+                        .font(.subheadline.weight(.bold))
+                        .monospacedDigit()
                 }
-                .foregroundStyle(accent)
-                .background(accent.opacity(0.12), in: Capsule())
+                .labelsHidden()
+                .fixedSize()
             }
-            .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(.regularMaterial)
-            )
-            .glassEffect(.regular, in: .rect(cornerRadius: 14))
         }
         
         private var recentChatMessages: [ChatMessage] {
             appViewModel.service.chatMessages(forWorkOrder: workOrder.id)
                 .suffix(2)
-        }
-        
-        private var chatCard: some View {
-            DetailSectionCard {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        Label("Work Order Chat", systemImage: "message")
-                            .font(.system(.headline, design: .rounded).weight(.bold))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if !recentChatMessages.isEmpty {
-                            Circle()
-                                .fill(accent)
-                                .frame(width: 6, height: 6)
-                        }
-                    }
-                    
-                    if recentChatMessages.isEmpty {
-                        Text("No chat coordination messages yet. Tap below to start a thread with the fleet manager.")
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 4)
-                    } else {
-                        ForEach(recentChatMessages) { msg in
-                            let senderName = appViewModel.service.users().first(where: { $0.id == msg.senderID })?.name ?? "Staff"
-                            DetailChatBubble(
-                                sender: senderName.uppercased(),
-                                message: msg.message,
-                                highlighted: msg.senderID == appViewModel.currentUser?.id
-                            )
-                        }
-                    }
-                    
-                    NavigationLink(destination: WorkOrderChatView(workOrderID: workOrder.id).environment(appViewModel).hideTabBarOnPush()) {
-                        Text("Open Coordination Chat")
-                            .font(.system(.subheadline, design: .rounded).weight(.bold))
-                            .foregroundStyle(.primary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 46)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(.regularMaterial)
-                            )
-                            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        
-        private var updateButton: some View {
-            Button {
-                saveTechnicianUpdate()
-            } label: {
-                Label("Update Progress", systemImage: "checkmark.circle.fill")
-                    .font(.system(.headline, design: .rounded).weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(accent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            .buttonStyle(.plain)
         }
         
         private var bayNumber: String {

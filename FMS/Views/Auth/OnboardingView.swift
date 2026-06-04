@@ -211,7 +211,7 @@ struct OnboardingView: View {
             .buttonStyle(.borderedProminent)
             .tint(pages[selection].accentColor)
             .controlSize(.large)
-            .buttonBorderShape(.roundedRectangle(radius: 14))
+            .buttonBorderShape(.capsule)
             .animation(.easeInOut(duration: 0.35), value: selection)
 
             // Skip button

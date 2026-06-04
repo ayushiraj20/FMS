@@ -249,11 +249,10 @@ struct MaintenanceMemberDetailView: View {
                             } label: {
                                 Label("Call", systemImage: "phone.fill")
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 10)
-                                    .background(AppTheme.success, in: Capsule())
                             }
+                            .buttonStyle(.borderedProminent)
+                            .tint(AppTheme.success)
+                            .buttonBorderShape(.capsule)
 
                             // Email button
                             Button {
@@ -263,12 +262,10 @@ struct MaintenanceMemberDetailView: View {
                             } label: {
                                 Label("Email", systemImage: "envelope.fill")
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(AppTheme.brand)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 10)
-                                    .background(AppTheme.brand.opacity(0.12), in: Capsule())
-                                    .overlay(Capsule().strokeBorder(AppTheme.brand.opacity(0.3), lineWidth: 1))
                             }
+                            .buttonStyle(.bordered)
+                            .tint(AppTheme.brand)
+                            .buttonBorderShape(.capsule)
                         }
                     }
                     .frame(maxWidth: .infinity)

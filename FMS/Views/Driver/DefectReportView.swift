@@ -173,11 +173,12 @@ struct DefectReportView: View {
                     } label: {
                         Text("Submit Report")
                             .font(.system(.title3, design: .rounded).bold())
-                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 60)
-                            .background(description.isEmpty ? Color.gray : DriverTheme.accent, in: Capsule())
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(description.isEmpty ? Color.gray : DriverTheme.accent)
+                    .controlSize(.large)
+                    .buttonBorderShape(.capsule)
                     .disabled(description.isEmpty)
                     .padding(.top, 16)
                 }

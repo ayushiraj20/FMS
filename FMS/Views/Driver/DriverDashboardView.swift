@@ -339,11 +339,10 @@ struct DriverDashboardView: View {
                             Spacer()
                             Text("View Live Map")
                                 .font(.system(.subheadline, design: .rounded).bold())
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(DriverTheme.accent, in: Capsule())
                         }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DriverTheme.accent)
+                        .buttonBorderShape(.capsule)
                     }
                     .padding(16)
                     .background(
@@ -387,12 +386,11 @@ struct DriverDashboardView: View {
                         } label: {
                             Text("Start Trip")
                                 .font(.system(.subheadline, design: .rounded).bold())
-                                .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(DriverTheme.accent, in: RoundedRectangle(cornerRadius: 10))
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.borderedProminent)
+                        .tint(DriverTheme.accent)
+                        .buttonBorderShape(.capsule)
                     }
                     
                     let inspDone = appViewModel.service.todayInspection(for: user.id) != nil
@@ -416,12 +414,12 @@ struct DriverDashboardView: View {
                     Text("SOS Emergency")
                         .font(.system(.headline, design: .rounded).bold())
                 }
-                .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(DriverTheme.criticalRed, in: Capsule())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderedProminent)
+            .tint(DriverTheme.criticalRed)
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
 
             NavigationLink {
                 DriverManagerChatView()
@@ -433,16 +431,12 @@ struct DriverDashboardView: View {
                     Text("Message Fleet Manager")
                         .font(.system(.headline, design: .rounded).bold())
                 }
-                .foregroundStyle(DriverTheme.accent)
                 .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(.ultraThinMaterial, in: Capsule())
-                .overlay(
-                    Capsule()
-                        .stroke(DriverTheme.accent.opacity(0.22), lineWidth: 1)
-                )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.bordered)
+            .tint(DriverTheme.accent)
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
         }
     }
     
@@ -691,17 +685,12 @@ struct DriverDashboardView: View {
                         Button {
                             defectChatID = defect.id
                         } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "bubble.left.and.bubble.right.fill")
-                                    .font(.caption)
-                                Text("Chat with Manager")
-                                    .font(.caption.bold())
-                            }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(DriverTheme.accent, in: Capsule())
+                            Label("Chat with Manager", systemImage: "bubble.left.and.bubble.right.fill")
                         }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DriverTheme.accent)
+                        .controlSize(.small)
+                        .buttonBorderShape(.capsule)
                     }
                     .padding()
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
@@ -791,7 +780,10 @@ struct BreakLogSheet: View {
                     }
                     dismiss()
                 }
-                .buttonStyle(DriverAccentButtonStyle())
+                .buttonStyle(.borderedProminent)
+                .tint(DriverTheme.accent)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
 
                 Spacer()
             }
@@ -851,7 +843,10 @@ struct VehicleAlertDetailSheet: View {
                     appViewModel.service.acknowledgeAlert(alert)
                     dismiss()
                 }
-                .buttonStyle(DriverAccentButtonStyle())
+                .buttonStyle(.borderedProminent)
+                .tint(DriverTheme.accent)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
             }
             .padding(24)
             .background(DriverTheme.background.ignoresSafeArea())
