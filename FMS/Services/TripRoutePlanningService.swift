@@ -19,46 +19,47 @@ enum TripRoutePlanningService {
     origin: CLLocationCoordinate2D,
     destination: CLLocationCoordinate2D
   ) async -> TripRoutePlan? {
-    var routeSets: [[CLLocationCoordinate2D]] = []
+    let optimalRoute = await calculateOptimalRoute(origin: origin, destination: destination)
+    guard optimalRoute.count >= 2 else { return nil }
 
-    let primaryRoutes = await calculateMapKitRoutes(origin: origin, destination: destination)
-    routeSets.append(contentsOf: primaryRoutes)
-
-    if routeSets.count < 2 {
-      let waypointRoutes = await calculateWaypointAlternates(
-        origin: origin,
-        destination: destination,
-        existing: routeSets
-      )
-      for route in waypointRoutes where routeSets.count < 2 {
-        if !routeSets.contains(where: { isSimilarRoute($0, to: route) }) {
-          routeSets.append(route)
-        }
-      }
-    }
-
-    guard let mainRoute = routeSets.first, mainRoute.count >= 2 else { return nil }
-
-    let alternatives = Array(routeSets.dropFirst().prefix(1))
-    let paddedAlternatives: [[CLLocationCoordinate2D]]
-    if alternatives.count == 1 {
-      paddedAlternatives = alternatives
-    } else {
-      paddedAlternatives = [synthesizeOffsetRoute(origin: origin, destination: destination, variant: 1)]
-    }
-
-    let mainDistanceKM = polylineLengthMeters(mainRoute) / 1_000
+    let mainDistanceKM = polylineLengthMeters(optimalRoute) / 1_000
     let mainETAMinutes = (mainDistanceKM / 45.0) * 60.0
 
     return TripRoutePlan(
       tripID: tripID,
       origin: origin,
       destination: destination,
-      mainRouteCoordinates: mainRoute,
-      alternativeRouteCoordinates: paddedAlternatives,
+      mainRouteCoordinates: optimalRoute,
+      alternativeRouteCoordinates: [],
       mainDistanceKM: mainDistanceKM,
       mainETAMinutes: mainETAMinutes
     )
+  }
+
+  private static func calculateOptimalRoute(
+    origin: CLLocationCoordinate2D,
+    destination: CLLocationCoordinate2D
+  ) async -> [CLLocationCoordinate2D] {
+    let request = MKDirections.Request()
+    request.source = mapItem(at: origin)
+    request.destination = mapItem(at: destination)
+    request.transportType = .automobile
+    request.requestsAlternateRoutes = false
+
+    do {
+      let response = try await MKDirections(request: request).calculate()
+      if let fastest = response.routes.min(by: { $0.expectedTravelTime < $1.expectedTravelTime }) {
+        return coordinates(from: fastest)
+      }
+      if let first = response.routes.first {
+        return coordinates(from: first)
+      }
+    } catch {
+      print("[TripRoutePlanning] MapKit route error: \(error.localizedDescription)")
+    }
+
+    let fallback = await calculateSingleRoute(from: origin, to: destination)
+    return fallback
   }
 
   private static func calculateSingleRoute(
