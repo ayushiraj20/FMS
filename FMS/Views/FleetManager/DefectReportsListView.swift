@@ -93,42 +93,38 @@ struct DefectReportsListView: View {
                 .padding(.horizontal,20)
                 .padding(.vertical,10)
             }
+            
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    if !appViewModel.service.defects.isEmpty {
+                        defectIssueChart
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 10)
+                    }
 
-            if !appViewModel.service.defects.isEmpty {
-                defectIssueChart
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 10)
-            }
-
-            Divider()
-                .background(AppTheme.border)
-
-            if filteredDefects.isEmpty {
-                Spacer()
-                EmptyStateView(
-                    icon: filterTab == .pending ? "exclamationmark.triangle" : "checkmark.circle",
-                    title: "No \(filterTab.rawValue.lowercased()) defects",
-                    message: filterTab == .pending
-                        ? "Drivers haven't submitted any new defect reports yet."
-                        : "No defects match this filter category."
-                )
-                .padding(.horizontal, 20)
-                Spacer()
-            } else {
-                List {
-                    ForEach(filteredDefects) { defect in
-                        DefectCard(defect: defect) {
-                            selectedDefect = defect
+                    if filteredDefects.isEmpty {
+                        EmptyStateView(
+                            icon: filterTab == .pending ? "exclamationmark.triangle" : "checkmark.circle",
+                            title: "No \(filterTab.rawValue.lowercased()) defects",
+                            message: filterTab == .pending
+                                ? "Drivers haven't submitted any new defect reports yet."
+                                : "No defects match this filter category."
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 40)
+                    } else {
+                        ForEach(filteredDefects) { defect in
+                            DefectCard(defect: defect) {
+                                selectedDefect = defect
+                            }
+                            .padding(.horizontal, 20)
                         }
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
                     }
                 }
-                .listStyle(.plain)
-                .refreshable {
-                    await refreshDefects()
-                }
+                .padding(.vertical, 12)
+            }
+            .refreshable {
+                await refreshDefects()
             }
         }
         .background(AppTheme.background.ignoresSafeArea())
@@ -402,6 +398,8 @@ struct DefectReviewSheet: View {
     @State private var isShowingApprovalForm = false
     @State private var isShowingImageDetail = false
     @State private var selectedImageName: String?
+    @State private var isShowingDefectChat = false
+    @State private var isShowingWorkOrderChat = false
 
     // Computed helpers — available throughout body without scope issues
     private var vehicle: Vehicle? {
@@ -463,13 +461,23 @@ struct DefectReviewSheet: View {
                     // MARK: Defect Details
                     sectionHeader("Defect Description")
                     GlassCard {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text(defect.title ?? "Issue")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(AppTheme.textPrimary)
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(alignment: .top, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(defect.title ?? "Issue")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                        .multilineTextAlignment(.leading)
+                                    
+                                    Text(defect.description)
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                
                                 Spacer()
-                                VStack(alignment: .trailing, spacing: 4) {
+                                
+                                VStack(alignment: .trailing, spacing: 6) {
                                     StatusBadgeView(
                                         text: defect.severity.rawValue,
                                         color: severityColor(defect.severity)
@@ -480,9 +488,7 @@ struct DefectReviewSheet: View {
                                     )
                                 }
                             }
-                            Text(defect.description)
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.textSecondary)
+                            
                             Text("Reported on: \(formattedDate(defect.reportedDate))")
                                 .font(.caption.italic())
                                 .foregroundStyle(AppTheme.textSecondary)
@@ -555,12 +561,41 @@ struct DefectReviewSheet: View {
             .navigationTitle("Review Defect")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("Close")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppTheme.brand)
+                    }
+                    .buttonStyle(.borderless)
                 }
             }
             .sheet(isPresented: $isShowingImageDetail) {
                 imageDetailSheet
+            }
+            .fullScreenCover(isPresented: $isShowingWorkOrderChat) {
+                NavigationStack {
+                    if let wo = linkedWorkOrder {
+                        WorkOrderChatView(workOrderID: wo.id)
+                            .environment(appViewModel)
+                            .toolbar {
+                                ToolbarItem(placement: .topBarLeading) {
+                                    Button {
+                                        isShowingWorkOrderChat = false
+                                    } label: {
+                                        Image(systemName: "chevron.left")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundStyle(AppTheme.brand)
+                                            .frame(width: 32, height: 32)
+                                            .background(AppTheme.brand.opacity(0.12), in: Circle())
+                                    }
+                                    .buttonStyle(.borderless)
+                                }
+                            }
+                    }
+                }
             }
         }
     }
@@ -569,6 +604,42 @@ struct DefectReviewSheet: View {
 
     @ViewBuilder
     private var pendingActionsSection: some View {
+        // Chat with Driver button (always visible for pending defects)
+        Button {
+            isShowingDefectChat = true
+        } label: {
+            HStack {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                Text("Chat with Driver")
+            }
+            .font(.subheadline.weight(.bold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .background(Color.purple)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .fullScreenCover(isPresented: $isShowingDefectChat) {
+            NavigationStack {
+                WorkOrderChatView(defectReportID: defect.id)
+                    .environment(appViewModel)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button {
+                                isShowingDefectChat = false
+                            } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(AppTheme.brand)
+                                    .frame(width: 32, height: 32)
+                                    .background(AppTheme.brand.opacity(0.12), in: Circle())
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                    }
+            }
+        }
+
         if !isShowingApprovalForm {
             HStack(spacing: 16) {
                 Button("Reject Report") {
@@ -744,11 +815,9 @@ struct DefectReviewSheet: View {
                             .foregroundStyle(AppTheme.textSecondary)
                     }
 
-                    NavigationLink(
-                        destination: WorkOrderChatView(workOrderID: wo.id)
-                            .environment(appViewModel)
-                            .hideTabBarOnPush()
-                    ) {
+                    Button {
+                        isShowingWorkOrderChat = true
+                    } label: {
                         HStack {
                             Image(systemName: "bubble.left.and.bubble.right.fill")
                             Text("Open Coordination Chat")

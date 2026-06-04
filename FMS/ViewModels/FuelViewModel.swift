@@ -15,6 +15,7 @@ final class FuelViewModel {
     // MARK: - Driver Submission State
 
     var amountText: String = ""
+    var litresText: String = ""
     var odometerText: String = ""
     var receiptImageData: Data? = nil
     var receiptImage: Image? = nil
@@ -28,6 +29,7 @@ final class FuelViewModel {
 
     var canSubmit: Bool {
         !amountText.isEmpty &&
+        !litresText.isEmpty &&
         !odometerText.isEmpty &&
         receiptUploadSucceeded &&
         !isSubmitting
@@ -84,6 +86,10 @@ final class FuelViewModel {
             submissionError = "Amount cannot be zero or negative."
             return
         }
+        guard let litres = Double(litresText), litres > 0 else {
+            submissionError = "Enter valid fuel litres."
+            return
+        }
         guard let odometer = Int(odometerText), odometer > 0 else {
             submissionError = "Enter a valid odometer reading."
             return
@@ -96,6 +102,7 @@ final class FuelViewModel {
             _ = try await repo.submitRefuel(
                 imageData: imageData,
                 amount: amount,
+                litres: litres,
                 odometer: odometer,
                 vehicleID: vehicleID,
                 driverID: driverID,
@@ -114,6 +121,7 @@ final class FuelViewModel {
 
     private func resetForm() {
         amountText = ""
+        litresText = ""
         odometerText = ""
         receiptImageData = nil
         receiptImage = nil

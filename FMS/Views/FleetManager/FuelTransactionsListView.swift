@@ -154,6 +154,10 @@ struct FuelTransactionRow: View {
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(Color.primary)
 
+                Text("\(String(format: "%.2f", transaction.litres)) L")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.secondary)
+
                 Text(transaction.verificationStatus.displayName)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(statusColor)

@@ -20,6 +20,15 @@ enum VehicleStatus: String, Codable, CaseIterable {
     case inService = "In Service"
     case idle = "Idle"
     case outOfService = "Out of Service"
+
+    var displayName: String {
+        switch self {
+        case .active: return "Active"
+        case .inService: return "Transit"
+        case .idle: return "Idle"
+        case .outOfService: return "Service"
+        }
+    }
 }
 
 enum DocumentType: String, Codable, CaseIterable, Identifiable {
@@ -333,6 +342,29 @@ extension Vehicle {
 
     var isMaintenanceDue: Bool {
         isDistanceMaintenanceDue || isTimeMaintenanceDue
+    }
+
+    /// Estimated fuel tank capacity in litres based on vehicle type.
+    var fuelCapacityLitres: Int {
+        switch vehicleType.lowercased() {
+        case "truck":   return 200
+        case "bus":     return 250
+        case "van":     return 80
+        case "pickup":  return 75
+        case "suv":     return 65
+        case "sedan":   return 50
+        default:        return 100
+        }
+    }
+
+    /// Current fuel in litres derived from the percentage-based fuelLevel.
+    var fuelLitres: Int {
+        Int(Double(fuelLevel) / 100.0 * Double(fuelCapacityLitres))
+    }
+
+    /// Formatted fuel display string showing litres, e.g. "100 L".
+    var fuelDisplayString: String {
+        "\(fuelLitres) L"
     }
 }
 
@@ -756,6 +788,7 @@ struct ChatMessage: Identifiable, Codable, Hashable {
     var timestamp: Date
     var isRead: Bool
     var workOrderID: UUID? = nil
+    var defectReportID: UUID? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -765,6 +798,7 @@ struct ChatMessage: Identifiable, Codable, Hashable {
         case timestamp = "sent_at"
         case isRead = "is_read"
         case workOrderID = "work_order_id"
+        case defectReportID = "defect_report_id"
     }
 }
 

@@ -22,26 +22,6 @@ struct TeamView: View {
             VStack(spacing: 0) {
                 // MARK: - Header
                 VStack(spacing: 14) {
-                    HStack {
-                        Text("Crew Management")
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                        Spacer()
-                    }
-
-                    // Search Bar
-                    HStack(spacing: 10) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(AppTheme.textSecondary)
-                            .font(.system(size: 15))
-                        TextField("Search crew members...", text: $viewModel.searchText)
-                            .foregroundStyle(AppTheme.textPrimary)
-                            .font(.system(size: 15))
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 11)
-                    .background(AppTheme.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                     // Segment Picker
                     Picker("Crew Segment", selection: $selectedSegment) {
@@ -67,7 +47,8 @@ struct TeamView: View {
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
             .background(AppTheme.background)
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle("Crew Management")
+            .searchable(text: $viewModel.searchText, prompt: "Search crew members...")
             .overlay(alignment: .bottomTrailing) {
                 Button {
                     viewModel.newRole = selectedSegment == .drivers ? .driver : .maintenance
@@ -109,6 +90,7 @@ struct TeamView: View {
 // MARK: - Drivers Tab
 private struct DriversTabView: View {
     let viewModel: TeamViewModel
+    @State private var memberToEdit: User?
 
     private var drivers: [User] {
         let all = viewModel.service.users.filter { $0.role == .driver }
@@ -169,6 +151,18 @@ private struct DriversTabView: View {
                                     DriverRowCard(driver: driver, service: viewModel.service)
                                 }
                                 .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button {
+                                        memberToEdit = driver
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                    Button(role: .destructive) {
+                                        viewModel.confirmDelete(driver)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
                         .padding(.horizontal, 20)
@@ -182,6 +176,10 @@ private struct DriversTabView: View {
         .background(AppTheme.background)
         .refreshable {
             await viewModel.service.syncWithDatabase()
+        }
+        .sheet(item: $memberToEdit) { driver in
+            EditCrewMemberSheet(member: driver, service: viewModel.service)
+                .registersSheetPresentation()
         }
     }
 
@@ -526,19 +524,15 @@ private struct DriverDetailView: View {
                 Button {
                     showEditSheet = true
                 } label: {
-                    Image(systemName: "pencil.circle.fill")
-                        .symbolRenderingMode(.hierarchical)
+                    Image(systemName: "pencil")
                         .foregroundStyle(AppTheme.brand)
-                        .font(.title3)
                 }
 
                 Button(role: .destructive) {
                     showDeleteConfirmation = true
                 } label: {
-                    Image(systemName: "trash.circle.fill")
-                        .symbolRenderingMode(.hierarchical)
+                    Image(systemName: "trash")
                         .foregroundStyle(AppTheme.error)
-                        .font(.title3)
                 }
             }
         }

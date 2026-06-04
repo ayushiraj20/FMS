@@ -9,6 +9,7 @@ struct FleetManagerDashboardView: View {
     @State private var isFlashingSOS = false
     @State private var showResolveConfirmation = false
     @State private var pendingResolveAlertID: UUID?
+    @State private var fuelTransactions: [FuelTransaction] = []
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -28,7 +29,6 @@ struct FleetManagerDashboardView: View {
                         
                         // MARK: - KPI Grid
                         kpiGrid
-                        
 
                         // MARK: - Priority Alerts
                         alertsSection
@@ -38,6 +38,8 @@ struct FleetManagerDashboardView: View {
                         
                         // MARK: - Fleet Utilization
                         fleetUtilizationSection
+                        
+                        carbonEfficiencySection
                         
                         // MARK: - Needs Attention
                         needsAttentionSection
@@ -99,6 +101,7 @@ struct FleetManagerDashboardView: View {
             await appViewModel.service.syncWithDatabase()
             await viewModel.load()
             await appViewModel.loadNotifications()
+            await loadFuelTransactions()
             sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
@@ -107,12 +110,14 @@ struct FleetManagerDashboardView: View {
             Task {
                 await appViewModel.service.syncWithDatabase()
                 await appViewModel.loadNotifications()
+                await loadFuelTransactions()
                 sendRouteGeofenceAlertsIfNeeded()
             }
         }
         .refreshable {
             await appViewModel.service.syncWithDatabase()
             await appViewModel.loadNotifications()
+            await loadFuelTransactions()
             sendRouteGeofenceAlertsIfNeeded()
             appViewModel.refreshSOSAlerts()
         }
@@ -121,6 +126,188 @@ struct FleetManagerDashboardView: View {
                 .registersSheetPresentation()
         }
         .hidesTabBarWhileSheet(isPresented: showBroadcast)
+    }
+
+    private var carbonEfficiencySection: some View {
+        let summary = CarbonEfficiencyAnalytics.dashboardSummary(
+            trips: appViewModel.service.trips,
+            vehicles: appViewModel.service.vehicles,
+            drivers: appViewModel.service.users,
+            fuelReceipts: appViewModel.service.fuelReceipts,
+            fuelTransactions: fuelTransactions
+        )
+        let worstVehicles = Array(summary.vehicleMetrics.prefix(2))
+        let worstDrivers = Array(summary.driverMetrics.prefix(2))
+
+        return GlassCard {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "leaf.fill")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(AppTheme.success)
+                            Text("Carbon & Fuel Score")
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                        }
+                        Text("Diesel CO₂ at 2.68 kg/L, spend converted with ₹\(Int(CarbonEfficiencyAnalytics.estimatedDieselPricePerLitreINR))/L.")
+                            .font(.caption2)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    Spacer()
+                    Text(efficiencyText(summary.fleetEfficiencyKMPerLitre))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(AppTheme.success, in: Capsule())
+                }
+
+                HStack(spacing: 10) {
+                    carbonMetricTile(title: "Fleet Avg", value: efficiencyText(summary.fleetEfficiencyKMPerLitre), icon: "speedometer", tint: AppTheme.success)
+                    carbonMetricTile(title: "CO₂", value: carbonText(summary.fleetCO2KG), icon: "cloud.fill", tint: Color(UIColor.systemBlue))
+                    carbonMetricTile(title: "Can Save", value: currencyText(summary.potentialSavingsINR), icon: "indianrupeesign.circle.fill", tint: AppTheme.warning)
+                }
+
+                if worstVehicles.isEmpty && worstDrivers.isEmpty {
+                    Text("Add linked fuel records to compare vehicle and driver efficiency.")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(AppTheme.surfaceSecondary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.border, lineWidth: 0.5))
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if !worstVehicles.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("WORST VEHICLES")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                
+                                ForEach(worstVehicles) { metric in
+                                    carbonRankingRow(metric)
+                                    if metric.id != worstVehicles.last?.id {
+                                        Divider().background(AppTheme.border)
+                                    }
+                                }
+                            }
+                            .padding(12)
+                            .background(AppTheme.surfaceSecondary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.border, lineWidth: 0.5))
+                        }
+
+                        if !worstDrivers.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("DRIVERS TO COACH")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                
+                                ForEach(worstDrivers) { metric in
+                                    carbonRankingRow(metric)
+                                    if metric.id != worstDrivers.last?.id {
+                                        Divider().background(AppTheme.border)
+                                    }
+                                }
+                            }
+                            .padding(12)
+                            .background(AppTheme.surfaceSecondary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.border, lineWidth: 0.5))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func carbonMetricTile(title: String, value: String, icon: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 28, height: 28)
+                    .background(tint.opacity(0.12), in: Circle())
+                Spacer()
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.system(.headline, design: .rounded).weight(.bold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Text(title)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(AppTheme.surfaceSecondary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(AppTheme.border, lineWidth: 0.5)
+        )
+    }
+
+    private func carbonRankingRow(_ metric: CarbonPerformanceMetric) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "leaf.fill")
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.warning)
+                .frame(width: 32, height: 32)
+                .background(AppTheme.warning.opacity(0.1), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(metric.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text("\(efficiencyText(metric.efficiencyKMPerLitre)) • \(carbonText(metric.carbonKG)) CO₂")
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(currencyText(metric.potentialSavingsINR))
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(AppTheme.warning)
+                Text("Potential Save")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func loadFuelTransactions() async {
+        guard SupabaseConfig.isConfigured else {
+            fuelTransactions = []
+            return
+        }
+        do {
+            let repo = FuelRepository(service: FuelService(client: SupabaseService.shared.client))
+            fuelTransactions = try await repo.allTransactions()
+        } catch {
+            fuelTransactions = []
+            print("[Carbon] Fuel transactions unavailable: \(error)")
+        }
+    }
+
+    private func efficiencyText(_ value: Double?) -> String {
+        guard let value else { return "-- km/L" }
+        return "\(String(format: "%.1f", value)) km/L"
+    }
+
+    private func carbonText(_ kg: Double) -> String {
+        if kg >= 1000 {
+            return "\(String(format: "%.1f", kg / 1000)) t"
+        }
+        return "\(Int(kg.rounded())) kg"
+    }
+
+    private func currencyText(_ value: Double) -> String {
+        value.formatted(.currency(code: "INR").precision(.fractionLength(0)))
     }
     
     // MARK: - Header Section
@@ -429,30 +616,44 @@ struct FleetManagerDashboardView: View {
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(AppTheme.textPrimary)
                 
-                HStack(spacing: 12) {
-                    needsAttentionCard(count: vehiclesInMaintenance, label: "In\nMaintenance", color: AppTheme.warning)
-                    needsAttentionCard(count: overdueServices, label: "Overdue\nServices", color: AppTheme.error)
-                    needsAttentionCard(count: lostOrOffline, label: "Lost /\nOffline", color: Color(UIColor.systemBlue))
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        needsAttentionCard(count: vehiclesInMaintenance, label: "In Maintenance", systemImage: "wrench.and.screwdriver.fill", color: AppTheme.warning)
+                        needsAttentionCard(count: overdueServices, label: "Overdue Services", systemImage: "exclamationmark.triangle.fill", color: AppTheme.error)
+                        needsAttentionCard(count: lostOrOffline, label: "Lost / Offline", systemImage: "wifi.slash", color: Color(UIColor.systemBlue))
+                    }
+                    .padding(.vertical, 2)
                 }
             }
         }
     }
     
-    private func needsAttentionCard(count: Int, label: String, color: Color) -> some View {
-        VStack(spacing: 6) {
-            Text("\(count)")
-                .font(.title.weight(.bold))
-                .foregroundStyle(color)
+    private func needsAttentionCard(count: Int, label: String, systemImage: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: systemImage)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(color)
+                    .frame(width: 28, height: 28)
+                    .background(color.opacity(0.12), in: Circle())
+                Spacer()
+                Text("\(count)")
+                    .font(.system(.title2, design: .rounded).weight(.bold))
+                    .foregroundStyle(count > 0 ? color : AppTheme.textPrimary)
+            }
+            
             Text(label)
-                .font(.caption2)
-                .foregroundStyle(AppTheme.textSecondary)
-                .multilineTextAlignment(.center)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(AppTheme.textPrimary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(
+        .frame(width: 125)
+        .padding(12)
+        .background(AppTheme.surfaceSecondary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(color.opacity(0.1))
+                .stroke(AppTheme.border, lineWidth: 0.5)
         )
     }
     
@@ -830,8 +1031,8 @@ private struct EmergencyAlertBanner: View {
     private func openInMaps() {
         guard hasValidGPS else { return }
         let coordinate = CLLocationCoordinate2D(latitude: alert.latitude, longitude: alert.longitude)
-        let placemark = MKPlacemark(coordinate: coordinate)
-        let item = MKMapItem(placemark: placemark)
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        let item = MKMapItem(location: location, address: nil)
         item.name = "🚨 \(alert.driverName) — \(alert.vehicleNumber)"
         
         let options: [String: Any] = [

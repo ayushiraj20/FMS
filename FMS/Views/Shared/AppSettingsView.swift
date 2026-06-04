@@ -5,6 +5,14 @@ struct AppSettingsView: View {
     @State private var cacheCleared = false
     @State private var isSyncing = false
     @State private var selectedSyncInterval = "Every 15 mins"
+
+    // MFA state
+    @State private var isMFAEnabled = false
+    @State private var isCheckingMFA = false
+    @State private var isShowingMFASetup = false
+    @State private var isShowingMFADisableAlert = false
+    @State private var mfaFactorID: String?
+    @State private var isDisablingMFA = false
     
     let syncIntervals = ["Real-time", "Every 15 mins", "Every hour", "Manual"]
     
@@ -74,21 +82,80 @@ struct AppSettingsView: View {
                             .padding(.leading, 8)
                         
                         GlassCard {
-                            Toggle(isOn: $viewModel.biometricUnlockEnabled) {
+                            VStack(spacing: 16) {
+                                Toggle(isOn: $viewModel.biometricUnlockEnabled) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "faceid")
+                                            .foregroundStyle(roleColor)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Biometric Unlock")
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(AppTheme.textPrimary)
+                                            Text("Use Face ID or Touch ID to access FleetOS")
+                                                .font(.caption)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                    }
+                                }
+                                .tint(roleColor)
+
+                                Divider().background(AppTheme.border)
+
                                 HStack(spacing: 12) {
-                                    Image(systemName: "faceid")
-                                        .foregroundStyle(roleColor)
+                                    Image(systemName: "lock.shield.fill")
+                                        .foregroundStyle(isMFAEnabled ? AppTheme.success : roleColor)
+                                        .frame(width: 20)
+
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("Biometric Unlock")
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(AppTheme.textPrimary)
-                                        Text("Use Face ID or Touch ID to access FleetOS")
+                                        HStack(spacing: 6) {
+                                            Text("Two-Factor Authentication")
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(AppTheme.textPrimary)
+
+                                            if isMFAEnabled {
+                                                Text("ON")
+                                                    .font(.system(size: 9, weight: .heavy))
+                                                    .foregroundStyle(.white)
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(AppTheme.success)
+                                                    .clipShape(Capsule())
+                                            }
+                                        }
+
+                                        Text(isMFAEnabled
+                                             ? "Your account is protected with TOTP"
+                                             : "Add an extra layer of security to your account")
                                             .font(.caption)
                                             .foregroundStyle(AppTheme.textSecondary)
                                     }
+
+                                    Spacer()
+
+                                    if isCheckingMFA || isDisablingMFA {
+                                        ProgressView()
+                                            .tint(roleColor)
+                                    } else {
+                                        Button {
+                                            if isMFAEnabled {
+                                                isShowingMFADisableAlert = true
+                                            } else {
+                                                isShowingMFASetup = true
+                                            }
+                                        } label: {
+                                            Text(isMFAEnabled ? "Disable" : "Enable")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(isMFAEnabled ? AppTheme.error : roleColor)
+                                                .padding(.horizontal, 14)
+                                                .padding(.vertical, 7)
+                                                .background(
+                                                    Capsule()
+                                                        .fill((isMFAEnabled ? AppTheme.error : roleColor).opacity(0.12))
+                                                )
+                                        }
+                                    }
                                 }
                             }
-                            .tint(roleColor)
                         }
                     }
                     
@@ -184,6 +251,25 @@ struct AppSettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            checkMFAStatus()
+        }
+        .sheet(isPresented: $isShowingMFASetup) {
+            MFASetupView()
+                .environment(appViewModel)
+                .onDisappear {
+                    // Refresh MFA status after setup sheet closes
+                    checkMFAStatus()
+                }
+        }
+        .alert("Disable Two-Factor Authentication", isPresented: $isShowingMFADisableAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Disable", role: .destructive) {
+                disableMFA()
+            }
+        } message: {
+            Text("Are you sure you want to disable two-factor authentication? Your account will be less secure.")
+        }
     }
     
     private var appVersionLabel: String {
@@ -217,6 +303,52 @@ struct AppSettingsView: View {
     
     private func clearAppCache() {
         cacheCleared = true
+    }
+
+    // MARK: - MFA Helpers
+
+    private func checkMFAStatus() {
+        isCheckingMFA = true
+        Task {
+            let mockEnabled = UserDefaults.standard.bool(forKey: "mock_mfa_enabled_\(appViewModel.currentUser?.id.uuidString ?? "")")
+            
+            if SupabaseConfig.isConfigured {
+                do {
+                    let factors = try await SupabaseService.shared.listVerifiedMFAFactors()
+                    isMFAEnabled = !factors.isEmpty || mockEnabled
+                    mfaFactorID = factors.first?.id ?? (mockEnabled ? "mock-factor-\(appViewModel.currentUser?.id.uuidString ?? "")" : nil)
+                } catch {
+                    print("[Settings] Failed to check MFA status: \(error)")
+                    isMFAEnabled = mockEnabled
+                    mfaFactorID = mockEnabled ? "mock-factor-\(appViewModel.currentUser?.id.uuidString ?? "")" : nil
+                }
+            } else {
+                isMFAEnabled = mockEnabled
+                mfaFactorID = mockEnabled ? "mock-factor-\(appViewModel.currentUser?.id.uuidString ?? "")" : nil
+            }
+            isCheckingMFA = false
+        }
+    }
+
+    private func disableMFA() {
+        guard let factorID = mfaFactorID else { return }
+        isDisablingMFA = true
+        Task {
+            UserDefaults.standard.set(false, forKey: "mock_mfa_enabled_\(appViewModel.currentUser?.id.uuidString ?? "")")
+            
+            if !factorID.hasPrefix("mock-factor-") && SupabaseConfig.isConfigured {
+                do {
+                    try await SupabaseService.shared.unenrollMFA(factorID: factorID)
+                    print("[Settings] Real Supabase MFA disabled successfully ✅")
+                } catch {
+                    print("[Settings] Failed to disable real MFA: \(error)")
+                }
+            }
+            
+            isMFAEnabled = false
+            mfaFactorID = nil
+            isDisablingMFA = false
+        }
     }
 }
 

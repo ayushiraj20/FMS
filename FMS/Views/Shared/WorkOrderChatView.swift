@@ -4,7 +4,8 @@ struct WorkOrderChatView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppViewModel.self) private var appViewModel
     
-    let workOrderID: UUID
+    var workOrderID: UUID? = nil
+    var defectReportID: UUID? = nil
     var onManage: (() -> Void)? = nil
     @State private var messageText = ""
     @State private var pollTimer: Timer? = nil
@@ -14,17 +15,71 @@ struct WorkOrderChatView: View {
     }
     
     private var workOrder: WorkOrder? {
-        appViewModel.service.workOrders.first { $0.id == workOrderID }
+        guard let wID = workOrderID else { return nil }
+        return appViewModel.service.workOrders.first { $0.id == wID }
+    }
+    
+    private var defectReport: DefectReport? {
+        guard let dID = defectReportID else { return nil }
+        return appViewModel.service.defects.first { $0.id == dID }
+    }
+    
+    /// True when the view was opened for a defect report (before a work order exists)
+    private var isDefectMode: Bool {
+        defectReportID != nil && workOrderID == nil
     }
     
     private var messages: [ChatMessage] {
-        appViewModel.service.chatMessages(forWorkOrder: workOrderID)
+        if let dID = defectReportID {
+            return appViewModel.service.chatMessages(forDefect: dID)
+        } else if let wID = workOrderID {
+            return appViewModel.service.chatMessages(forWorkOrder: wID)
+        }
+        return []
     }
     
     var body: some View {
         VStack(spacing: 0) {
             // Chat Header Info Card
-            if let order = workOrder {
+            // -- Header: Work Order or Defect Report info --
+            if isDefectMode, let defect = defectReport {
+                let vehicle = appViewModel.service.vehicle(for: defect.vehicleID)
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.orange)
+                        .frame(width: 44, height: 44)
+                        .background(Color.orange.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(defect.title ?? "Defect Report")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .lineLimit(1)
+                        
+                        Text("Vehicle: \(vehicle?.displayName ?? "Unknown") (\(vehicle?.plateNumber ?? "N/A"))")
+                            .font(.system(size: 12))
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    
+                    Spacer()
+                    
+                    StatusBadgeView(
+                        text: defect.status.rawValue,
+                        color: defect.status == .completed ? AppTheme.success : .orange
+                    )
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(AppTheme.surface)
+                .overlay(
+                    VStack {
+                        Spacer()
+                        Divider().foregroundStyle(AppTheme.border)
+                    }
+                )
+            } else if let order = workOrder {
                 let vehicle = appViewModel.service.vehicle(for: order.vehicleID)
                 
                 HStack(spacing: 12) {
@@ -84,9 +139,20 @@ struct WorkOrderChatView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(spacing: 14) {
-                            ForEach(messages) { msg in
-                                chatBubble(msg)
+                        LazyVStack(spacing: 4) {
+                            ForEach(0..<messages.count, id: \.self) { index in
+                                let msg = messages[index]
+                                let prevMessage = index > 0 ? messages[index - 1] : nil
+                                let nextMessage = index < messages.count - 1 ? messages[index + 1] : nil
+                                
+                                let showSenderInfo = msg.senderID != currentUser?.id &&
+                                    (prevMessage == nil || prevMessage?.senderID != msg.senderID || msg.timestamp.timeIntervalSince(prevMessage!.timestamp) > 60)
+                                
+                                let showTimestamp = nextMessage == nil || nextMessage?.senderID != msg.senderID || nextMessage!.timestamp.timeIntervalSince(msg.timestamp) > 60
+                                
+                                let isSameSenderAsNext = nextMessage != nil && nextMessage?.senderID == msg.senderID && nextMessage!.timestamp.timeIntervalSince(msg.timestamp) <= 60
+                                
+                                chatBubble(msg, showSenderInfo: showSenderInfo, showTimestamp: showTimestamp, isSameSenderAsNext: isSameSenderAsNext)
                                     .id(msg.id)
                             }
                         }
@@ -135,7 +201,7 @@ struct WorkOrderChatView: View {
             .background(AppTheme.surface)
         }
         .background(AppTheme.background.ignoresSafeArea())
-        .navigationTitle("Repair Chat")
+        .navigationTitle(isDefectMode ? "Defect Chat" : "Repair Chat")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let onManage {
@@ -167,7 +233,7 @@ struct WorkOrderChatView: View {
         }
     }
     
-    private func chatBubble(_ message: ChatMessage) -> some View {
+    private func chatBubble(_ message: ChatMessage, showSenderInfo: Bool, showTimestamp: Bool, isSameSenderAsNext: Bool) -> some View {
         guard let currentUserID = currentUser?.id else { return AnyView(EmptyView()) }
         let isSent = message.senderID == currentUserID
         
@@ -180,12 +246,17 @@ struct WorkOrderChatView: View {
                 if isSent { Spacer(minLength: 60) }
                 
                 if !isSent {
-                    initialsAvatar(name: senderName, role: role)
-                        .padding(.bottom, 2)
+                    if showSenderInfo {
+                        initialsAvatar(name: senderName, role: role)
+                            .padding(.bottom, 2)
+                    } else {
+                        Color.clear
+                            .frame(width: 32, height: 32)
+                    }
                 }
                 
-                VStack(alignment: isSent ? .trailing : .leading, spacing: 4) {
-                    if !isSent {
+                VStack(alignment: isSent ? .trailing : .leading, spacing: 2) {
+                    if !isSent && showSenderInfo {
                         HStack(spacing: 6) {
                             Text(senderName)
                                 .font(.system(size: 12, weight: .bold))
@@ -194,6 +265,7 @@ struct WorkOrderChatView: View {
                             roleTag(role)
                         }
                         .padding(.horizontal, 4)
+                        .padding(.bottom, 2)
                     }
                     
                     Text(message.message)
@@ -206,14 +278,18 @@ struct WorkOrderChatView: View {
                                 .fill(isSent ? AppTheme.brand : AppTheme.surfaceSecondary)
                         )
                     
-                    Text(message.timestamp.formatted(date: .omitted, time: .shortened))
-                        .font(.system(size: 10))
-                        .foregroundStyle(AppTheme.textSecondary)
-                        .padding(.horizontal, 4)
+                    if showTimestamp {
+                        Text(message.timestamp.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 10))
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .padding(.horizontal, 4)
+                            .padding(.top, 2)
+                    }
                 }
                 
                 if !isSent { Spacer(minLength: 60) }
             }
+            .padding(.bottom, isSameSenderAsNext ? 0 : 8)
         )
     }
     
@@ -261,7 +337,8 @@ struct WorkOrderChatView: View {
             senderID: user.id,
             receiverID: nil,
             message: messageText,
-            workOrderID: workOrderID
+            workOrderID: workOrderID,
+            defectReportID: defectReportID
         )
         
         messageText = ""

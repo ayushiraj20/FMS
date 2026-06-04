@@ -140,8 +140,12 @@ final class MockDataService {
             let assignedVehicle = vehicles.first { $0.assignedDriverID == driverID }
             users[index].assignedVehicleID = assignedVehicle?.id
         }
-        if let docs = try? await SupabaseService.shared.fetchDocuments() {
+        do {
+            let docs = try await SupabaseService.shared.fetchDocuments()
             self.documents = docs
+            print("[Sync] Successfully fetched \(docs.count) documents from Supabase.")
+        } catch {
+            print("[Sync ERROR] Failed to fetch documents from Supabase: \(error)")
         }
         if let tripsList = try? await SupabaseService.shared.fetchTrips() {
             self.trips = tripsList
@@ -489,8 +493,41 @@ final class MockDataService {
     }
 
     func chatMessages(forWorkOrder workOrderID: UUID) -> [ChatMessage] {
-        chatMessages.filter { $0.workOrderID == workOrderID }
-            .sorted { $0.timestamp < $1.timestamp }
+        let linkedWO = workOrders.first { $0.id == workOrderID }
+        let linkedDefectID = linkedWO?.defectReportID
+        return chatMessages.filter {
+            $0.workOrderID == workOrderID ||
+            (linkedDefectID != nil && $0.defectReportID == linkedDefectID)
+        }
+        .sorted { $0.timestamp < $1.timestamp }
+    }
+
+
+    /// Returns all chat messages for a defect report.
+    /// If the defect has a linked work order, messages from that work order thread are also included.
+    func chatMessages(forDefect defectID: UUID) -> [ChatMessage] {
+        // Find any work order linked to this defect
+        let linkedWO = workOrders.first { $0.defectReportID == defectID }
+        return chatMessages.filter {
+            $0.defectReportID == defectID ||
+            (linkedWO != nil && $0.workOrderID == linkedWO!.id)
+        }
+        .sorted { $0.timestamp < $1.timestamp }
+    }
+
+    func markChatMessagesRead(between userA: UUID, and userB: UUID) {
+        for index in chatMessages.indices {
+            let msg = chatMessages[index]
+            if msg.receiverID == userA && msg.senderID == userB && !msg.isRead {
+                chatMessages[index].isRead = true
+                if SupabaseConfig.isConfigured {
+                    let updated = chatMessages[index]
+                    Task {
+                        try? await SupabaseService.shared.updateChatMessage(updated)
+                    }
+                }
+            }
+        }
     }
 
     func todayInspection(for driverID: UUID) -> InspectionRecord? {
@@ -692,7 +729,21 @@ final class MockDataService {
         }
     }
 
-    func sendChatMessage(senderID: UUID, receiverID: UUID?, message: String, workOrderID: UUID? = nil) {
+    func sendChatMessage(senderID: UUID, receiverID: UUID?, message: String, workOrderID: UUID? = nil, defectReportID: UUID? = nil) {
+        var finalWorkOrderID = workOrderID
+        var finalDefectReportID = defectReportID
+
+        // Resolve missing IDs from the relationship between WorkOrder and DefectReport
+        if finalWorkOrderID == nil, let defID = finalDefectReportID {
+            if let linkedWO = workOrders.first(where: { $0.defectReportID == defID }) {
+                finalWorkOrderID = linkedWO.id
+            }
+        } else if finalDefectReportID == nil, let woID = finalWorkOrderID {
+            if let linkedWO = workOrders.first(where: { $0.id == woID }) {
+                finalDefectReportID = linkedWO.defectReportID
+            }
+        }
+
         let msg = ChatMessage(
             id: UUID(),
             senderID: senderID,
@@ -700,7 +751,8 @@ final class MockDataService {
             message: message,
             timestamp: .now,
             isRead: false,
-            workOrderID: workOrderID
+            workOrderID: finalWorkOrderID,
+            defectReportID: finalDefectReportID
         )
         chatMessages.append(msg)
         
@@ -716,7 +768,7 @@ final class MockDataService {
         }
         
         // Push notification on new message in coordination thread
-        if let wID = workOrderID, let order = workOrders.first(where: { $0.id == wID }) {
+        if let wID = finalWorkOrderID, let order = workOrders.first(where: { $0.id == wID }) {
             let sender = users.first { $0.id == senderID }
             let senderName = sender?.name ?? "Someone"
             let senderRoleText = sender?.role.rawValue ?? "Team Member"
@@ -747,7 +799,23 @@ final class MockDataService {
                     addNotification(userID: techID, roleTarget: nil, title: "New Repair Message", message: alertMsg, category: .maintenance)
                 }
             }
-        } else if let receiverID, workOrderID == nil {
+        } else if let defID = finalDefectReportID, let defect = defects.first(where: { $0.id == defID }) {
+            // Defect coordination chat (before work order exists)
+            let sender = users.first { $0.id == senderID }
+            let senderName = sender?.name ?? "Someone"
+            let alertMsg = "\(senderName): \(message)"
+
+            if sender?.role == .driver {
+                // Notify all fleet managers
+                let managers = users.filter { $0.role == .fleetManager }
+                for mgr in managers {
+                    addNotification(userID: mgr.id, roleTarget: nil, title: "Defect Chat", message: alertMsg, category: .maintenance)
+                }
+            } else if sender?.role == .fleetManager {
+                // Notify the driver who reported
+                addNotification(userID: defect.driverID, roleTarget: nil, title: "Defect Chat", message: alertMsg, category: .maintenance)
+            }
+        } else if let receiverID, finalWorkOrderID == nil {
             let sender = users.first { $0.id == senderID }
             let receiver = users.first { $0.id == receiverID }
             let senderName = sender?.name ?? "Someone"
@@ -875,17 +943,15 @@ final class MockDataService {
         }
     }
 
-    func addVehicle(_ vehicle: Vehicle) {
+    func addVehicle(_ vehicle: Vehicle) async {
         vehicles.insert(vehicle, at: 0)
         
         if SupabaseConfig.isConfigured {
-            Task {
-                do {
-                    try await SupabaseService.shared.addVehicle(vehicle)
-                    print("[Supabase] Vehicle successfully inserted: \(vehicle.displayName) (\(vehicle.plateNumber))")
-                } catch {
-                    print("[Supabase ERROR] Failed to insert vehicle: \(error)")
-                }
+            do {
+                try await SupabaseService.shared.addVehicle(vehicle)
+                print("[Supabase] Vehicle successfully inserted: \(vehicle.displayName) (\(vehicle.plateNumber))")
+            } catch {
+                print("[Supabase ERROR] Failed to insert vehicle: \(error)")
             }
         }
     }
@@ -954,22 +1020,18 @@ final class MockDataService {
         }
     }
 
-    func addDocument(vehicleID: UUID, type: DocumentType, number: String, expiryDate: Date, imageUrl: String? = nil) {
+    func addDocument(vehicleID: UUID, type: DocumentType, number: String, expiryDate: Date, imageUrl: String? = nil) async {
         if let index = documents.firstIndex(where: { $0.vehicleID == vehicleID && $0.type == type }) {
             documents[index].documentNumber = number
             documents[index].expiryDate = expiryDate
-            if let imgUrl = imageUrl {
-                documents[index].imageUrl = imgUrl
-            }
+            documents[index].imageUrl = imageUrl
             let doc = documents[index]
             if SupabaseConfig.isConfigured {
-                Task {
-                    do {
-                        try await SupabaseService.shared.updateDocument(doc)
-                        print("[Supabase] Document successfully updated: \(doc.type.rawValue) -> image_url: \(doc.imageUrl ?? "nil")")
-                    } catch {
-                        print("[Supabase ERROR] Failed to update document: \(error)")
-                    }
+                do {
+                    try await SupabaseService.shared.updateDocument(doc)
+                    print("[Supabase] Document successfully updated: \(doc.type.rawValue) -> image_url: \(doc.imageUrl ?? "nil")")
+                } catch {
+                    print("[Supabase ERROR] Failed to update document: \(error)")
                 }
             }
         } else {
@@ -985,13 +1047,11 @@ final class MockDataService {
             documents.insert(document, at: 0)
             
             if SupabaseConfig.isConfigured {
-                Task {
-                    do {
-                        try await SupabaseService.shared.addDocument(document)
-                        print("[Supabase] Document successfully inserted: \(document.type.rawValue) -> image_url: \(document.imageUrl ?? "nil")")
-                    } catch {
-                        print("[Supabase ERROR] Failed to insert document: \(error)")
-                    }
+                do {
+                    try await SupabaseService.shared.addDocument(document)
+                    print("[Supabase] Document successfully inserted: \(document.type.rawValue) -> image_url: \(document.imageUrl ?? "nil")")
+                } catch {
+                    print("[Supabase ERROR] Failed to insert document: \(error)")
                 }
             }
         }
@@ -1647,11 +1707,18 @@ final class MockDataService {
     func markNotificationRead(_ notification: AppNotification) {
         guard let index = notifications.firstIndex(where: { $0.id == notification.id }) else { return }
         notifications[index].isRead = true
-        
-        if SupabaseConfig.isConfigured {
-            let updated = notifications[index]
-            Task {
-                try? await SupabaseService.shared.updateNotification(updated)
+    }
+
+    func markAllNotificationsRead(for user: User?) {
+        guard let user else { return }
+        for index in notifications.indices {
+            let n = notifications[index]
+            let isVisible = n.userID == user.id ||
+                            n.roleTarget == user.role ||
+                            (n.userID == nil && n.roleTarget == nil)
+            
+            if isVisible && !n.isRead {
+                notifications[index].isRead = true
             }
         }
     }

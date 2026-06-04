@@ -101,7 +101,7 @@ struct ActiveVehiclesDetailView: View {
                 HStack(spacing: 16) {
                     infoPill(
                         title: "Status",
-                        value: vehicle.status.rawValue,
+                        value: vehicle.status.displayName,
                         color: vehicle.status == .active ? AppTheme.success : Color(hex: "#00a2ff")
                     )
 
@@ -113,7 +113,7 @@ struct ActiveVehiclesDetailView: View {
                     
                     infoPill(
                         title: "Fuel",
-                        value: "\(vehicle.fuelLevel)%",
+                        value: vehicle.fuelDisplayString,
                         color: vehicle.fuelLevel < 30 ? AppTheme.error : (vehicle.fuelLevel < 60 ? AppTheme.warning : AppTheme.success)
                     )
                 }
@@ -190,37 +190,33 @@ struct VehicleDetailSheet: View {
                     // Status and Health Summary Row
                     HStack(spacing: 16) {
                         // Status Card
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("STATUS")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(AppTheme.textSecondary)
-                            
-                            Text(vehicle.status.rawValue.uppercased())
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(vehicle.status == .active ? AppTheme.success : Color(hex: "#00a2ff"))
+                        GlassCard {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("STATUS")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                
+                                Text(vehicle.status.displayName.uppercased())
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(vehicle.status == .active ? AppTheme.success : Color(hex: "#00a2ff"))
+                            }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(AppTheme.surfaceSecondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                         
                         // Health Card
                         let healthText = activeDefects.isEmpty ? "GOOD" : (activeDefects.contains { $0.severity == .critical } ? "CRITICAL" : "NEEDS SERVICE")
                         let healthColor = activeDefects.isEmpty ? AppTheme.success : (activeDefects.contains { $0.severity == .critical } ? AppTheme.error : AppTheme.warning)
                         
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("HEALTH")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(AppTheme.textSecondary)
-                            
-                            Text(healthText)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(healthColor)
+                        GlassCard {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("HEALTH")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                
+                                Text(healthText)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(healthColor)
+                            }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(AppTheme.surfaceSecondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                     .padding(.horizontal)
 
@@ -234,7 +230,7 @@ struct VehicleDetailSheet: View {
                                         .font(.subheadline.weight(.semibold))
                                         .foregroundStyle(AppTheme.textSecondary)
                                     Spacer()
-                                    Text("\(vehicle.fuelLevel)%")
+                                    Text(vehicle.fuelDisplayString)
                                         .font(.subheadline.bold())
                                         .foregroundStyle(AppTheme.textPrimary)
                                 }
@@ -300,48 +296,45 @@ struct VehicleDetailSheet: View {
                             .padding(.horizontal)
 
                         if activeDefects.isEmpty {
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(AppTheme.success)
-                                Text("No outstanding defects reported on this vehicle.")
-                                    .font(.subheadline)
-                                    .foregroundStyle(AppTheme.textPrimary)
-                                Spacer()
+                            GlassCard {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(AppTheme.success)
+                                        .font(.title3)
+                                    Text("No outstanding defects reported on this vehicle.")
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
                             }
-                            .padding()
-                            .background(AppTheme.surfaceSecondary)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
                             .padding(.horizontal)
                         } else {
                             ForEach(activeDefects) { defect in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack {
-                                        Text(defect.title ?? "Defect Report")
-                                            .font(.subheadline.bold())
-                                            .foregroundStyle(AppTheme.textPrimary)
-                                        Spacer()
-                                        Text(defect.severity.rawValue.uppercased())
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundStyle(.white)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 3)
-                                            .background(defect.severity == .critical ? AppTheme.error : AppTheme.warning)
-                                            .clipShape(Capsule())
+                                GlassCard {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack {
+                                            Text(defect.title ?? "Defect Report")
+                                                .font(.subheadline.bold())
+                                                .foregroundStyle(AppTheme.textPrimary)
+                                            Spacer()
+                                            Text(defect.severity.rawValue.uppercased())
+                                                .font(.system(size: 9, weight: .bold))
+                                                .foregroundStyle(.white)
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 3)
+                                                .background(defect.severity == .critical ? AppTheme.error : AppTheme.warning)
+                                                .clipShape(Capsule())
+                                        }
+                                        
+                                        Text(defect.description)
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                            .lineLimit(2)
+                                        
+                                        Text("Reported: \(defect.reportedDate.formatted(date: .abbreviated, time: .omitted))")
+                                            .font(.system(size: 9))
+                                            .foregroundStyle(AppTheme.textSecondary.opacity(0.8))
                                     }
-                                    
-                                    Text(defect.description)
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                        .lineLimit(2)
-                                    
-                                    Text("Reported: \(defect.reportedDate.formatted(date: .abbreviated, time: .omitted))")
-                                        .font(.system(size: 9))
-                                        .foregroundStyle(AppTheme.textSecondary.opacity(0.8))
                                 }
-                                .padding()
-                                .background(AppTheme.cardBackground)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.border, lineWidth: 1))
                                 .padding(.horizontal)
                             }
                         }

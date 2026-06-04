@@ -8,6 +8,10 @@ struct DriverDashboardView: View {
     // Pre-trip inspection gate
     @State private var showTripInspectionSheet = false
     @State private var tripToStart: Trip? = nil
+    @State private var showTripEndInspectionSheet = false
+    @State private var tripToEnd: Trip? = nil
+    @State private var defectChatID: UUID? = nil
+    @State private var fuelTransactions: [FuelTransaction] = []
 
     private var currentUser: User? { appViewModel.currentUser }
     private var assignedVehicle: Vehicle? { appViewModel.assignedVehicle }
@@ -26,6 +30,7 @@ struct DriverDashboardView: View {
                         vehicleAndShiftRow
                         activeTripWidget
                         quickActionsSection
+                        carbonScoreSection
                         todayStatsSection
                         reportedDefectsSection
                     }
@@ -39,6 +44,7 @@ struct DriverDashboardView: View {
                 await appViewModel.service.syncWithDatabase()
                 await driverVM.load()
                 await appViewModel.loadNotifications()
+                await loadFuelTransactions()
             }
             .navigationTitle("Dashboard")
             .navigationBarTitleDisplayMode(.large)
@@ -60,6 +66,11 @@ struct DriverDashboardView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 8) {
+                        NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
+                            ChatToolbarIcon()
+                        }
+                        .buttonStyle(.plain)
+
                         NavigationLink(destination: BroadcastInboxView()) {
                             Image(systemName: "megaphone.fill")
                                 .imageScale(.large)
@@ -83,12 +94,23 @@ struct DriverDashboardView: View {
                 await appViewModel.service.syncWithDatabase()
                 await driverVM.load()
                 await appViewModel.loadNotifications()
+                await loadFuelTransactions()
             }
             .sheet(isPresented: $driverVM.showFuelReceiptSheet) {
-                FuelReceiptView()
+                if let user = currentUser, let vehicle = assignedVehicle {
+                    RefuelVehicleView(
+                        vehicleID: vehicle.id,
+                        driverID: user.id,
+                        tripID: appViewModel.service.activeTrip(for: user.id)?.id,
+                        repo: FuelRepository(
+                            service: FuelService(
+                                client: SupabaseService.shared.client
+                            )
+                        )
+                    )
                     .environment(appViewModel)
-                    .environment(driverVM)
                     .registersSheetPresentation()
+                }
             }
             .sheet(isPresented: $driverVM.showBreakLogSheet) {
                 TripBreakLogSheet(trip: currentUser.flatMap { appViewModel.service.activeTrip(for: $0.id) })
@@ -102,7 +124,15 @@ struct DriverDashboardView: View {
             }
             .sheet(isPresented: $showTripInspectionSheet) {
                 TripStartInspectionSheet(trip: tripToStart) {
-                    driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
+                    driverVM.showToastMessage("Trip started. Have a safe journey.")
+                }
+                .environment(appViewModel)
+                .environment(driverVM)
+                .registersSheetPresentation()
+            }
+            .sheet(isPresented: $showTripEndInspectionSheet) {
+                TripStartInspectionSheet(trip: tripToEnd, inspectionType: .postTrip) {
+                    driverVM.showToastMessage("Trip ended successfully.")
                 }
                 .environment(appViewModel)
                 .environment(driverVM)
@@ -288,10 +318,31 @@ struct DriverDashboardView: View {
                                 .foregroundStyle(DriverTheme.successGreen)
                         }
                         
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(activeTrip.origin) → \(activeTrip.destination)")
-                                .font(.system(.title3, design: .rounded).bold())
+                        HStack(spacing: 12) {
+                            VStack(spacing: 0) {
+                                Circle()
+                                    .fill(DriverTheme.accent)
+                                    .frame(width: 8, height: 8)
+                                Rectangle()
+                                    .fill(DriverTheme.textSecondary.opacity(0.3))
+                                    .frame(width: 1.5, height: 22)
+                                Circle()
+                                    .fill(DriverTheme.successGreen)
+                                    .frame(width: 8, height: 8)
+                            }
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(activeTrip.origin)
+                                    .font(.system(.headline, design: .rounded).bold())
+                                    .foregroundStyle(DriverTheme.textPrimary)
+                                    .lineLimit(1)
+                                
+                                Text(activeTrip.destination)
+                                    .font(.system(.headline, design: .rounded).bold())
+                                    .foregroundStyle(DriverTheme.textPrimary)
+                                    .lineLimit(1)
+                            }
                         }
+                        .padding(.vertical, 4)
                         
                         HStack {
                             VStack(alignment: .leading) {
@@ -337,8 +388,31 @@ struct DriverDashboardView: View {
                         Spacer()
                     }
                     
-                    Text("\(nextTrip.origin) → \(nextTrip.destination)")
-                        .font(.system(.title3, design: .rounded).bold())
+                    HStack(spacing: 12) {
+                        VStack(spacing: 0) {
+                            Circle()
+                                .fill(DriverTheme.textSecondary)
+                                .frame(width: 8, height: 8)
+                            Rectangle()
+                                .fill(DriverTheme.textSecondary.opacity(0.3))
+                                .frame(width: 1.5, height: 22)
+                            Circle()
+                                .fill(DriverTheme.accent)
+                                .frame(width: 8, height: 8)
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(nextTrip.origin)
+                                .font(.system(.headline, design: .rounded).bold())
+                                .foregroundStyle(DriverTheme.textPrimary)
+                                .lineLimit(1)
+                            
+                            Text(nextTrip.destination)
+                                .font(.system(.headline, design: .rounded).bold())
+                                .foregroundStyle(DriverTheme.textPrimary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .padding(.vertical, 4)
                     
                     HStack(spacing: 12) {
                         NavigationLink(destination: TripDetailView(trip: nextTrip).environment(appViewModel)) {
@@ -397,27 +471,6 @@ struct DriverDashboardView: View {
                 .background(DriverTheme.criticalRed, in: Capsule())
             }
             .buttonStyle(.plain)
-
-            NavigationLink {
-                DriverManagerChatView()
-                    .environment(appViewModel)
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "message.fill")
-                        .font(.title3)
-                    Text("Message Fleet Manager")
-                        .font(.system(.headline, design: .rounded).bold())
-                }
-                .foregroundStyle(DriverTheme.accent)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(.ultraThinMaterial, in: Capsule())
-                .overlay(
-                    Capsule()
-                        .stroke(DriverTheme.accent.opacity(0.22), lineWidth: 1)
-                )
-            }
-            .buttonStyle(.plain)
         }
     }
     
@@ -441,6 +494,131 @@ struct DriverDashboardView: View {
             content
                 .scaleEffect(phase.isIdentity ? 1 : 0.9)
                 .opacity(phase.isIdentity ? 1 : 0.7)
+        }
+    }
+
+    // MARK: - Carbon Score Section
+    @ViewBuilder
+    private var carbonScoreSection: some View {
+        if let user = currentUser {
+            let summary = CarbonEfficiencyAnalytics.driverSummary(
+                driverID: user.id,
+                trips: appViewModel.service.trips,
+                fuelReceipts: appViewModel.service.fuelReceipts,
+                fuelTransactions: fuelTransactions
+            )
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Eco Score", systemImage: "leaf.fill")
+                            .font(.system(.title2, design: .rounded).bold())
+                            .foregroundStyle(DriverTheme.textPrimary)
+                        Text("Monthly fuel efficiency and carbon impact")
+                            .font(.caption)
+                            .foregroundStyle(DriverTheme.textSecondary)
+                    }
+                    Spacer()
+                    Text(summary.grade.rawValue)
+                        .font(.system(size: 34, weight: .black, design: .rounded))
+                        .foregroundStyle(gradeTint(summary.grade))
+                        .frame(width: 58, height: 58)
+                        .background(gradeTint(summary.grade).opacity(0.14), in: Circle())
+                }
+
+                HStack(spacing: 10) {
+                    ecoMetric(title: "Efficiency", value: efficiencyText(summary.efficiencyKMPerLitre), icon: "speedometer", tint: DriverTheme.successGreen)
+                    ecoMetric(title: "CO₂", value: carbonText(summary.carbonKG), icon: "cloud.fill", tint: Color(UIColor.systemBlue))
+                    ecoMetric(title: "Distance", value: "\(Int(summary.distanceKM.rounded())) km", icon: "road.lanes", tint: DriverTheme.accent)
+                }
+
+                if let lastTrip = summary.lastTrip {
+                    HStack(spacing: 12) {
+                        Image(systemName: "flag.checkered")
+                            .foregroundStyle(DriverTheme.accent)
+                            .frame(width: 34, height: 34)
+                            .background(DriverTheme.accent.opacity(0.14), in: Circle())
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Last trip")
+                                .font(.caption.bold())
+                                .foregroundStyle(DriverTheme.textSecondary)
+                            Text(lastTrip.route)
+                                .font(.system(.subheadline, design: .rounded).bold())
+                                .foregroundStyle(DriverTheme.textPrimary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Text(efficiencyText(lastTrip.efficiencyKMPerLitre))
+                            .font(.system(.subheadline, design: .rounded).bold())
+                            .foregroundStyle(DriverTheme.successGreen)
+                    }
+                    .padding(12)
+                    .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                } else {
+                    Text("Log fuel against trips to unlock last-trip efficiency.")
+                        .font(.caption)
+                        .foregroundStyle(DriverTheme.textSecondary)
+                }
+            }
+            .padding(16)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(DriverTheme.successGreen.opacity(0.22), lineWidth: 1)
+            )
+        }
+    }
+
+    private func ecoMetric(title: String, value: String, icon: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(tint)
+            Text(value)
+                .font(.system(.headline, design: .rounded).bold())
+                .foregroundStyle(DriverTheme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(DriverTheme.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(DriverTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func loadFuelTransactions() async {
+        guard let user = currentUser, SupabaseConfig.isConfigured else {
+            fuelTransactions = []
+            return
+        }
+        do {
+            let repo = FuelRepository(service: FuelService(client: SupabaseService.shared.client))
+            fuelTransactions = try await repo.transactionsForDriver(user.id)
+        } catch {
+            fuelTransactions = []
+            print("[Carbon] Driver fuel transactions unavailable: \(error)")
+        }
+    }
+
+    private func efficiencyText(_ value: Double?) -> String {
+        guard let value else { return "-- km/L" }
+        return "\(String(format: "%.1f", value)) km/L"
+    }
+
+    private func carbonText(_ kg: Double) -> String {
+        if kg >= 1000 {
+            return "\(String(format: "%.1f", kg / 1000)) t"
+        }
+        return "\(Int(kg.rounded())) kg"
+    }
+
+    private func gradeTint(_ grade: CarbonGrade) -> Color {
+        switch grade {
+        case .a: return DriverTheme.successGreen
+        case .b: return DriverTheme.accent
+        case .c: return DriverTheme.warningAmber
+        case .d: return DriverTheme.criticalRed
         }
     }
 
@@ -536,9 +714,41 @@ struct DriverDashboardView: View {
                             .font(.subheadline)
                             .foregroundStyle(DriverTheme.textSecondary)
                             .lineLimit(2)
+                        
+                        // Chat button
+                        Button {
+                            defectChatID = defect.id
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "bubble.left.and.bubble.right.fill")
+                                    .font(.caption)
+                                Text("Chat with Manager")
+                                    .font(.caption.bold())
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(DriverTheme.accent, in: Capsule())
+                        }
                     }
                     .padding()
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                }
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { defectChatID != nil },
+            set: { if !$0 { defectChatID = nil } }
+        )) {
+            if let chatDefectID = defectChatID {
+                NavigationStack {
+                    WorkOrderChatView(defectReportID: chatDefectID)
+                        .environment(appViewModel)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close") { defectChatID = nil }
+                            }
+                        }
                 }
             }
         }
