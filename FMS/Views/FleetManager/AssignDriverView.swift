@@ -215,7 +215,7 @@ struct AssignDriverView: View {
                     .background(isSelected ? .white.opacity(0.3) : AppTheme.border)
 
                 HStack {
-                    Label("\(vehicle.fuelLevel)%", systemImage: "fuelpump.fill")
+                    Label(vehicle.fuelDisplayString, systemImage: "fuelpump.fill")
                         .font(.caption)
                         .foregroundStyle(isSelected ? .white.opacity(0.9) : AppTheme.textSecondary)
                     Spacer()

@@ -40,6 +40,8 @@ final class VehicleManagementViewModel {
     var documentExpiries: [DocumentType: Date] = [:]
     var documentImages: [DocumentType: UIImage?] = [:]
     var documentImageURLs: [DocumentType: String] = [:]
+    var documentOCRStatus: [DocumentType: String] = [:]
+    var documentResolvedTypes: [DocumentType: DocumentType] = [:]
     var uploadingDocuments: Set<DocumentType> = []
     var activeDocumentTypeForPhoto: DocumentType? = nil
     var selectedFileURL: URL? = nil
@@ -291,11 +293,14 @@ final class VehicleManagementViewModel {
         documentNumbers = [:]
         documentExpiries = [:]
         documentImageURLs = [:]
+        documentOCRStatus = [:]
+        documentResolvedTypes = [:]
         uploadingDocuments = []
         for type in DocumentType.allCases {
             documentNumbers[type] = ""
             documentExpiries[type] = Date.now.addingTimeInterval(86400 * 120)
             documentImages[type] = nil
+            documentResolvedTypes[type] = type
         }
         
         selectedFileURL = nil
@@ -326,6 +331,8 @@ final class VehicleManagementViewModel {
         documentExpiries = [:]
         documentImages = [:]
         documentImageURLs = [:]
+        documentOCRStatus = [:]
+        documentResolvedTypes = [:]
         uploadingDocuments = []
         
         let existingDocs = service.documents(for: vehicle.id)
@@ -343,6 +350,7 @@ final class VehicleManagementViewModel {
                 documentExpiries[type] = Date.now.addingTimeInterval(86400 * 120)
             }
             documentImages[type] = nil
+            documentResolvedTypes[type] = type
         }
         
         selectedFileURL = nil
@@ -384,34 +392,36 @@ final class VehicleManagementViewModel {
             lastServiceDate: lastServiceDate
         )
 
-        if selectedVehicle == nil {
-            service.addVehicle(vehicle)
-        } else {
-            let previousDriverID = selectedVehicle?.assignedDriverID
-            service.updateVehicle(vehicle)
+        Task {
+            if selectedVehicle == nil {
+                await service.addVehicle(vehicle)
+            } else {
+                let previousDriverID = selectedVehicle?.assignedDriverID
+                service.updateVehicle(vehicle)
 
-            // If a new driver has been assigned, notify them personally using their UUID
-            if let newDriverID = assignedDriverID, newDriverID != previousDriverID {
-                service.addNotification(
-                    userID: newDriverID,    // notifications.user_id = profiles.id of the driver
-                    roleTarget: nil,        // personal notification, not a role broadcast
-                    title: "Vehicle Assigned to You",
-                    message: "\(displayName) (\(plateNumber)) has been assigned to you.",
-                    category: .info
-                )
+                // If a new driver has been assigned, notify them personally using their UUID
+                if let newDriverID = assignedDriverID, newDriverID != previousDriverID {
+                    service.addNotification(
+                        userID: newDriverID,    // notifications.user_id = profiles.id of the driver
+                        roleTarget: nil,        // personal notification, not a role broadcast
+                        title: "Vehicle Assigned to You",
+                        message: "\(displayName) (\(plateNumber)) has been assigned to you.",
+                        category: .info
+                    )
+                }
             }
-        }
-        
-        // Save all provided documents
-        for type in DocumentType.allCases {
-            if let number = documentNumbers[type], !number.trimmingCharacters(in: .whitespaces).isEmpty {
-                service.addDocument(
-                    vehicleID: vehicle.id,
-                    type: type,
-                    number: number,
-                    expiryDate: documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120),
-                    imageUrl: documentImageURLs[type]
-                )
+            
+            // Save all provided documents
+            for type in DocumentType.allCases {
+                if let number = documentNumbers[type], !number.trimmingCharacters(in: .whitespaces).isEmpty {
+                    await service.addDocument(
+                        vehicleID: vehicle.id,
+                        type: type,
+                        number: number,
+                        expiryDate: documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120),
+                        imageUrl: documentImageURLs[type]
+                    )
+                }
             }
         }
         
@@ -425,6 +435,8 @@ final class VehicleManagementViewModel {
         documentExpiries = [:]
         documentImages = [:]
         documentImageURLs = [:]
+        documentOCRStatus = [:]
+        documentResolvedTypes = [:]
         uploadingDocuments = []
         
         let existingDocs = service.documents(for: vehicleID)
@@ -442,22 +454,29 @@ final class VehicleManagementViewModel {
                 documentExpiries[type] = Date.now.addingTimeInterval(86400 * 120)
             }
             documentImages[type] = nil
+            documentResolvedTypes[type] = type
         }
         isPresentingDocumentSheet = true
     }
 
     func saveDocument(for vehicleID: UUID) {
-        for type in DocumentType.allCases {
-            if let number = documentNumbers[type], !number.trimmingCharacters(in: .whitespaces).isEmpty {
-                service.addDocument(
+        let docsToSave = DocumentType.allCases.compactMap { type -> (DocumentType, String, Date, String?)? in
+            guard let number = documentNumbers[type], !number.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+            return (type, number, documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120), documentImageURLs[type])
+        }
+        
+        Task {
+            for (type, number, expiry, url) in docsToSave {
+                await service.addDocument(
                     vehicleID: vehicleID,
                     type: type,
                     number: number,
-                    expiryDate: documentExpiries[type] ?? Date.now.addingTimeInterval(86400 * 120),
-                    imageUrl: documentImageURLs[type]
+                    expiryDate: expiry,
+                    imageUrl: url
                 )
             }
         }
+        
         isPresentingDocumentSheet = false
     }
 
@@ -480,13 +499,22 @@ final class VehicleManagementViewModel {
     }
 
     func uploadImage(_ image: UIImage, for type: DocumentType) {
+        documentResolvedTypes[type] = type
         documentImages[type] = image
+        documentOCRStatus[type] = "Reading document..."
         
         let localURL = saveImageLocally(image, vehicleID: activeVehicleID, type: type)
+
+        Task {
+            await applyOCR(from: image, sourceType: type)
+        }
         
         guard SupabaseConfig.isConfigured else {
             if let localURL {
                 documentImageURLs[type] = localURL.absoluteString
+            }
+            if documentOCRStatus[type] == "Reading document..." {
+                documentOCRStatus[type] = nil
             }
             return
         }
@@ -501,6 +529,7 @@ final class VehicleManagementViewModel {
                         documentType: type.rawValue
                     )
                     await MainActor.run {
+                        // Always store the URL under the original type the user chose
                         self.documentImageURLs[type] = urlString
                         self.uploadingDocuments.remove(type)
                     }
@@ -510,6 +539,41 @@ final class VehicleManagementViewModel {
                 _ = await MainActor.run {
                     self.uploadingDocuments.remove(type)
                 }
+            }
+        }
+    }
+
+    private func applyOCR(from image: UIImage, sourceType: DocumentType) async {
+        do {
+            let result = try await VehicleDocumentOCRService.extractDocumentData(from: image, expectedType: sourceType)
+            await MainActor.run {
+                // Keep the image in the user's chosen slot — do NOT reclassify/move images.
+                // OCR is only used to auto-fill the document number and expiry date.
+                self.documentResolvedTypes[sourceType] = sourceType
+
+                if !result.documentNumber.isEmpty {
+                    self.documentNumbers[sourceType] = result.documentNumber
+                }
+                if let expiryDate = result.expiryDate {
+                    self.documentExpiries[sourceType] = expiryDate
+                }
+
+                if result.hasUsefulData {
+                    var statusParts: [String] = []
+                    if !result.documentNumber.isEmpty {
+                        statusParts.append("Number filled")
+                    }
+                    if result.expiryDate != nil {
+                        statusParts.append("Expiry filled")
+                    }
+                    self.documentOCRStatus[sourceType] = statusParts.joined(separator: " • ")
+                } else {
+                    self.documentOCRStatus[sourceType] = "Could not auto-fill. Enter manually."
+                }
+            }
+        } catch {
+            await MainActor.run {
+                self.documentOCRStatus[sourceType] = "Could not auto-fill. Enter manually."
             }
         }
     }

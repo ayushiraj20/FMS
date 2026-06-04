@@ -37,16 +37,6 @@ struct WorkOrderManagementView: View {
         .background(AppTheme.background.ignoresSafeArea())
         .navigationTitle("Work Orders")
         .searchable(text: $viewModel.searchText)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    viewModel.prepareCreateOrder()
-                } label: {
-                    Image(systemName: "plus")
-                        .foregroundStyle(AppTheme.brand)
-                }
-            }
-        }
         .sheet(isPresented: $viewModel.isPresentingCreateSheet) {
             CreateWorkOrderSheet(viewModel: viewModel)
                 .registersSheetPresentation()
@@ -152,31 +142,22 @@ struct WorkOrderManagementView: View {
                     NavigationLink(destination: DefectReportsListView().environment(appViewModel).hideTabBarOnPush()) {
                         quickChip(icon: "exclamationmark.triangle", title: "Defects")
                     }
-
-                    quickChip(icon: "doc.text.magnifyingglass", title: "Reports")
                 }
             }
         }
     }
 
     private func quickChip(icon: String, title: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.subheadline)
+                .font(.footnote)
             Text(title)
-                .font(.subheadline.weight(.medium))
+                .font(.subheadline.weight(.semibold))
         }
         .foregroundStyle(AppTheme.textPrimary)
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(AppTheme.surfaceSecondary)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(AppTheme.border, lineWidth: 0.5)
-        )
+        .padding(.vertical, 8)
+        .background(Capsule().fill(Color(.systemGray6)))
     }
 
     // MARK: - Upcoming Services

@@ -297,7 +297,7 @@ private struct PDFLayout {
         let cardW = (contentWidth - gap) / 2
         let cardH: CGFloat = 64
         var index = 0
-        var rowY = y
+        let rowY = y
 
         for item in items.prefix(4) {
             let col = index % 2

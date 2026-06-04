@@ -121,7 +121,7 @@ struct DriverVehicleTripDetailView: View {
                         HStack {
                             Text("Fuel Level").font(.subheadline.bold()).foregroundStyle(DriverTheme.textSecondary)
                             Spacer()
-                            Text("\(fuelLevel)%").font(.subheadline.bold()).foregroundStyle(fuelLevel < 35 ? DriverTheme.criticalRed : DriverTheme.textPrimary)
+                            Text(vehicle.fuelDisplayString).font(.subheadline.bold()).foregroundStyle(fuelLevel < 35 ? DriverTheme.criticalRed : DriverTheme.textPrimary)
                         }
                         GeometryReader { geometry in
                             ZStack(alignment: .leading) {

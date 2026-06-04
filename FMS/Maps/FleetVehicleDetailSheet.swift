@@ -38,7 +38,7 @@ struct FleetVehicleDetailSheet: View {
 
                 Section("Vehicle") {
                     detailRow("Model", value: location.vehicle.model)
-                    detailRow("Fuel", value: "\(location.vehicle.fuelLevel)%")
+                    detailRow("Fuel", value: location.vehicle.fuelDisplayString)
                     detailRow("Odometer", value: "\(location.vehicle.odometer.formatted()) km")
                     detailRow("Next service", value: formattedDate(location.vehicle.nextServiceDate))
                 }

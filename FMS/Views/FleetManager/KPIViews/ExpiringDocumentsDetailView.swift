@@ -65,7 +65,7 @@ struct ExpiringDocumentsDetailView: View {
                         .foregroundStyle(AppTheme.textSecondary)
 
                     Text("\(count) Pending")
-                        .font(.largeTitle.weight(.bold))
+                        .font(.title.bold())
                         .foregroundStyle(AppTheme.textPrimary)
                 }
 
@@ -229,7 +229,7 @@ struct DocumentDetailSheet: View {
                                 
                                 Spacer()
                                 
-                                Text(v.status.rawValue.uppercased())
+                                Text(v.status.displayName.uppercased())
                                     .font(.system(size: 10, weight: .bold))
                                     .foregroundStyle(v.status == .active ? AppTheme.success : AppTheme.warning)
                                     .padding(.horizontal, 8)

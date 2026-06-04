@@ -364,14 +364,18 @@ struct AssignDriverTripView: View {
                         Text(routeCalculated ? "Continue — \(Int(locationService.routeDistanceKM)) km route" : "Select Vehicle")
                     }
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(
+                        (tripStartLocation.isEmpty || tripDestination.isEmpty)
+                        ? Color(.secondaryLabel)
+                        : .white
+                    )
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
                             .fill(
                                 (tripStartLocation.isEmpty || tripDestination.isEmpty)
-                                ? Color(.systemGray4)
+                                ? Color(.systemGray5)
                                 : AppTheme.brand
                             )
                     )
@@ -384,7 +388,6 @@ struct AssignDriverTripView: View {
             }
             .background(.ultraThinMaterial)
         }
-        .ignoresSafeArea(edges: .top)
         .navigationTitle("Add New Trip")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -832,7 +835,7 @@ struct AssignDriverTripView: View {
                     Image(systemName: "fuelpump.fill")
                         .font(.system(size: 9))
                         .foregroundStyle(vehicle.fuelLevel > 20 ? AppTheme.success : AppTheme.error)
-                    Text("\(vehicle.fuelLevel)%")
+                    Text(vehicle.fuelDisplayString)
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(AppTheme.textSecondary)
                 }
