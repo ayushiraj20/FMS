@@ -430,32 +430,38 @@ struct ActiveTripMapView: View {
             } label: {
                 Label("Navigate", systemImage: "location.fill")
                     .font(.system(.headline, design: .rounded).bold())
-                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 60)
-                    .background(DriverTheme.accent, in: Capsule())
             }
+            .buttonStyle(.borderedProminent)
+            .tint(DriverTheme.accent)
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
 
             Button {
                 showReportSheet = true
             } label: {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.title2)
-                    .foregroundStyle(.white)
-                    .frame(width: 60, height: 60)
-                    .background(.regularMaterial, in: Circle())
             }
+            .buttonStyle(.bordered)
+            .tint(DriverTheme.warningAmber)
+            .controlSize(.large)
+            .buttonBorderShape(.circle)
 
             Button {
                 driverVM.startSOSCountdown(service: appViewModel.service, user: appViewModel.currentUser)
             } label: {
-                Text("SOS")
-                    .font(.system(.headline, design: .rounded).bold())
-                    .foregroundStyle(.white)
-                    .frame(width: 80, height: 60)
-                    .background(DriverTheme.criticalRed, in: Capsule())
-                    .symbolEffect(.pulse)
+                HStack(spacing: 4) {
+                    Image(systemName: "light.beacon.max.fill")
+                        .symbolEffect(.pulse)
+                    Text("SOS")
+                        .font(.system(.headline, design: .rounded).bold())
+                }
             }
+            .buttonStyle(.borderedProminent)
+            .tint(DriverTheme.criticalRed)
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 30)

@@ -90,6 +90,7 @@ struct FleetReportsAnalyticsView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.brand)
+                    .buttonBorderShape(.capsule)
                     .disabled(isLoading)
 
                     if let snapshot {

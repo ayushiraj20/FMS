@@ -73,7 +73,10 @@ struct DemoRoleSelectionView: View {
                 Button("Back to Login") {
                     appViewModel.flowState = .login
                 }
-                .buttonStyle(SecondaryButtonStyle())
+                .buttonStyle(.bordered)
+                .tint(AppTheme.brand)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
                 .padding(.bottom, 32)
             }
             .padding(.horizontal, 24)

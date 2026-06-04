@@ -24,13 +24,13 @@ struct InspectionsView: View {
                                 .font(.title2)
                             Text("Run New Inspection")
                                 .font(.system(.headline, design: .rounded).bold())
+                                .frame(maxWidth: .infinity)
                         }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 60)
-                        .background(DriverTheme.accent, in: Capsule())
-                        .shadow(color: DriverTheme.accent.opacity(0.3), radius: 8, y: 4)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DriverTheme.accent)
+                    .controlSize(.large)
+                    .buttonBorderShape(.capsule)
 
                     Button {
                         isPresentingDefectSheet = true
@@ -40,13 +40,13 @@ struct InspectionsView: View {
                                 .font(.title2)
                             Text("Report Vehicle Defect")
                                 .font(.system(.headline, design: .rounded).bold())
+                                .frame(maxWidth: .infinity)
                         }
-                        .foregroundStyle(DriverTheme.warningAmber)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 60)
-                        .background(DriverTheme.warningAmber.opacity(0.15), in: Capsule())
-                        .overlay(Capsule().stroke(DriverTheme.warningAmber.opacity(0.3), lineWidth: 1))
                     }
+                    .buttonStyle(.bordered)
+                    .tint(DriverTheme.warningAmber)
+                    .controlSize(.large)
+                    .buttonBorderShape(.capsule)
                 }
                 .padding(.top, 16)
 
@@ -218,11 +218,12 @@ private struct NewInspectionSheet: View {
                     } label: {
                         Text("Save Inspection")
                             .font(.system(.title3, design: .rounded).bold())
-                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 60)
-                            .background(DriverTheme.accent, in: Capsule())
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DriverTheme.accent)
+                    .controlSize(.large)
+                    .buttonBorderShape(.capsule)
                 }
                 .padding(20)
             }
