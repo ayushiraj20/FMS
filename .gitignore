@@ -113,3 +113,4 @@ ag-cache/
 .aiexclude
 /.codex-derived-3
 *.log
+FMS/.DS_Store
