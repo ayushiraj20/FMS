@@ -532,10 +532,13 @@ final class MockDataService {
         }
     }
 
-    func todayInspection(for driverID: UUID) -> InspectionRecord? {
+    func todayInspection(for driverID: UUID, vehicleID: UUID? = nil) -> InspectionRecord? {
         let today = Calendar.current.startOfDay(for: .now)
         return inspections.first {
-            $0.driverID == driverID && Calendar.current.isDate($0.date, inSameDayAs: today)
+            $0.driverID == driverID &&
+            $0.type == .preTrip &&
+            ($0.vehicleID == vehicleID || vehicleID == nil) &&
+            Calendar.current.isDate($0.date, inSameDayAs: today)
         }
     }
 

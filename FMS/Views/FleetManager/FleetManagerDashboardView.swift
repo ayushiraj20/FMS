@@ -4,7 +4,6 @@ import MapKit
 struct FleetManagerDashboardView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @State private var viewModel = FleetManagerDashboardViewModel()
-    @State private var selectedStat: KPIStat?
     @State private var showBroadcast = false
     @State private var isFlashingSOS = false
     @State private var showResolveConfirmation = false
@@ -312,16 +311,6 @@ struct FleetManagerDashboardView: View {
         value.formatted(.currency(code: "INR").precision(.fractionLength(0)))
     }
     
-    // MARK: - Header Section
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Operations Overview")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(AppTheme.textPrimary)
-            }
-        .padding(.top, 8)
-    }
-    
     // MARK: - KPI Grid
     private var kpiGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
@@ -330,27 +319,8 @@ struct FleetManagerDashboardView: View {
                     StatCardView(stat: stat)
                 }
                 .buttonStyle(.plain)
-//                Button {
-//                    selectedStat = stat
-//                } label: {
-//                    StatCardView(stat: stat)
-//                }
-//                .buttonStyle(.plain)
             }
         }
-//        .sheet(item: $selectedStat) { stat in
-//            NavigationStack {
-//                destinationView(for: stat)
-//                    .toolbar {
-//                        ToolbarItem(placement: .topBarTrailing) {
-//                            Button("Close") {
-//                                selectedStat = nil
-//                            }
-//                        }
-//                    }
-//            }
-//            .presentationDetents([.medium, .large])
-//        }
     }
     
     
@@ -677,48 +647,7 @@ struct FleetManagerDashboardView: View {
             }
         }
     }
-    
-    // MARK: - Pending Defect Banner
-    @ViewBuilder
-    private var pendingDefectBanner: some View {
-        let pendingCount = appViewModel.service.defects.filter { $0.status == .pending }.count
-        if pendingCount > 0 {
-            NavigationLink(destination: DefectReportsListView().environment(appViewModel)) {
-                HStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(AppTheme.warning.opacity(0.18))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(AppTheme.warning)
-                            .font(.system(size: 20))
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(pendingCount) Pending Defect Report\(pendingCount == 1 ? "" : "s")")
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                        Text("Tap to review and approve driver reports")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(AppTheme.warning)
-                }
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(AppTheme.warning.opacity(0.08))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(AppTheme.warning.opacity(0.25), lineWidth: 1)
-                        )
-                )
-            }
-            .buttonStyle(.plain)
-        }
-    }
+
     
     // MARK: - Helpers
     private var priorityAlerts: [AppNotification] {

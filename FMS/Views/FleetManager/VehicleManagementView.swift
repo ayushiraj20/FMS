@@ -303,22 +303,21 @@ struct VehicleManagementView: View {
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    filterChip(title: "All", count: viewModel.allCount, status: nil, icon: "car.2.fill")
-                    filterChip(title: "Active", count: viewModel.activeCount, status: .active, icon: "checkmark.circle.fill")
-                    filterChip(title: "Transit", count: viewModel.inTransitCount, status: .inService, icon: "arrow.triangle.turn.up.right.circle.fill")
-                    filterChip(title: "Idle", count: viewModel.idleCount, status: .idle, icon: "pause.circle.fill")
-                    filterChip(title: "Service", count: viewModel.maintenanceCount, status: .outOfService, icon: "wrench.and.screwdriver.fill")
+                    filterChip(title: "All", count: viewModel.allCount, status: nil)
+                    filterChip(title: "Active", count: viewModel.activeCount, status: .active)
+                    filterChip(title: "Transit", count: viewModel.inTransitCount, status: .inService)
+                    filterChip(title: "Idle", count: viewModel.idleCount, status: .idle)
+                    filterChip(title: "Service", count: viewModel.maintenanceCount, status: .outOfService)
                 }
                 .padding(.vertical, 2)
             }
         }
     }
 
-    private func filterChip(title: String, count: Int, status: VehicleStatus?, icon: String) -> some View {
+    private func filterChip(title: String, count: Int, status: VehicleStatus?) -> some View {
         let isSelected = viewModel.selectedStatusFilter == status
         return VehicleFilterChip(
             title: title,
-            icon: icon,
             count: count,
             isSelected: isSelected
         ) {
@@ -384,25 +383,19 @@ struct VehicleManagementView: View {
 
     private func bubbleFilterChip(_ title: String, status: VehicleStatus?) -> some View {
         let count: Int
-        let icon: String
         switch status {
         case .none:
             count = viewModel.allCount
-            icon = "car.2.fill"
         case .active:
             count = viewModel.activeCount
-            icon = "checkmark.circle.fill"
         case .inService:
             count = viewModel.inTransitCount
-            icon = "arrow.triangle.turn.up.right.circle.fill"
         case .idle:
             count = viewModel.idleCount
-            icon = "pause.circle.fill"
         case .outOfService:
             count = viewModel.maintenanceCount
-            icon = "wrench.and.screwdriver.fill"
         }
-        return filterChip(title: title, count: count, status: status, icon: icon)
+        return filterChip(title: title, count: count, status: status)
     }
 
 // Removed unused resultLabel.
@@ -1728,7 +1721,6 @@ private struct VehicleGlassPanel<Content: View>: View {
 
 private struct VehicleFilterChip: View {
     let title: String
-    let icon: String
     let count: Int
     let isSelected: Bool
     let action: () -> Void
@@ -1736,9 +1728,6 @@ private struct VehicleFilterChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(isSelected ? .white : Color.accentColor)
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                 Text("\(count)")

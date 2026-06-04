@@ -8,7 +8,7 @@ struct DriverDashboardView: View {
     // Pre-trip inspection gate
     @State private var showTripInspectionSheet = false
     @State private var tripToStart: Trip? = nil
-    @State private var showTripEndInspectionSheet = false
+    @State private var showPostTripInspectionSheet = false
     @State private var tripToEnd: Trip? = nil
     @State private var defectChatID: UUID? = nil
     @State private var fuelTransactions: [FuelTransaction] = []
@@ -130,7 +130,7 @@ struct DriverDashboardView: View {
                 .environment(driverVM)
                 .registersSheetPresentation()
             }
-            .sheet(isPresented: $showTripEndInspectionSheet) {
+            .sheet(isPresented: $showPostTripInspectionSheet) {
                 TripStartInspectionSheet(trip: tripToEnd, inspectionType: .postTrip) {
                     driverVM.showToastMessage("Trip ended successfully.")
                 }
@@ -448,7 +448,7 @@ struct DriverDashboardView: View {
                         .disabled(!isOnDuty)
                     }
                     
-                    let inspDone = appViewModel.service.todayInspection(for: user.id) != nil
+                    let inspDone = appViewModel.service.todayInspection(for: user.id, vehicleID: nextTrip.vehicleID) != nil
                     Label(inspDone ? "Pre-trip inspection complete" : "Pre-trip inspection required", systemImage: inspDone ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                         .font(.caption.bold())
                         .foregroundStyle(inspDone ? DriverTheme.successGreen : DriverTheme.warningAmber)
