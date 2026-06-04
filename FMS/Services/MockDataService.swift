@@ -589,11 +589,10 @@ final class MockDataService {
     }
 
     /// Drivers eligible to be assigned a trip by a Fleet Manager.
-    /// Unlike `isDriverAvailableForDispatch`, this does NOT require the driver to be On Duty —
-    /// so the FM can pre-assign trips to off-duty drivers who will see them upon going online.
+    /// Driver must be On Duty to be assigned a trip.
     func isDriverEligibleForTripAssignment(_ driver: User) -> Bool {
         guard driver.role == .driver else { return false }
-        return !hasOpenTripAssignment(for: driver.id)
+        return dutyStatus(for: driver.id) == .onDuty && !hasOpenTripAssignment(for: driver.id)
     }
 
     func driversEligibleForTripAssignment(organizationID: UUID? = nil) -> [User] {
