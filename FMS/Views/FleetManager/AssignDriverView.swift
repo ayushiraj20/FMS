@@ -13,31 +13,14 @@ struct AssignDriverView: View {
             ZStack(alignment: .bottom) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        // Top Bar Row
-                        HStack {
-                            Button {
-                                dismiss()
-                            } label: {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundStyle(AppTheme.brand)
-                                    .contentShape(Rectangle())
-                            }
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 10)
-
-                        // Title
+                        // Subtitle
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Assign Driver")
-                                .font(.largeTitle.weight(.bold))
-                                .foregroundStyle(AppTheme.textPrimary)
                             Text("Pair available vehicles with drivers")
                                 .font(.subheadline)
                                 .foregroundStyle(AppTheme.textSecondary)
                         }
                         .padding(.horizontal)
+                        .padding(.top, 12)
 
                         // Smart Match Card
                         let possibleMatches = viewModel.smartMatchCount
@@ -110,7 +93,8 @@ struct AssignDriverView: View {
                 }
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("Assign Driver")
+        .navigationBarTitleDisplayMode(.inline)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedVehicle)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedDriver)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.isShowingSuccessToast)
@@ -337,9 +321,10 @@ struct AssignDriverView: View {
                         .padding(.vertical, 16)
                         .frame(maxWidth: .infinity)
                         .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            Capsule()
                                 .fill(AppTheme.brand)
                         )
+                        .shadow(color: AppTheme.brand.opacity(0.35), radius: 8, y: 4)
                 }
                 .disabled(viewModel.selectedVehicle == nil || viewModel.selectedDriver == nil)
                 .opacity(viewModel.selectedVehicle == nil || viewModel.selectedDriver == nil ? 0.5 : 1.0)

@@ -45,11 +45,11 @@ struct MaintenanceDashboardView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 8) {
-                    NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
-                        ChatToolbarIcon()
+                    NavigationLink(destination: NotificationsView()) {
+                        MaintenanceNotificationToolbarIcon()
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("CHAT_BUTTON")
+                    .accessibilityIdentifier("BELL_BUTTON")
 
                     NavigationLink(destination: BroadcastInboxView()) {
                         Image(systemName: "megaphone.fill")
@@ -58,12 +58,12 @@ struct MaintenanceDashboardView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("BROADCAST_BUTTON")
-                    
-                    NavigationLink(destination: NotificationsView()) {
-                        MaintenanceNotificationToolbarIcon()
+
+                    NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
+                        ChatToolbarIcon()
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("BELL_BUTTON")
+                    .accessibilityIdentifier("CHAT_BUTTON")
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
@@ -492,30 +492,29 @@ private struct MaintenanceNotificationToolbarIcon: View {
     var body: some View {
         let unreadCount = appViewModel.unreadNotificationsCount
         
-        ZStack(alignment: .center) {
-            Image(systemName: "bell.fill")
-                .imageScale(.large)
-            
-            if unreadCount > 0 {
-                Text(unreadCount > 99 ? "99+" : "\(unreadCount)")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .padding(.horizontal, unreadCount > 9 ? 4 : 3)
-                    .frame(minWidth: 14, minHeight: 14)
-                    .background(Capsule().fill(Color.red))
-                    .overlay(Capsule().stroke(Color.white, lineWidth: 1.0))
-                    .offset(x: 10, y: -10)
-                    .accessibilityHidden(true)
+        Image(systemName: "bell.fill")
+            .imageScale(.large)
+            .frame(width: 32, height: 32)
+            .overlay(alignment: .topTrailing) {
+                if unreadCount > 0 {
+                    Text(unreadCount > 99 ? "99+" : "\(unreadCount)")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .padding(.horizontal, unreadCount > 9 ? 4 : 3)
+                        .frame(minWidth: 14, minHeight: 14)
+                        .background(Capsule().fill(Color.red))
+                        .overlay(Capsule().stroke(Color.white, lineWidth: 1.0))
+                        .offset(x: -2, y: 2)
+                        .accessibilityHidden(true)
+                }
             }
-        }
-        .frame(width: 32, height: 32)
-        .accessibilityLabel(
-            unreadCount > 0
-            ? "Notifications, \(unreadCount) unread"
-            : "Notifications"
-        )
+            .accessibilityLabel(
+                unreadCount > 0
+                ? "Notifications, \(unreadCount) unread"
+                : "Notifications"
+            )
     }
 }
 

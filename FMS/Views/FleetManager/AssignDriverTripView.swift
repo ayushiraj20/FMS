@@ -372,7 +372,7 @@ struct AssignDriverTripView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        Capsule()
                             .fill(
                                 (tripStartLocation.isEmpty || tripDestination.isEmpty)
                                 ? Color(.systemGray5)

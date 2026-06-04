@@ -637,11 +637,9 @@ struct MaintenanceWorkOrdersView: View {
                     Button {
                         saveTechnicianUpdate()
                     } label: {
-                        HStack {
-                            Spacer()
-                            Label("Update Progress", systemImage: "checkmark.circle.fill")
-                            Spacer()
-                        }
+                        Text("Update Progress")
+                            .font(.headline.weight(.bold))
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(accent)

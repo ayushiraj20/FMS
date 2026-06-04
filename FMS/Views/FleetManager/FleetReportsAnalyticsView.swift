@@ -45,7 +45,7 @@ struct FleetReportsAnalyticsView: View {
         }
         .background(AppTheme.background)
         .navigationTitle("Reports")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .refreshable {
             await generateReport(exportPDF: true)
         }
@@ -60,52 +60,62 @@ struct FleetReportsAnalyticsView: View {
 
     private var header: some View {
         GlassCard {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 12) {
+                    /*
                     Image(systemName: "chart.bar.doc.horizontal.fill")
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(width: 46, height: 46)
                         .background(AppTheme.brand, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    */
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(AppBranding.name) Reports")
                             .font(.title3.weight(.bold))
                             .foregroundStyle(AppTheme.textPrimary)
+                        /*
                         Text("Professional PDF export with charts, built from live vehicles, trips, fuel, work orders, inventory, and compliance.")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
+                        */
                     }
 
                     Spacer()
                 }
 
-                HStack(spacing: 12) {
-                    Button {
-                        Task { await generateReport(exportPDF: true) }
-                    } label: {
-                        Label("Generate Report", systemImage: "doc.badge.gearshape.fill")
-                            .lineLimit(1)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.brand)
-                    .buttonBorderShape(.capsule)
-                    .disabled(isLoading)
-
-                    if let snapshot {
+                if let snapshot {
+                    HStack(spacing: 4) {
+                        Text("Last Generated:")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(AppTheme.textSecondary.opacity(0.8))
+                        Text(snapshot.generatedAt.formatted(date: .abbreviated, time: .shortened))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
                         Spacer()
-                        
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text("Last Generated")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
-                            Text(snapshot.generatedAt.formatted(date: .abbreviated, time: .shortened))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
                     }
+                    .padding(.top, 2)
                 }
+
+                Button {
+                    Task { await generateReport(exportPDF: true) }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.badge.gearshape.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("Generate Report")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundStyle(.white)
+                    .background(AppTheme.brand)
+                    .clipShape(Capsule())
+                    .shadow(color: AppTheme.brand.opacity(0.35), radius: 8, y: 4)
+                }
+                .buttonStyle(.plain)
+                .disabled(isLoading)
             }
         }
     }

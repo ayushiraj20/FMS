@@ -57,15 +57,7 @@ struct DriverSafetyView: View {
         .background(DriverScreenBackground())
         .navigationTitle("Safety")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {}) {
-                    Image(systemName: "bell.badge.fill")
-                        .font(.headline)
-                        .foregroundStyle(DriverTheme.accent)
-                }
-            }
-        }
+
     }
 
     private var drivingScoreSection: some View {

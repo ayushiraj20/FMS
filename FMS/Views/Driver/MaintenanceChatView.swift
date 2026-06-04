@@ -83,7 +83,7 @@ struct MaintenanceChatView: View {
             .navigationTitle("Maintenance Team")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         dismiss()
                     } label: {
@@ -91,6 +91,8 @@ struct MaintenanceChatView: View {
                             .font(.title3)
                             .symbolRenderingMode(.hierarchical)
                             .foregroundStyle(DriverTheme.textSecondary)
+                            .padding(.leading, 8)
+                            .padding(.top, 8)
                     }
                 }
             }
@@ -293,12 +295,6 @@ struct DriverManagerChatView: View {
             }
 
             Spacer()
-
-            Image(systemName: "message.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(accent)
-                .frame(width: 34, height: 34)
-                .background(accent.opacity(0.12), in: Circle())
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

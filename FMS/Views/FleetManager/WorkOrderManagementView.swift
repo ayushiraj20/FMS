@@ -36,6 +36,7 @@ struct WorkOrderManagementView: View {
         }
         .background(AppTheme.background.ignoresSafeArea())
         .navigationTitle("Work Orders")
+        .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $viewModel.searchText)
         .sheet(isPresented: $viewModel.isPresentingCreateSheet) {
             CreateWorkOrderSheet(viewModel: viewModel)
@@ -77,7 +78,7 @@ struct WorkOrderManagementView: View {
             .buttonStyle(.plain)
 
             statCard(
-                title: "Work Orders",
+                title: "Pending",
                 value: "\(activeWorkOrders)",
                 icon: "wrench.and.screwdriver.fill",
                 color: AppTheme.textPrimary

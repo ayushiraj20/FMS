@@ -67,13 +67,6 @@ struct PendingVehiclesView: View {
                     }
 
                     Spacer()
-
-                    Text("\(orders.count)")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(accent, in: Capsule())
                 }
 
                 Divider()
