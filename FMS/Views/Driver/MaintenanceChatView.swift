@@ -95,8 +95,6 @@ struct MaintenanceChatView: View {
                                 .font(.system(size: 12, weight: .bold, design: .rounded))
                                 .foregroundStyle(DriverTheme.textSecondary)
                         }
-                        .padding(.leading, 8)
-                        .padding(.top, 8)
                     }
                 }
             }
