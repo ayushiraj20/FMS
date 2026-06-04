@@ -22,7 +22,7 @@ struct DriverDashboardView: View {
         ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
                     if driverVM.isLoading {
-                        ProgressView("Loading iOS 26 Dashboard...")
+                        ProgressView()
                             .frame(maxWidth: .infinity, minHeight: 300)
                     } else {
                         greetingRow
@@ -46,8 +46,8 @@ struct DriverDashboardView: View {
                 await appViewModel.loadNotifications()
                 await loadFuelTransactions()
             }
-            .navigationTitle("Dashboard")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
@@ -66,8 +66,8 @@ struct DriverDashboardView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 8) {
-                        NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
-                            ChatToolbarIcon()
+                        NavigationLink(destination: NotificationsView()) {
+                            NotificationToolbarIcon()
                         }
                         .buttonStyle(.plain)
 
@@ -77,9 +77,9 @@ struct DriverDashboardView: View {
                                 .frame(width: 32, height: 32)
                         }
                         .buttonStyle(.plain)
-                        
-                        NavigationLink(destination: NotificationsView()) {
-                            NotificationToolbarIcon()
+
+                        NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
+                            ChatToolbarIcon()
                         }
                         .buttonStyle(.plain)
                     }
@@ -144,22 +144,24 @@ struct DriverDashboardView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: driverVM.showToast)
                 }
-        }
+            }
+            .onAppear {
+                driverVM.hideVoiceLogger = false
+            }
+            .onDisappear {
+                driverVM.hideVoiceLogger = true
+            }
     }
 
-    // MARK: - Greeting Row
+    // MARK: - Header / Greeting Row
     @ViewBuilder
     private var greetingRow: some View {
         @Bindable var driverVM = driverVM
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(Date().formatted(date: .complete, time: .omitted).uppercased())
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(DriverTheme.textSecondary)
-                Text("Hello, \(driverVM.driverFirstName(currentUser))")
-                    .font(.system(.largeTitle, design: .rounded).bold())
-                    .foregroundStyle(DriverTheme.textPrimary)
-            }
+        HStack(alignment: .center) {
+            Text("Dashboard")
+                .font(.system(.largeTitle, design: .rounded).bold())
+                .foregroundStyle(DriverTheme.textPrimary)
+            
             Spacer()
 
             if let user = currentUser {
@@ -250,7 +252,7 @@ struct DriverDashboardView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
                             Text(assignedVehicle?.plateNumber ?? "No Vehicle")
-                                .font(.system(.headline, design: .rounded))
+                                .font(.headline.bold())
                             if let vehicle = assignedVehicle {
                                 Circle().fill(vehicle.status == .active ? DriverTheme.successGreen : .gray).frame(width: 8, height: 8)
                             }
@@ -261,6 +263,7 @@ struct DriverDashboardView: View {
                     }
                 }
                 .padding()
+                .frame(height: 145, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
@@ -275,7 +278,7 @@ struct DriverDashboardView: View {
             } label: {
                 VStack(spacing: 12) {
                     Text("Shift Progress")
-                        .font(.system(.caption, design: .rounded).bold())
+                        .font(.caption.bold())
                         .foregroundStyle(DriverTheme.textSecondary)
                     
                     let shift = currentUser.flatMap { appViewModel.service.currentShift(for: $0.id) }
@@ -284,7 +287,7 @@ struct DriverDashboardView: View {
                     ZStack {
                         CircularProgressRing(progress: shiftProgress, size: 70, strokeWidth: 8)
                         Text(shift != nil ? "\(Int(shiftProgress * 100))%" : "--")
-                            .font(.system(.title3, design: .rounded).bold())
+                            .font(.title3.bold())
                     }
                     
                     Text(shift != nil ? "\(String(format: "%.1f", shift!.remainingHours))h left" : "No active shift")
@@ -292,6 +295,7 @@ struct DriverDashboardView: View {
                         .foregroundStyle(DriverTheme.textSecondary)
                 }
                 .padding()
+                .frame(height: 145)
                 .frame(maxWidth: .infinity)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
@@ -509,21 +513,21 @@ struct DriverDashboardView: View {
             )
 
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .center) {
                         Label("Eco Score", systemImage: "leaf.fill")
-                            .font(.system(.title2, design: .rounded).bold())
+                            .font(.title2.bold())
                             .foregroundStyle(DriverTheme.textPrimary)
-                        Text("Monthly fuel efficiency and carbon impact")
-                            .font(.caption)
-                            .foregroundStyle(DriverTheme.textSecondary)
+                        Spacer()
+                        Text(summary.grade.rawValue)
+                            .font(.system(size: 34, weight: .black))
+                            .foregroundStyle(gradeTint(summary.grade))
+                            .frame(width: 58, height: 58)
+                            .background(gradeTint(summary.grade).opacity(0.14), in: Circle())
                     }
-                    Spacer()
-                    Text(summary.grade.rawValue)
-                        .font(.system(size: 34, weight: .black, design: .rounded))
-                        .foregroundStyle(gradeTint(summary.grade))
-                        .frame(width: 58, height: 58)
-                        .background(gradeTint(summary.grade).opacity(0.14), in: Circle())
+                    Text("Monthly fuel efficiency and carbon impact")
+                        .font(.caption)
+                        .foregroundStyle(DriverTheme.textSecondary)
                 }
 
                 HStack(spacing: 10) {
@@ -543,13 +547,13 @@ struct DriverDashboardView: View {
                                 .font(.caption.bold())
                                 .foregroundStyle(DriverTheme.textSecondary)
                             Text(lastTrip.route)
-                                .font(.system(.subheadline, design: .rounded).bold())
+                                .font(.subheadline.bold())
                                 .foregroundStyle(DriverTheme.textPrimary)
                                 .lineLimit(1)
                         }
                         Spacer()
                         Text(efficiencyText(lastTrip.efficiencyKMPerLitre))
-                            .font(.system(.subheadline, design: .rounded).bold())
+                            .font(.subheadline.bold())
                             .foregroundStyle(DriverTheme.successGreen)
                     }
                     .padding(12)
@@ -574,7 +578,7 @@ struct DriverDashboardView: View {
             Image(systemName: icon)
                 .foregroundStyle(tint)
             Text(value)
-                .font(.system(.headline, design: .rounded).bold())
+                .font(.headline.bold())
                 .foregroundStyle(DriverTheme.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
@@ -694,45 +698,48 @@ struct DriverDashboardView: View {
         return VStack(alignment: .leading, spacing: 16) {
             if !driverDefects.isEmpty {
                 Text("Reported Issues")
-                    .font(.system(.title2, design: .rounded).bold())
+                    .font(.title2.bold())
                 
                 ForEach(driverDefects) { defect in
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(defect.title ?? "Issue Report")
-                                    .font(.headline)
-                                Text(defect.reportedDate.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.caption2)
-                                    .foregroundStyle(DriverTheme.textSecondary)
+                    DriverGlassCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(defect.title ?? "Issue Report")
+                                        .font(.headline.bold())
+                                    Text(defect.reportedDate.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.caption2)
+                                        .foregroundStyle(DriverTheme.textSecondary)
+                                }
+                                Spacer()
+                                defectStatusTag(defect.status)
                             }
-                            Spacer()
-                            defectStatusTag(defect.status)
-                        }
-                        
-                        Text(defect.description)
-                            .font(.subheadline)
-                            .foregroundStyle(DriverTheme.textSecondary)
-                            .lineLimit(2)
-                        
-                        // Chat button
-                        Button {
-                            defectChatID = defect.id
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "bubble.left.and.bubble.right.fill")
-                                    .font(.caption)
-                                Text("Chat with Manager")
-                                    .font(.caption.bold())
+                            
+                            Text(defect.description)
+                                .font(.subheadline)
+                                .foregroundStyle(DriverTheme.textSecondary)
+                                .lineLimit(2)
+                            
+                            Spacer(minLength: 0)
+                            
+                            // Chat button
+                            Button {
+                                defectChatID = defect.id
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                                        .font(.caption)
+                                    Text("Chat with Manager")
+                                        .font(.caption.bold())
+                                }
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(DriverTheme.accent, in: Capsule())
                             }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(DriverTheme.accent, in: Capsule())
                         }
+                        .frame(height: 145)
                     }
-                    .padding()
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
                 }
             }
         }

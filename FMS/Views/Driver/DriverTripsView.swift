@@ -107,7 +107,7 @@ struct CompletedTripsView: View {
                 .foregroundStyle(DriverTheme.successGreen.opacity(0.4))
                 .symbolEffect(.pulse)
             Text("No completed trips")
-                .font(.system(.title3, design: .rounded).bold())
+                .font(.title3.bold())
             Text("Your completed trips will appear here")
                 .font(.subheadline)
                 .foregroundStyle(DriverTheme.textSecondary)
@@ -144,8 +144,8 @@ struct CompletedTripsView: View {
                     Circle().fill(DriverTheme.criticalRed).frame(width: 10, height: 10)
                 }
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(trip.origin).font(.system(.headline, design: .rounded).bold())
-                    Text(trip.destination).font(.system(.headline, design: .rounded).bold())
+                    Text(trip.origin).font(.headline.bold())
+                    Text(trip.destination).font(.headline.bold())
                 }
                 Spacer()
             }
@@ -336,14 +336,18 @@ struct ActiveTripMapView: View {
     // MARK: - Top Overlays
     private var topOverlays: some View {
         HStack {
-            Label("Active Trip", systemImage: "circle.fill")
-                .font(.system(.subheadline, design: .rounded).bold())
-                .foregroundStyle(DriverTheme.textPrimary)
-                .symbolEffect(.pulse, options: .repeating)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(.ultraThinMaterial, in: Capsule())
-                .shadow(radius: 5)
+            HStack(spacing: 6) {
+                Image(systemName: "circle.fill")
+                    .foregroundStyle(DriverTheme.successGreen)
+                    .symbolEffect(.pulse, options: .repeating)
+                Text("Active Trip")
+                    .foregroundStyle(DriverTheme.textPrimary)
+            }
+            .font(.subheadline.bold())
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial, in: Capsule())
+            .shadow(radius: 5)
 
             Spacer()
 
@@ -357,7 +361,7 @@ struct ActiveTripMapView: View {
                     
                     VStack(alignment: .leading) {
                         Text("\(String(format: "%.1f", routePlan.mainDistanceKM)) km")
-                            .font(.system(.headline, design: .rounded).bold())
+                            .font(.headline.bold())
                         Text("\(Int(routePlan.mainETAMinutes)) min")
                             .font(.caption.bold())
                             .foregroundStyle(DriverTheme.textSecondary)
@@ -377,7 +381,7 @@ struct ActiveTripMapView: View {
     private var leftInfoCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(trip.destination)
-                .font(.system(.title3, design: .rounded).bold())
+                .font(.title3.bold())
                 .foregroundStyle(DriverTheme.textPrimary)
 
             if let routePlan {
@@ -385,12 +389,12 @@ struct ActiveTripMapView: View {
                 let hours = minutes / 60
                 let remainingMins = minutes % 60
                 Text(hours > 0 ? "\(hours)h \(remainingMins)m" : "\(remainingMins)m")
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .font(.system(size: 36, weight: .bold))
                     .foregroundStyle(DriverTheme.textPrimary)
                     .contentTransition(.numericText())
             } else {
                 Text("--:--")
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .font(.system(size: 36, weight: .bold))
                     .foregroundStyle(DriverTheme.textSecondary)
             }
 
@@ -421,7 +425,7 @@ struct ActiveTripMapView: View {
             Circle().fill(.ultraThinMaterial).frame(width: 60, height: 60)
             Circle().stroke(DriverTheme.criticalRed, lineWidth: 6).frame(width: 60, height: 60)
             Text("\(Int(driverVM.speedLimit))")
-                .font(.system(.title2, design: .rounded).bold())
+                .font(.title2.bold())
                 .foregroundStyle(DriverTheme.textPrimary)
         }
         .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
@@ -435,7 +439,7 @@ struct ActiveTripMapView: View {
                 launchAppleMapsNavigation()
             } label: {
                 Label("Navigate", systemImage: "location.fill")
-                    .font(.system(.headline, design: .rounded).bold())
+                    .font(.headline.bold())
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -461,7 +465,7 @@ struct ActiveTripMapView: View {
                     Image(systemName: "light.beacon.max.fill")
                         .symbolEffect(.pulse)
                     Text("SOS")
-                        .font(.system(.headline, design: .rounded).bold())
+                        .font(.headline.bold())
                 }
             }
             .buttonStyle(.borderedProminent)

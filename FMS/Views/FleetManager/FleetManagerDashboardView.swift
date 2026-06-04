@@ -79,21 +79,23 @@ struct FleetManagerDashboardView: View {
                 .buttonStyle(.plain)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showBroadcast = true
-                } label: {
-                    Image(systemName: "megaphone.fill")
-                        .foregroundStyle(Color("AccentColor"))
+                HStack(spacing: 8) {
+                    NavigationLink(destination: NotificationsView()) {
+                        NotificationToolbarIcon()
+                            .foregroundStyle(Color("AccentColor"))
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
+                        showBroadcast = true
+                    } label: {
+                        Image(systemName: "megaphone.fill")
+                            .foregroundStyle(Color("AccentColor"))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-                .glassEffect(.identity)
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: NotificationsView()) {
-                    NotificationToolbarIcon()
-                        .foregroundStyle(Color("AccentColor"))
-                }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
                 .glassEffect(.identity)
             }
         }
