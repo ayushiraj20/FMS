@@ -12,11 +12,15 @@ struct MaintenanceInventoryView: View {
     @State private var isLoading = false
     @State private var loadError: String?
     @State private var searchText = ""
-    @State private var selectedCategory = "All"
+    @State private var selectedCategory: String
     @State private var sortLowStockFirst = true
     @State private var toastMessage: String?
     @State private var showingAddPart = false
     @State private var partToEdit: SparePart?
+
+    init(selectedCategory: String = "All") {
+        _selectedCategory = State(initialValue: selectedCategory)
+    }
 
     private var accent: Color { Color(hex: "#FF9500") }
     private var headingText: Color { Color.dynamic(light: "#25262D", dark: "#E7E3E8") }

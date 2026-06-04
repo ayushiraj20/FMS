@@ -208,7 +208,7 @@ struct NotificationsView: View {
                 .environment(appViewModel)
                 .hideTabBarOnPush()
         } else if isStock {
-            MaintenanceInventoryView()
+            MaintenanceInventoryView(selectedCategory: "Low Stock")
                 .environment(appViewModel)
                 .hideTabBarOnPush()
         } else if let order = findWorkOrder(for: notification) {
