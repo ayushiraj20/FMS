@@ -145,11 +145,11 @@ final class SupabaseService {
                 options: FileOptions(contentType: "image/jpeg", upsert: true)
             )
             
-        let signedURL = try await client.storage
+        let publicURL = try client.storage
             .from(bucketName)
-            .createSignedURL(path: filePath, expiresIn: 315360000) // 10 years
+            .getPublicURL(path: filePath)
             
-        return signedURL.absoluteString
+        return publicURL.absoluteString
     }
     
     // Trips
