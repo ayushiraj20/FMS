@@ -52,10 +52,14 @@ struct TripDetailView: View {
                 if trip.status == .inProgress,
                    let originCoordinate,
                    let vehicle = assignedVehicle {
-                    let midIndex = (routePlan?.mainRouteCoordinates.count ?? 2) / 3
+                    
+                    let liveCoord = appViewModel.service.movingFleetLocations().first(where: { $0.id == vehicle.id })?.coordinate ?? (driverVM?.currentLocation)
+
                     let fallbackCoords = [originCoordinate, destinationCoordinate].compactMap { $0 }
                     let coords = routePlan?.mainRouteCoordinates ?? fallbackCoords
-                    let currentCoord = coords[min(midIndex, max(coords.count - 1, 0))]
+                    let midIndex = coords.count / 3
+                    
+                    let currentCoord = liveCoord ?? coords[min(midIndex, max(coords.count - 1, 0))]
                     Annotation("Current", coordinate: currentCoord) {
                         ZStack {
                             Circle()
