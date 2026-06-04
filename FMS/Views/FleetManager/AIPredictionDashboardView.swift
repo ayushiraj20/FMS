@@ -647,6 +647,9 @@ struct AIPredictionDashboardView: View {
         partsError = nil
         do {
             spareParts = try await SupabaseService.shared.fetchSpareParts(organizationID: orgID)
+        } catch is CancellationError {
+            // Ignore task cancellation
+            return
         } catch {
             partsError = "Could not load spare parts from Supabase."
             print("[AI Forecast] Spare parts fetch failed: \(error)")
@@ -675,6 +678,8 @@ struct AIPredictionDashboardView: View {
             let localOnly = appViewModel.service.sosAlerts.filter { !remoteIDs.contains($0.id) }
             appViewModel.service.sosAlerts = freshSOS + localOnly
             sosAlerts = appViewModel.service.sosAlerts
+        } catch is CancellationError {
+            return
         } catch {
             sosAlerts = appViewModel.service.sosAlerts
             liveDataMessage = "Could not refresh SOS history from backend."
@@ -684,6 +689,8 @@ struct AIPredictionDashboardView: View {
         do {
             let repo = FuelRepository(service: FuelService(client: SupabaseService.shared.client))
             fuelTransactions = try await repo.allTransactions()
+        } catch is CancellationError {
+            return
         } catch {
             liveDataMessage = [liveDataMessage, "Could not refresh fuel transactions from backend."]
                 .compactMap { $0 }
