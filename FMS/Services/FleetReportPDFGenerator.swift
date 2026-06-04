@@ -10,215 +10,219 @@ struct FleetReportPDFGenerator {
     private let cardBorder = UIColor.separator.withAlphaComponent(0.35)
 
     func generate(snapshot: FleetReportSnapshot, organizationName: String) -> URL? {
-        let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
-        let data = renderer.pdfData { context in
-            var layout = PDFLayout(
-                context: context,
-                pageRect: pageRect,
-                margin: margin,
-                contentWidth: contentWidth,
-                brand: brand,
-                brandLight: brandLight,
-                cardBorder: cardBorder
-            )
-
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateStyle = .medium
-            dateFormatter.timeStyle = .short
-
-            layout.beginCover(
-                title: AppBranding.reportProductName,
-                organization: organizationName,
-                generated: dateFormatter.string(from: snapshot.generatedAt)
-            )
-
-            layout.drawSectionHeader("Executive Summary", subtitle: "Fleet health at a glance")
-            layout.drawKPIGrid([
-                ("Vehicles", "\(snapshot.summary.totalVehicles)", "Active \(snapshot.summary.activeVehicles)"),
-                ("Utilization", "\(Int(snapshot.summary.averageUtilization.rounded()))%", "Fleet average"),
-                ("Odometer", "\(Int(snapshot.summary.averageOdometer.rounded())) km", "Per vehicle avg"),
-                ("Open issues", "\(snapshot.summary.openWorkOrders)", "\(snapshot.summary.unresolvedDefects) defects")
-            ])
-            layout.drawNarrative(
-                "This \(AppBranding.name) report is generated from your live fleet database. Use the charts below to review utilization, maintenance backlog, compliance exposure, and fuel spend."
-            )
-            if let chart = FleetReportChartRenderer.fleetOverviewChart(
-                active: snapshot.summary.activeVehicles,
-                total: max(snapshot.summary.totalVehicles, 1),
-                utilizationPercent: Int(snapshot.summary.averageUtilization.rounded())
-            ) {
-                layout.drawChartImage(chart, height: 168)
-            }
-
-            layout.drawSectionHeader("Inventory Reorder Plan", subtitle: "Parts that need ordering")
-            let reorderRows = snapshot.inventory.forecastRows.filter { $0.reorderQuantity > 0 }
-            if reorderRows.isEmpty {
-                layout.drawInfoBanner("All spare parts are above minimum stock levels.")
-            } else {
-                layout.drawTable(
-                    headers: ["Part", "On hand", "Order", "Priority"],
-                    rows: Array(reorderRows.prefix(12).map { row in
-                        [
-                            "\(row.name)\n\(row.partNumber)",
-                            "\(row.onHand) / \(row.minimumRequired)",
-                            "\(row.reorderQuantity)",
-                            row.severity.rawValue
-                        ]
-                    }),
-                    severityColumn: 3
+        var resultURL: URL?
+        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+            let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
+            let data = renderer.pdfData { context in
+                var layout = PDFLayout(
+                    context: context,
+                    pageRect: pageRect,
+                    margin: margin,
+                    contentWidth: contentWidth,
+                    brand: brand,
+                    brandLight: brandLight,
+                    cardBorder: cardBorder
                 )
-            }
 
-            layout.drawSectionHeader("Inventory Summary")
-            layout.drawStatRow([
-                ("Part types", "\(snapshot.inventory.totalPartTypes)"),
-                ("Units on hand", "\(snapshot.inventory.totalQuantity)"),
-                ("Low stock", "\(snapshot.inventory.lowStockCount)"),
-                ("Out of stock", "\(snapshot.inventory.outOfStockCount)")
-            ])
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateStyle = .medium
+                dateFormatter.timeStyle = .short
 
-            layout.drawSectionHeader("Maintenance", subtitle: "Work orders & vehicle service")
-            layout.drawKPIGrid([
-                ("Total orders", "\(snapshot.maintenance.totalWorkOrders)", nil),
-                ("Open", "\(snapshot.maintenance.openWorkOrders)", nil),
-                ("Overdue", "\(snapshot.maintenance.overdueWorkOrders)", nil),
-                ("Est. cost", currency(snapshot.maintenance.totalEstimatedCost), nil)
-            ])
-            if let chart = FleetReportChartRenderer.maintenanceChart(
-                open: snapshot.maintenance.openWorkOrders,
-                overdue: snapshot.maintenance.overdueWorkOrders,
-                completed: snapshot.maintenance.completedWorkOrders,
-                critical: snapshot.maintenance.criticalWorkOrders
-            ) {
-                layout.drawChartImage(chart, height: 168)
-            }
-            if !snapshot.maintenance.rows.isEmpty {
-                layout.drawTable(
-                    headers: ["Vehicle", "Open WO", "Defects", "Service", "Status"],
-                    rows: Array(snapshot.maintenance.rows.prefix(15).map { row in
-                        [
-                            "\(row.vehicleName)\n\(row.plateNumber)",
-                            "\(row.openWorkOrders)",
-                            "\(row.unresolvedDefects)",
-                            serviceDueText(row.daysToService),
-                            row.severity.rawValue
-                        ]
-                    }),
-                    severityColumn: 4
+                layout.beginCover(
+                    title: AppBranding.reportProductName,
+                    organization: organizationName,
+                    generated: dateFormatter.string(from: snapshot.generatedAt)
                 )
-            }
 
-            layout.drawSectionHeader("Fuel", subtitle: "Spend & efficiency")
-            layout.drawStatRow([
-                ("Total spend", currency(snapshot.fuel.totalSpend)),
-                ("Verified", currency(snapshot.fuel.verifiedSpend)),
-                ("Pending txns", "\(snapshot.fuel.pendingTransactions)"),
-                ("Potential saving", "\(Int(snapshot.fuel.potentialLitresSavedMonthly.rounded())) L/mo")
-            ])
-            if let chart = FleetReportChartRenderer.fuelChart(
-                verifiedSpend: snapshot.fuel.verifiedSpend,
-                totalSpend: snapshot.fuel.totalSpend,
-                pendingCount: snapshot.fuel.pendingTransactions
-            ) {
-                layout.drawChartImage(chart, height: 168)
-            }
-            if !snapshot.fuel.highConsumptionVehicles.isEmpty {
-                layout.drawTable(
-                    headers: ["Vehicle", "Consumption", "Benchmark", "Save/mo"],
-                    rows: Array(snapshot.fuel.highConsumptionVehicles.prefix(12).map { row in
-                        [
-                            "\(row.vehicleName)\n\(row.plateNumber)",
-                            fuelText(row.consumption),
-                            fuelText(row.benchmark),
-                            "\(Int(row.potentialLitresSaved.rounded())) L"
-                        ]
-                    })
+                layout.drawSectionHeader("Executive Summary", subtitle: "Fleet health at a glance")
+                layout.drawKPIGrid([
+                    ("Vehicles", "\(snapshot.summary.totalVehicles)", "Active \(snapshot.summary.activeVehicles)"),
+                    ("Utilization", "\(Int(snapshot.summary.averageUtilization.rounded()))%", "Fleet average"),
+                    ("Odometer", "\(Int(snapshot.summary.averageOdometer.rounded())) km", "Per vehicle avg"),
+                    ("Open issues", "\(snapshot.summary.openWorkOrders)", "\(snapshot.summary.unresolvedDefects) defects")
+                ])
+                layout.drawNarrative(
+                    "This \(AppBranding.name) report is generated from your live fleet database. Use the charts below to review utilization, maintenance backlog, compliance exposure, and fuel spend."
                 )
-            }
+                if let chart = FleetReportChartRenderer.fleetOverviewChart(
+                    active: snapshot.summary.activeVehicles,
+                    total: max(snapshot.summary.totalVehicles, 1),
+                    utilizationPercent: Int(snapshot.summary.averageUtilization.rounded())
+                ) {
+                    layout.drawChartImage(chart, height: 168)
+                }
 
-            layout.drawSectionHeader("Compliance", subtitle: "Documents & renewals")
-            layout.drawKPIGrid([
-                ("Documents", "\(snapshot.compliance.totalDocuments)", nil),
-                ("Expired", "\(snapshot.compliance.expiredCount)", nil),
-                ("Expiring", "\(snapshot.compliance.expiringSoonCount)", nil),
-                ("Missing", "\(snapshot.compliance.missingCount)", nil)
-            ])
-            let validDocs = max(
-                0,
-                snapshot.compliance.totalDocuments
-                    - snapshot.compliance.expiredCount
-                    - snapshot.compliance.expiringSoonCount
-                    - snapshot.compliance.missingCount
-            )
-            if let chart = FleetReportChartRenderer.complianceChart(
-                expired: snapshot.compliance.expiredCount,
-                expiring: snapshot.compliance.expiringSoonCount,
-                missing: snapshot.compliance.missingCount,
-                valid: validDocs
-            ) {
-                layout.drawChartImage(chart, height: 188)
-            }
-            if !snapshot.compliance.alerts.isEmpty {
-                layout.drawTable(
-                    headers: ["Document", "Vehicle", "Due", "Status"],
-                    rows: Array(snapshot.compliance.alerts.prefix(15).map { alert in
-                        let due = alert.dueDate.map { dateFormatter.string(from: $0) } ?? "—"
-                        return [
-                            alert.documentType.rawValue,
-                            alert.plateNumber,
-                            due,
-                            alert.severity.rawValue
-                        ]
-                    }),
-                    severityColumn: 3
+                layout.drawSectionHeader("Inventory Reorder Plan", subtitle: "Parts that need ordering")
+                let reorderRows = snapshot.inventory.forecastRows.filter { $0.reorderQuantity > 0 }
+                if reorderRows.isEmpty {
+                    layout.drawInfoBanner("All spare parts are above minimum stock levels.")
+                } else {
+                    layout.drawTable(
+                        headers: ["Part", "On hand", "Order", "Priority"],
+                        rows: Array(reorderRows.prefix(12).map { row in
+                            [
+                                "\(row.name)\n\(row.partNumber)",
+                                "\(row.onHand) / \(row.minimumRequired)",
+                                "\(row.reorderQuantity)",
+                                row.severity.rawValue
+                            ]
+                        }),
+                        severityColumn: 3
+                    )
+                }
+
+                layout.drawSectionHeader("Inventory Summary")
+                layout.drawStatRow([
+                    ("Part types", "\(snapshot.inventory.totalPartTypes)"),
+                    ("Units on hand", "\(snapshot.inventory.totalQuantity)"),
+                    ("Low stock", "\(snapshot.inventory.lowStockCount)"),
+                    ("Out of stock", "\(snapshot.inventory.outOfStockCount)")
+                ])
+
+                layout.drawSectionHeader("Maintenance", subtitle: "Work orders & vehicle service")
+                layout.drawKPIGrid([
+                    ("Total orders", "\(snapshot.maintenance.totalWorkOrders)", nil),
+                    ("Open", "\(snapshot.maintenance.openWorkOrders)", nil),
+                    ("Overdue", "\(snapshot.maintenance.overdueWorkOrders)", nil),
+                    ("Est. cost", currency(snapshot.maintenance.totalEstimatedCost), nil)
+                ])
+                if let chart = FleetReportChartRenderer.maintenanceChart(
+                    open: snapshot.maintenance.openWorkOrders,
+                    overdue: snapshot.maintenance.overdueWorkOrders,
+                    completed: snapshot.maintenance.completedWorkOrders,
+                    critical: snapshot.maintenance.criticalWorkOrders
+                ) {
+                    layout.drawChartImage(chart, height: 168)
+                }
+                if !snapshot.maintenance.rows.isEmpty {
+                    layout.drawTable(
+                        headers: ["Vehicle", "Open WO", "Defects", "Service", "Status"],
+                        rows: Array(snapshot.maintenance.rows.prefix(15).map { row in
+                            [
+                                "\(row.vehicleName)\n\(row.plateNumber)",
+                                "\(row.openWorkOrders)",
+                                "\(row.unresolvedDefects)",
+                                serviceDueText(row.daysToService),
+                                row.severity.rawValue
+                            ]
+                        }),
+                        severityColumn: 4
+                    )
+                }
+
+                layout.drawSectionHeader("Fuel", subtitle: "Spend & efficiency")
+                layout.drawStatRow([
+                    ("Total spend", currency(snapshot.fuel.totalSpend)),
+                    ("Verified", currency(snapshot.fuel.verifiedSpend)),
+                    ("Pending txns", "\(snapshot.fuel.pendingTransactions)"),
+                    ("Potential saving", "\(Int(snapshot.fuel.potentialLitresSavedMonthly.rounded())) L/mo")
+                ])
+                if let chart = FleetReportChartRenderer.fuelChart(
+                    verifiedSpend: snapshot.fuel.verifiedSpend,
+                    totalSpend: snapshot.fuel.totalSpend,
+                    pendingCount: snapshot.fuel.pendingTransactions
+                ) {
+                    layout.drawChartImage(chart, height: 168)
+                }
+                if !snapshot.fuel.highConsumptionVehicles.isEmpty {
+                    layout.drawTable(
+                        headers: ["Vehicle", "Consumption", "Benchmark", "Save/mo"],
+                        rows: Array(snapshot.fuel.highConsumptionVehicles.prefix(12).map { row in
+                            [
+                                "\(row.vehicleName)\n\(row.plateNumber)",
+                                fuelText(row.consumption),
+                                fuelText(row.benchmark),
+                                "\(Int(row.potentialLitresSaved.rounded())) L"
+                            ]
+                        })
+                    )
+                }
+
+                layout.drawSectionHeader("Compliance", subtitle: "Documents & renewals")
+                layout.drawKPIGrid([
+                    ("Documents", "\(snapshot.compliance.totalDocuments)", nil),
+                    ("Expired", "\(snapshot.compliance.expiredCount)", nil),
+                    ("Expiring", "\(snapshot.compliance.expiringSoonCount)", nil),
+                    ("Missing", "\(snapshot.compliance.missingCount)", nil)
+                ])
+                let validDocs = max(
+                    0,
+                    snapshot.compliance.totalDocuments
+                        - snapshot.compliance.expiredCount
+                        - snapshot.compliance.expiringSoonCount
+                        - snapshot.compliance.missingCount
                 )
+                if let chart = FleetReportChartRenderer.complianceChart(
+                    expired: snapshot.compliance.expiredCount,
+                    expiring: snapshot.compliance.expiringSoonCount,
+                    missing: snapshot.compliance.missingCount,
+                    valid: validDocs
+                ) {
+                    layout.drawChartImage(chart, height: 188)
+                }
+                if !snapshot.compliance.alerts.isEmpty {
+                    layout.drawTable(
+                        headers: ["Document", "Vehicle", "Due", "Status"],
+                        rows: Array(snapshot.compliance.alerts.prefix(15).map { alert in
+                            let due = alert.dueDate.map { dateFormatter.string(from: $0) } ?? "—"
+                            return [
+                                alert.documentType.rawValue,
+                                alert.plateNumber,
+                                due,
+                                alert.severity.rawValue
+                            ]
+                        }),
+                        severityColumn: 3
+                    )
+                }
+
+                layout.drawSectionHeader("Routing", subtitle: "Trip patterns & utilization")
+                layout.drawStatRow([
+                    ("Avg trip", "\(Int(snapshot.routing.averageTripDistance.rounded())) km"),
+                    ("Idle vehicles", "\(snapshot.routing.idleVehicles)"),
+                    ("Overloaded", "\(snapshot.routing.overloadedVehicles)")
+                ])
+                layout.drawInfoBanner(snapshot.routing.recommendation)
+                if let chart = FleetReportChartRenderer.topRoutesChart(
+                    routes: snapshot.routing.repeatedRoutes.map { ($0.routeName, $0.tripCount) }
+                ) {
+                    layout.drawChartImage(chart, height: min(220, CGFloat(80 + snapshot.routing.repeatedRoutes.prefix(5).count * 32)))
+                }
+                if !snapshot.routing.repeatedRoutes.isEmpty {
+                    layout.drawTable(
+                        headers: ["Route", "Trips", "Avg distance"],
+                        rows: Array(snapshot.routing.repeatedRoutes.prefix(10).map { route in
+                            [
+                                route.routeName,
+                                "\(route.tripCount)",
+                                "\(Int(route.averageDistance.rounded())) km"
+                            ]
+                        })
+                    )
+                }
+
+                layout.drawSectionHeader("Recommendations", subtitle: "Prioritized actions")
+                for recommendation in snapshot.recommendations {
+                    layout.drawRecommendationCard(
+                        title: recommendation.title,
+                        detail: recommendation.detail,
+                        severity: recommendation.severity.rawValue
+                    )
+                }
+
+                layout.drawFooter()
             }
 
-            layout.drawSectionHeader("Routing", subtitle: "Trip patterns & utilization")
-            layout.drawStatRow([
-                ("Avg trip", "\(Int(snapshot.routing.averageTripDistance.rounded())) km"),
-                ("Idle vehicles", "\(snapshot.routing.idleVehicles)"),
-                ("Overloaded", "\(snapshot.routing.overloadedVehicles)")
-            ])
-            layout.drawInfoBanner(snapshot.routing.recommendation)
-            if let chart = FleetReportChartRenderer.topRoutesChart(
-                routes: snapshot.routing.repeatedRoutes.map { ($0.routeName, $0.tripCount) }
-            ) {
-                layout.drawChartImage(chart, height: min(220, CGFloat(80 + snapshot.routing.repeatedRoutes.prefix(5).count * 32)))
+            let fileName = "TrackNGo-Fleet-Report-\(Int(snapshot.generatedAt.timeIntervalSince1970)).pdf"
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+            do {
+                try data.write(to: url, options: Data.WritingOptions.atomic)
+                resultURL = url
+            } catch {
+                resultURL = nil
             }
-            if !snapshot.routing.repeatedRoutes.isEmpty {
-                layout.drawTable(
-                    headers: ["Route", "Trips", "Avg distance"],
-                    rows: Array(snapshot.routing.repeatedRoutes.prefix(10).map { route in
-                        [
-                            route.routeName,
-                            "\(route.tripCount)",
-                            "\(Int(route.averageDistance.rounded())) km"
-                        ]
-                    })
-                )
-            }
-
-            layout.drawSectionHeader("Recommendations", subtitle: "Prioritized actions")
-            for recommendation in snapshot.recommendations {
-                layout.drawRecommendationCard(
-                    title: recommendation.title,
-                    detail: recommendation.detail,
-                    severity: recommendation.severity.rawValue
-                )
-            }
-
-            layout.drawFooter()
         }
-
-        let fileName = "TrackNGo-Fleet-Report-\(Int(snapshot.generatedAt.timeIntervalSince1970)).pdf"
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        do {
-            try data.write(to: url, options: Data.WritingOptions.atomic)
-            return url
-        } catch {
-            return nil
-        }
+        return resultURL
     }
 
     private func currency(_ value: Double) -> String {

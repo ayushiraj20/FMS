@@ -313,6 +313,9 @@ final class DriverViewModel {
                     self.currentSpeed = 0.0
                 }
 
+                if let user = self.geofenceUser, let service = self.geofenceService {
+                    service.updateDriverPhoneLocation(driverID: user.id, from: location)
+                }
                 self.evaluateActiveTripGeofence(coordinate: location.coordinate)
             }
         }

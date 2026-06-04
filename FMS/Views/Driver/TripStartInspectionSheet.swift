@@ -312,19 +312,19 @@ struct TripStartInspectionSheet: View {
             } label: {
                 HStack(spacing: 12) {
                     if isSubmitting {
-                        ProgressView().tint(.white)
+                        ProgressView()
                     } else {
                         Image(systemName: allChecked ? "checkmark.circle.fill" : "checklist")
                     }
                     Text(inspectionType == .preTrip ? "Start Trip" : "End Trip")
                         .font(.system(.headline, design: .rounded).bold())
+                        .frame(maxWidth: .infinity)
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(allChecked ? DriverTheme.accent : Color.gray.opacity(0.5), in: Capsule())
-                .shadow(color: allChecked ? DriverTheme.accent.opacity(0.3) : .clear, radius: 6, y: 3)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(allChecked ? DriverTheme.accent : Color.gray.opacity(0.5))
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
             .disabled(!allChecked || isSubmitting)
         }
         .padding(.horizontal, 16)

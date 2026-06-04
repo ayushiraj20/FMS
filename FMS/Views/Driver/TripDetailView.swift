@@ -283,10 +283,10 @@ struct TripDetailView: View {
             } label: {
                 Image(systemName: "phone.fill")
                     .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(DriverTheme.accent, in: Circle())
             }
+            .buttonStyle(.borderedProminent)
+            .tint(DriverTheme.accent)
+            .buttonBorderShape(.circle)
         }
         .padding()
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
@@ -303,11 +303,12 @@ struct TripDetailView: View {
             } label: {
                 Text(inspDone ? "Start Trip" : "Complete Inspection First")
                     .font(.system(.headline, design: .rounded).bold())
-                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(inspDone ? DriverTheme.accent : Color.gray, in: Capsule())
             }
+            .buttonStyle(.borderedProminent)
+            .tint(inspDone ? DriverTheme.accent : Color.gray)
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
             .disabled(!inspDone)
         } else if trip.status == .inProgress {
             Button {
@@ -315,22 +316,24 @@ struct TripDetailView: View {
             } label: {
                 Text("Log Break")
                     .font(.system(.headline, design: .rounded).bold())
-                    .foregroundStyle(DriverTheme.accent)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(DriverTheme.accent.opacity(0.15), in: Capsule())
             }
+            .buttonStyle(.bordered)
+            .tint(DriverTheme.accent)
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
             
             Button {
                 showPostTripInspectionSheet = true
             } label: {
                 Text("End Trip")
                     .font(.system(.headline, design: .rounded).bold())
-                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(DriverTheme.criticalRed, in: Capsule())
             }
+            .buttonStyle(.borderedProminent)
+            .tint(DriverTheme.criticalRed)
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
         }
     }
 }

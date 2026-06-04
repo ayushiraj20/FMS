@@ -159,36 +159,40 @@ struct InventoryReportPDFGenerator {
     private let brand = UIColor(red: 1.0, green: 0.58, blue: 0.0, alpha: 1.0)
 
     func generate(document: InventoryReportDocument) -> URL? {
-        let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
-        let data = renderer.pdfData { context in
-            var y = margin
-            context.beginPage()
+        var resultURL: URL?
+        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+            let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
+            let data = renderer.pdfData { context in
+                var y = margin
+                context.beginPage()
 
-            drawHeader(document: document, y: &y)
-            drawSummary(document: document, y: &y)
-            drawNarrative(document.narrative, y: &y)
-            drawTableHeader(y: &y)
+                drawHeader(document: document, y: &y)
+                drawSummary(document: document, y: &y)
+                drawNarrative(document.narrative, y: &y)
+                drawTableHeader(y: &y)
 
-            for row in document.rows {
-                if y > pageRect.height - 88 {
-                    context.beginPage()
-                    y = margin
-                    drawTableHeader(y: &y)
+                for row in document.rows {
+                    if y > pageRect.height - 88 {
+                        context.beginPage()
+                        y = margin
+                        drawTableHeader(y: &y)
+                    }
+                    drawRow(row, y: &y)
                 }
-                drawRow(row, y: &y)
+
+                drawFooter()
             }
 
-            drawFooter()
+            do {
+                let url = try GeneratedReportStore.reportURL(reportID: document.id, title: "Inventory_Report")
+                try data.write(to: url, options: .atomic)
+                resultURL = url
+            } catch {
+                print("[InventoryReportPDF] Failed to write PDF: \(error)")
+                resultURL = nil
+            }
         }
-
-        do {
-            let url = try GeneratedReportStore.reportURL(reportID: document.id, title: "Inventory_Report")
-            try data.write(to: url, options: .atomic)
-            return url
-        } catch {
-            print("[InventoryReportPDF] Failed to write PDF: \(error)")
-            return nil
-        }
+        return resultURL
     }
 
     private func drawHeader(document: InventoryReportDocument, y: inout CGFloat) {

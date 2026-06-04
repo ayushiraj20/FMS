@@ -1,12 +1,11 @@
 import SwiftUI
 
 struct AssignDriverView: View {
-    @Environment(AppViewModel.self) private var appViewModel
     @State private var viewModel: AssignDriverViewModel
     @Environment(\.dismiss) private var dismiss
 
-    init(service: MockDataService, organizationID: UUID? = nil) {
-        _viewModel = State(wrappedValue: AssignDriverViewModel(service: service, organizationID: organizationID))
+    init(service: MockDataService) {
+        _viewModel = State(wrappedValue: AssignDriverViewModel(service: service))
     }
 
     var body: some View {
@@ -14,9 +13,27 @@ struct AssignDriverView: View {
             ZStack(alignment: .bottom) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
+                        // Top Bar Row
+                        HStack {
+                            Button {
+                                dismiss()
+                            } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundStyle(AppTheme.brand)
+                                    .contentShape(Rectangle())
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 10)
+
                         // Title
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Pair vehicles with on-duty drivers who have no active trip")
+                            Text("Assign Driver")
+                                .font(.largeTitle.weight(.bold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text("Pair available vehicles with drivers")
                                 .font(.subheadline)
                                 .foregroundStyle(AppTheme.textSecondary)
                         }
@@ -58,19 +75,13 @@ struct AssignDriverView: View {
                                 EmptyStateView(icon: "truck.box", title: "Select a Vehicle First", message: "Smart Assign will show only drivers licensed for the chosen vehicle.")
                                     .padding(.horizontal)
                             } else if viewModel.compatibleDriversForSelectedVehicle.isEmpty {
-                                EmptyStateView(
-                                    icon: "person.crop.circle.badge.exclamationmark",
-                                    title: "No Available Drivers",
-                                    message: "Drivers must be on duty with no scheduled or in-progress trip, and licensed for this vehicle."
-                                )
+                                EmptyStateView(icon: "person.crop.circle.badge.exclamationmark", title: "No Compatible Drivers", message: "No available driver has the required licence for this vehicle.")
                                     .padding(.horizontal)
                             } else {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 16) {
                                         ForEach(viewModel.compatibleDriversForSelectedVehicle) { driver in
-                                            if let vehicle = viewModel.selectedVehicle {
-                                                driverSelectionCard(driver: driver, vehicle: vehicle)
-                                            }
+                                            driverSelectionCard(driver: driver)
                                         }
                                     }
                                     .padding(.horizontal)
@@ -99,27 +110,10 @@ struct AssignDriverView: View {
                 }
             }
         }
-//        .toolbar(.hidden, for: .navigationBar)
-        .navigationTitle("Assign Driver")
-        .navigationBarTitleDisplayMode(.large)
-
+        .toolbar(.hidden, for: .navigationBar)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedVehicle)
-
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedDriver)
-
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.isShowingSuccessToast)
-
-        .refreshable {
-            await appViewModel.service.syncWithDatabase()
-        }
-
-        .onAppear {
-            viewModel.organizationID = appViewModel.currentOrganization?.id
-        }
-
-        .onChange(of: appViewModel.currentOrganization?.id) { _, newValue in
-            viewModel.organizationID = newValue
-        }
     }
 
     // Banner for Auto Smart Matching
@@ -172,10 +166,7 @@ struct AssignDriverView: View {
             return "Select a vehicle to filter licensed drivers"
         }
 
-        let assignable = viewModel.compatibleDriversForSelectedVehicle.filter {
-            viewModel.canSelect(driver: $0, for: vehicle)
-        }.count
-        return "\(viewModel.compatibleDriversForSelectedVehicle.count) on duty · \(assignable) can be assigned · \(viewModel.service.requiredLicenseSummary(for: vehicle))"
+        return "\(viewModel.compatibleDriversForSelectedVehicle.count) drivers eligible for \(viewModel.service.requiredLicenseSummary(for: vehicle))"
     }
 
     // Selection card for Vehicles
@@ -215,7 +206,7 @@ struct AssignDriverView: View {
                     .background(isSelected ? .white.opacity(0.3) : AppTheme.border)
 
                 HStack {
-                    Label(vehicle.fuelDisplayString, systemImage: "fuelpump.fill")
+                    Label("\(vehicle.fuelLevel)%", systemImage: "fuelpump.fill")
                         .font(.caption)
                         .foregroundStyle(isSelected ? .white.opacity(0.9) : AppTheme.textSecondary)
                     Spacer()
@@ -241,14 +232,10 @@ struct AssignDriverView: View {
     }
 
     // Selection card for Drivers
-    private func driverSelectionCard(driver: User, vehicle: Vehicle) -> some View {
+    private func driverSelectionCard(driver: User) -> some View {
         let isSelected = viewModel.selectedDriver?.id == driver.id
-        let canAssign = viewModel.canSelect(driver: driver, for: vehicle)
-        let assignedVehicle = viewModel.service.assignedVehicle(for: driver.id)
-        let isOnDuty = viewModel.service.dutyStatus(for: driver.id) == .onDuty
-
+        
         return Button {
-            guard canAssign else { return }
             withAnimation {
                 if isSelected {
                     viewModel.selectedDriver = nil
@@ -274,26 +261,13 @@ struct AssignDriverView: View {
                         .lineLimit(1)
                 }
                 
-                VStack(spacing: 4) {
-                    Text(isOnDuty ? "On Duty" : "Off Duty")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(isSelected ? .white : (isOnDuty ? AppTheme.success : AppTheme.textSecondary))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(isSelected ? .white.opacity(0.2) : (isOnDuty ? AppTheme.success.opacity(0.12) : AppTheme.surfaceSecondary))
-                        .clipShape(Capsule())
-
-                    if let assignedVehicle {
-                        Text(assignedVehicle.plateNumber)
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(isSelected ? .white.opacity(0.85) : AppTheme.warning)
-                            .lineLimit(1)
-                    } else {
-                        Text("No trip · Ready")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(isSelected ? .white.opacity(0.85) : AppTheme.success)
-                    }
-                }
+                Text("Available")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(isSelected ? .white : AppTheme.success)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(isSelected ? .white.opacity(0.2) : AppTheme.success.opacity(0.12))
+                    .clipShape(Capsule())
 
                 Text(viewModel.service.driverLicenseSummary(for: driver))
                     .font(.system(size: 10, weight: .semibold))
@@ -310,9 +284,7 @@ struct AssignDriverView: View {
                     .stroke(isSelected ? .white.opacity(0.3) : AppTheme.border, lineWidth: 1)
             )
             .shadow(color: isSelected ? AppTheme.brand.opacity(0.3) : Color.clear, radius: 10, y: 4)
-            .opacity(canAssign ? 1 : 0.55)
         }
-        .disabled(!canAssign)
     }
 
     // Sticky confirm banner at the bottom

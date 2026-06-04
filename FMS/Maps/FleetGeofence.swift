@@ -12,7 +12,7 @@ struct TripRouteGeofenceBreach: Identifiable {
     var id: UUID { location.vehicle.id }
 
     var distanceText: String {
-        String(format: "%.0f m off approved routes", distanceBeyondCorridorMeters)
+        String(format: "%.0f m off optimal route", distanceBeyondCorridorMeters)
     }
 }
 
@@ -20,6 +20,7 @@ struct RouteGeofenceAlertState {
     var lastStatus: TripRouteCorridorStatus?
     var lastAlternativeAlertAt: Date?
     var lastBreachAlertAt: Date?
+    var lastEvaluatedCoordinate: CLLocationCoordinate2D?
 }
 
 extension MockDataService {
@@ -40,6 +41,22 @@ extension MockDataService {
         let activeTrips = trips.filter { $0.status == .inProgress && $0.hasRoutableEndpoints }
         for trip in activeTrips {
             _ = await tripRoutePlan(for: trip)
+        }
+    }
+
+    /// One optimal MapKit route per in-progress trip (for fleet map overlays).
+    func activeInProgressRoutePlans(for manager: User?) -> [(trip: Trip, plan: TripRoutePlan)] {
+        trips.filter { trip in
+            guard trip.status == .inProgress, trip.hasRoutableEndpoints else { return false }
+            guard let vehicle = vehicles.first(where: { $0.id == trip.vehicleID }) else { return false }
+            if let organizationID = manager?.organizationID {
+                return vehicle.organizationID == organizationID
+            }
+            return true
+        }
+        .compactMap { trip in
+            guard let plan = tripRoutePlansByTripID[trip.id] else { return nil }
+            return (trip, plan)
         }
     }
 
@@ -69,8 +86,10 @@ extension MockDataService {
         }
 
         return scopedLocations.compactMap { location in
-            guard let trip = location.activeTrip,
-                  let plan = tripRoutePlansByTripID[trip.id] else {
+            guard location.isDriverPhoneFix,
+                  let trip = location.activeTrip,
+                  let plan = tripRoutePlansByTripID[trip.id],
+                  driverPhoneLocationQualifiesForGeofence(location: location, vehicleID: location.vehicle.id) else {
                 return nil
             }
 
@@ -102,9 +121,33 @@ extension MockDataService {
         driver: User?,
         coordinate: CLLocationCoordinate2D,
         locality: String,
-        manager: User?
+        manager: User?,
+        fromDriverPhone: Bool = true
     ) async {
         guard trip.status == .inProgress else { return }
+        guard fromDriverPhone else { return }
+        guard let driverID = driver?.id,
+              let phone = driverPhoneLocation(for: driverID),
+              phone.coordinate.distance(to: coordinate) < 80 else { return }
+        guard driverPhoneLocationQualifiesForGeofence(
+            location: FleetVehicleLocation(
+                vehicle: vehicle,
+                driver: driver,
+                activeTrip: trip,
+                coordinate: coordinate,
+                locality: locality,
+                lastUpdated: phone.timestamp,
+                route: FleetVehicleRoute(
+                    originName: trip.origin,
+                    destinationName: trip.destination,
+                    coordinates: [],
+                    progress: 0
+                ),
+                isDriverPhoneFix: true
+            ),
+            vehicleID: vehicle.id,
+            phoneFix: phone
+        ) else { return }
         guard let plan = await tripRoutePlan(for: trip) else { return }
 
         let location = FleetVehicleLocation(
@@ -113,13 +156,14 @@ extension MockDataService {
             activeTrip: trip,
             coordinate: coordinate,
             locality: locality,
-            lastUpdated: .now,
+            lastUpdated: phone.timestamp,
             route: FleetVehicleRoute(
                 originName: trip.origin,
                 destinationName: trip.destination,
                 coordinates: plan.mainRouteCoordinates,
                 progress: 0
-            )
+            ),
+            isDriverPhoneFix: true
         )
 
         let status = TripRouteGeofenceEvaluator.corridorStatus(for: coordinate, plan: plan)
@@ -183,13 +227,29 @@ extension MockDataService {
             }
         }
 
-        if routeGeofenceAlertStates[vehicle.id] == nil {
-            routeGeofenceAlertStates[vehicle.id] = RouteGeofenceAlertState(lastStatus: status)
+        var updatedState = routeGeofenceAlertStates[vehicle.id] ?? RouteGeofenceAlertState()
+        updatedState.lastEvaluatedCoordinate = coordinate
+        if updatedState.lastStatus != status {
+            updatedState.lastStatus = status
         }
+        routeGeofenceAlertStates[vehicle.id] = updatedState
+    }
+
+    func driverPhoneLocationQualifiesForGeofence(
+        location: FleetVehicleLocation,
+        vehicleID: UUID,
+        phoneFix: DriverPhoneLocation? = nil
+    ) -> Bool {
+        guard location.isDriverPhoneFix else { return false }
+        let fix = phoneFix ?? location.driver.flatMap { driverPhoneLocation(for: $0.id) }
+        guard let fix, fix.isFresh, fix.hasUsableAccuracy else { return false }
+        guard fix.isMoving else { return false }
+
+        return true
     }
 
     func sendRouteGeofenceMonitoringAlerts(for manager: User?, locations: [FleetVehicleLocation]? = nil) async {
-        let scoped = locations ?? allFleetLocations()
+        let scoped = (locations ?? allFleetLocations()).filter(\.isDriverPhoneFix)
         for location in scoped {
             guard let trip = location.activeTrip else { continue }
             await processRouteGeofenceUpdate(
@@ -206,6 +266,9 @@ extension MockDataService {
     }
 
     func sendRouteCorridorBreachAlerts(_ breaches: [TripRouteGeofenceBreach], manager: User?) {
+        guard !breaches.isEmpty else { return }
+        HapticFeedback.routeCorridorBreach()
+
         let managers = fleetManagers(for: manager)
 
         for breach in breaches {
@@ -270,11 +333,11 @@ extension MockDataService {
         let vehicle = breach.location.vehicle
         let driverName = breach.location.driver?.name ?? "Unassigned"
         let driverPhone = breach.location.driver?.phone ?? "No driver phone"
-        return "Fleet: \(vehicle.displayName) (\(vehicle.plateNumber)) is outside the 50 m approved geofence for \(breach.trip.origin) → \(breach.trip.destination). Driver: \(driverName), \(driverPhone). \(breach.distanceText) near \(breach.location.locality)."
+        return "Fleet: \(vehicle.displayName) (\(vehicle.plateNumber)) is outside the 200 m route geofence for \(breach.trip.origin) → \(breach.trip.destination). Driver: \(driverName), \(driverPhone). \(breach.distanceText) near \(breach.location.locality)."
     }
 
     private func routeBreachDriverMessage(for breach: TripRouteGeofenceBreach) -> String {
-        "You are outside the 50 m approved geofence near \(breach.location.locality). Return to the ideal or approved alternate route, or contact your fleet manager."
+        "You are outside the 200 m route geofence near \(breach.location.locality). Return to the optimal route or contact your fleet manager."
     }
 
     private func corridorOverflowDistance(
@@ -304,7 +367,7 @@ struct TripRouteGeofenceStatusBanner: View {
                 Text(breaches.isEmpty ? "Vehicles on approved routes" : "\(breaches.count) route corridor breach\(breaches.count == 1 ? "" : "es")")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.textPrimary)
-                Text("Ideal + 1 hidden alternate route · 50 m moving geofence · \(monitoredTripCount) active trip\(monitoredTripCount == 1 ? "" : "s")")
+                Text("Optimal route per vehicle · 200 m corridor geofence · driver phone GPS · \(monitoredTripCount) active trip\(monitoredTripCount == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(AppTheme.textSecondary)
             }

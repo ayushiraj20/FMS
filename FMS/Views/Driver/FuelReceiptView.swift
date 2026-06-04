@@ -72,13 +72,13 @@ struct FuelReceiptView: View {
                         .font(.title2)
                     Text("Scan Receipt")
                         .font(.system(.headline, design: .rounded).bold())
+                        .frame(maxWidth: .infinity)
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 60)
-                .background(DriverTheme.accent, in: Capsule())
-                .shadow(color: DriverTheme.accent.opacity(0.3), radius: 10, y: 5)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(DriverTheme.accent)
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
             .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
             .opacity(UIImagePickerController.isSourceTypeAvailable(.camera) ? 1 : 0.5)
 
@@ -88,13 +88,13 @@ struct FuelReceiptView: View {
                         .font(.title2)
                     Text("Upload Receipt")
                         .font(.system(.headline, design: .rounded).bold())
+                        .frame(maxWidth: .infinity)
                 }
-                .foregroundStyle(DriverTheme.textPrimary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 60)
-                .background(.ultraThinMaterial, in: Capsule())
-                .overlay(Capsule().stroke(DriverTheme.textSecondary.opacity(0.2), lineWidth: 1))
             }
+            .buttonStyle(.bordered)
+            .tint(DriverTheme.accent)
+            .controlSize(.large)
+            .buttonBorderShape(.capsule)
 
             Text("Capture or upload a clear receipt photo. OCR will extract amount and litres where possible.")
                 .font(.footnote)

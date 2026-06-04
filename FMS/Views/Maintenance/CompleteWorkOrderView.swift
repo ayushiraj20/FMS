@@ -189,22 +189,13 @@ struct CompleteWorkOrderView: View {
         } label: {
             Label("Confirm Completion", systemImage: "checkmark.circle.fill")
                 .font(.headline.weight(.bold))
-                .foregroundStyle(Color.dynamic(light: "#431300", dark: "#240900"))
                 .frame(maxWidth: .infinity)
-                .frame(height: 58)
-                .background(
-                    LinearGradient(
-                        colors: [Color(hex: "#FF9500"), Color(hex: "#D93A00")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                )
-                .shadow(color: accent.opacity(0.28), radius: 16, x: 0, y: 8)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderedProminent)
+        .tint(accent)
+        .controlSize(.large)
+        .buttonBorderShape(.capsule)
         .disabled(!allStepsCompleted)
-        .opacity(allStepsCompleted ? 1 : 0.55)
     }
 
     private var photoCard: some View {

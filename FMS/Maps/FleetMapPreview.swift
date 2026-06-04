@@ -4,6 +4,7 @@ import SwiftUI
 struct FleetMapPreview: View {
     let locations: [FleetVehicleLocation]
     let service: MockDataService
+    var manager: User?
     var initialRegion = FleetMapRegion.india
     var routeBreaches: [TripRouteGeofenceBreach] = []
     @State private var selectedLocation: FleetVehicleLocation?
@@ -33,13 +34,7 @@ struct FleetMapPreview: View {
     }
 
     private var activeTripPlans: [(trip: Trip, plan: TripRoutePlan)] {
-        locations.compactMap { location in
-            guard let trip = location.activeTrip,
-                  let plan = service.tripRoutePlansByTripID[trip.id] else {
-                return nil
-            }
-            return (trip, plan)
-        }
+        service.activeInProgressRoutePlans(for: manager)
     }
 
     private func isBreaching(_ location: FleetVehicleLocation) -> Bool {
