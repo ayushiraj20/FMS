@@ -38,27 +38,126 @@ struct FuelTransactionDetailView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    statusBadge
-                    detailsCard
-                    receiptCard
-                    if transaction.verificationStatus == .pending {
-                        verificationButtons
+            List {
+                Section {
+                    HStack {
+                        Spacer()
+                        statusBadge
+                        Spacer()
                     }
-                    if transaction.verificationStatus == .rejected,
-                       let reason = transaction.rejectionReason {
-                        rejectionReasonCard(reason: reason)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                }
+
+                Section("Details") {
+                    LabeledContent("Driver", value: driverName)
+                    LabeledContent("Vehicle", value: vehiclePlate)
+                    LabeledContent("Amount", value: "₹\(Int(transaction.manualAmount))")
+                    LabeledContent("Litres", value: String(format: "%.2f L", transaction.litres))
+                    LabeledContent("Odometer", value: "\(transaction.odometerReading) km")
+                    LabeledContent("Date & Time", value: transaction.timestamp.formatted(date: .long, time: .shortened))
+                }
+
+                Section("Fuel Receipt") {
+                    AsyncImage(url: URL(string: transaction.receiptImageURL)) { phase in
+                        switch phase {
+                        case .empty:
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Spacer()
+                            }
+                            .frame(height: 180)
+
+                        case .success(let image):
+                            ZStack(alignment: .bottomTrailing) {
+                                image
+                                    .resizable()
+                                    .scaledToFit()
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                
+                                Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(.white.opacity(0.85))
+                                    .background(Circle().fill(.black.opacity(0.35)))
+                                    .padding(12)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                showFullScreenReceipt = true
+                            }
+
+                        case .failure:
+                            VStack(spacing: 8) {
+                                Image(systemName: "photo.slash")
+                                    .font(.system(size: 32))
+                                    .foregroundStyle(Color.secondary)
+                                Text("Could not load receipt")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Color.secondary)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 120)
+
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                if transaction.verificationStatus == .rejected, let reason = transaction.rejectionReason {
+                    Section("Rejection Reason") {
+                        Label(reason, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                            .padding(.vertical, 4)
                     }
                 }
-                .padding(20)
             }
-            .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+            .listStyle(.insetGrouped)
             .navigationTitle("Transaction Detail")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if transaction.verificationStatus == .pending {
+                    VStack(spacing: 12) {
+                        Button {
+                            Task {
+                                isVerifying = true
+                                await fuelVM.verify(transaction: transaction)
+                                isVerifying = false
+                                dismiss()
+                            }
+                        } label: {
+                            Label("Mark as Verified", systemImage: "checkmark.seal.fill")
+                                .font(.system(.subheadline, design: .rounded).bold())
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .buttonBorderShape(.capsule)
+                        .tint(.green)
+
+                        Button {
+                            showRejectionAlert = true
+                        } label: {
+                            Label("Reject Transaction", systemImage: "xmark.seal.fill")
+                                .font(.system(.subheadline, design: .rounded).bold())
+                                .frame(maxWidth: .infinity)
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .buttonBorderShape(.capsule)
+                        .tint(Color.red.opacity(0.15))
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 24)
+                    .background(.ultraThinMaterial)
                 }
             }
             .sheet(isPresented: $showFullScreenReceipt) {
@@ -84,8 +183,6 @@ struct FuelTransactionDetailView: View {
         }
     }
 
-    // MARK: - Status Badge
-
     private var statusBadge: some View {
         HStack(spacing: 8) {
             Image(systemName: transaction.verificationStatus.iconName)
@@ -96,184 +193,5 @@ struct FuelTransactionDetailView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
         .background(Capsule().fill(statusColor.opacity(0.12)))
-    }
-
-    // MARK: - Details Card
-
-    private var detailsCard: some View {
-        VStack(spacing: 0) {
-            detailRow(label: "Driver",     value: driverName)
-            Divider().padding(.horizontal, 16)
-            detailRow(label: "Vehicle",    value: vehiclePlate)
-            Divider().padding(.horizontal, 16)
-            detailRow(label: "Amount",     value: "₹\(Int(transaction.manualAmount))")
-            Divider().padding(.horizontal, 16)
-            detailRow(label: "Litres",     value: String(format: "%.2f L", transaction.litres))
-            Divider().padding(.horizontal, 16)
-            detailRow(label: "Odometer",   value: "\(transaction.odometerReading) km")
-            Divider().padding(.horizontal, 16)
-            detailRow(
-                label: "Date & Time",
-                value: transaction.timestamp.formatted(date: .long, time: .shortened)
-            )
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(uiColor: .systemBackground))
-        )
-    }
-
-    private func detailRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 14))
-                .foregroundStyle(Color.secondary)
-            Spacer()
-            Text(value)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color.primary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-    }
-
-    // MARK: - Receipt Card
-
-    private var receiptCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Fuel Receipt", systemImage: "doc.viewfinder.fill")
-                .font(.headline)
-                .foregroundStyle(Color.primary)
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-
-            AsyncImage(url: URL(string: transaction.receiptImageURL)) { phase in
-                switch phase {
-                case .empty:
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
-                    }
-                    .frame(height: 180)
-
-                case .success(let image):
-                    ZStack(alignment: .bottomTrailing) {
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .clipShape(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            )
-                        
-                        Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.white.opacity(0.85))
-                            .background(Circle().fill(.black.opacity(0.35)))
-                            .padding(12)
-                    }
-                    .padding(.horizontal, 16)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        showFullScreenReceipt = true
-                    }
-
-                case .failure:
-                    VStack(spacing: 8) {
-                        Image(systemName: "photo.slash")
-                            .font(.system(size: 32))
-                            .foregroundStyle(Color.secondary)
-                        Text("Could not load receipt")
-                            .font(.subheadline)
-                            .foregroundStyle(Color.secondary)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 120)
-
-                @unknown default:
-                    EmptyView()
-                }
-            }
-            .padding(.bottom, 16)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(uiColor: .systemBackground))
-        )
-    }
-
-    // MARK: - Verification Buttons
-
-    private var verificationButtons: some View {
-        VStack(spacing: 12) {
-            Button {
-                Task {
-                    isVerifying = true
-                    await fuelVM.verify(transaction: transaction)
-                    isVerifying = false
-                    dismiss()
-                }
-            } label: {
-                Group {
-                    if isVerifying {
-                        HStack(spacing: 8) {
-                            ProgressView().tint(.white)
-                            Text("Verifying…")
-                        }
-                    } else {
-                        Label("Mark as Verified", systemImage: "checkmark.seal.fill")
-                    }
-                }
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.green)
-                )
-            }
-
-            Button {
-                showRejectionAlert = true
-            } label: {
-                Group {
-                    if isRejecting {
-                        HStack(spacing: 8) {
-                            ProgressView().tint(.red)
-                            Text("Rejecting…")
-                        }
-                    } else {
-                        Label("Reject Transaction", systemImage: "xmark.seal.fill")
-                    }
-                }
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.red)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.red.opacity(0.12))
-                )
-            }
-        }
-    }
-
-    // MARK: - Rejection Reason Card
-
-    private func rejectionReasonCard(reason: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Rejection Reason", systemImage: "exclamationmark.triangle.fill")
-                .font(.headline)
-                .foregroundStyle(.red)
-            Text(reason)
-                .font(.subheadline)
-                .foregroundStyle(Color.secondary)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(uiColor: .systemBackground))
-        )
     }
 }

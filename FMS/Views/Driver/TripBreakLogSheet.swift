@@ -218,7 +218,7 @@ struct TripBreakLogSheet: View {
                     Button {
                         logBreakAndDismiss()
                     } label: {
-                        Text("Log Break")
+                        Text("Break Log")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)

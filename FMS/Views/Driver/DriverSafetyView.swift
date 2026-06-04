@@ -48,7 +48,6 @@ struct DriverSafetyView: View {
                 sparklineSpeedChart
                 drivingTipsCard
                 tripHistoryDoneByDriver
-                quickSOSButton
                 
                 Spacer().frame(height: 40)
             }
@@ -466,25 +465,6 @@ struct DriverSafetyView: View {
                 }
             }
         }
-    }
-
-    private var quickSOSButton: some View {
-        Button {
-            driverVM.startSOSCountdown(service: appViewModel.service, user: currentUser)
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.title2)
-                Text("Emergency SOS")
-                    .font(.system(.title3, design: .rounded).bold())
-            }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 64)
-            .background(DriverTheme.criticalRed, in: Capsule())
-            .shadow(color: DriverTheme.criticalRed.opacity(0.4), radius: 15, y: 5)
-        }
-        .padding(.vertical, 10)
     }
 }
 

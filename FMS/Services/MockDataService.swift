@@ -33,6 +33,9 @@ final class MockDataService {
     /// Latest GPS from each driver's phone (keyed by driver user id).
     var driverPhoneLocationsByDriverID: [UUID: DriverPhoneLocation] = [:]
 
+    /// Publisher that fires every time a new notification is inserted via `addNotification`.
+    let notificationAddedPublisher = PassthroughSubject<AppNotification, Never>()
+
     /// IDs of users that have been locally deleted but may not yet be
     /// removed from the remote database. syncWithDatabase filters these out
     /// so a slow or failed Supabase delete doesn't resurrect the user.
@@ -1744,6 +1747,9 @@ final class MockDataService {
             category: category
         )
         notifications.insert(notification, at: 0)
+
+        // Broadcast to in-app subscribers (e.g. AppViewModel for banner)
+        notificationAddedPublisher.send(notification)
 
         // Schedule local push notification
         NotificationScheduler.scheduleBroadcastAlert(title: title, body: message)

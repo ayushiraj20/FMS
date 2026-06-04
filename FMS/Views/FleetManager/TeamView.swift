@@ -305,7 +305,7 @@ private struct DriverRowCard: View {
 }
 
 // MARK: - Driver Detail View
-private struct DriverDetailView: View {
+struct DriverDetailView: View {
     let driver: User
     let service: MockDataService
     @Environment(\.dismiss) private var dismiss

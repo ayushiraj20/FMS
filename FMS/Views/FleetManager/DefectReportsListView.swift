@@ -9,6 +9,12 @@ struct DefectReportsListView: View {
     @State private var filterTab: FilterOption = .all
     @State private var isLoading = false
 
+    let initialSelectedDefectID: UUID?
+
+    init(initialSelectedDefectID: UUID? = nil) {
+        self.initialSelectedDefectID = initialSelectedDefectID
+    }
+
     enum FilterOption: String, CaseIterable, Identifiable {
         case all = "All"
         case pending = "Pending"
@@ -133,6 +139,10 @@ struct DefectReportsListView: View {
         .task {
             // Auto-sync from Supabase whenever this view appears
             await refreshDefects()
+            if let initialSelectedDefectID,
+               let defect = appViewModel.service.defects.first(where: { $0.id == initialSelectedDefectID }) {
+                selectedDefect = defect
+            }
         }
         .sheet(item: $selectedDefect) { defect in
             DefectReviewSheet(defect: defect)
@@ -419,86 +429,87 @@ struct DefectReviewSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-
-                    // MARK: Vehicle Info
-                    sectionHeader("Vehicle Details")
-                    GlassCard {
-                        HStack(spacing: 12) {
-                            Image(systemName: "truck.box.fill")
-                                .font(.title)
-                                .foregroundStyle(AppTheme.brand)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(vehicle?.displayName ?? "Unknown Vehicle")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(AppTheme.textPrimary)
-                                Text("Plate: \(vehicle?.plateNumber ?? "No Plate") • Odometer: \(vehicle?.odometer.formatted() ?? "0") km")
-                                    .font(.caption)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                            }
+            List {
+                // Section 1: Vehicle Details
+                Section("Vehicle Details") {
+                    HStack(spacing: 12) {
+                        Image(systemName: "truck.box.fill")
+                            .font(.title3)
+                            .foregroundStyle(AppTheme.brand)
+                            .frame(width: 32, height: 32)
+                            .background(AppTheme.brand.opacity(0.12), in: Circle())
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(vehicle?.displayName ?? "Unknown Vehicle")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text("Plate: \(vehicle?.plateNumber ?? "No Plate") • Odometer: \(vehicle?.odometer.formatted() ?? "0") km")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
                         }
                     }
+                    .padding(.vertical, 4)
+                }
 
-                    // MARK: Driver Info
-                    sectionHeader("Driver Info")
-                    GlassCard {
-                        HStack(spacing: 12) {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.title)
-                                .foregroundStyle(AppTheme.brand)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(driver?.name ?? "Unknown Driver")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(AppTheme.textPrimary)
-                                Text(driver?.title ?? "Professional Driver")
-                                    .font(.caption)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                            }
+                // Section 2: Driver Info
+                Section("Driver Info") {
+                    HStack(spacing: 12) {
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(AppTheme.brand)
+                            .frame(width: 32, height: 32)
+                            .background(AppTheme.brand.opacity(0.12), in: Circle())
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(driver?.name ?? "Unknown Driver")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text(driver?.title ?? "Professional Driver")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
                         }
                     }
+                    .padding(.vertical, 4)
+                }
 
-                    // MARK: Defect Details
-                    sectionHeader("Defect Description")
-                    GlassCard {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack(alignment: .top, spacing: 12) {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(defect.title ?? "Issue")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                        .multilineTextAlignment(.leading)
-                                    
-                                    Text(defect.description)
-                                        .font(.subheadline)
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                        .multilineTextAlignment(.leading)
-                                }
+                // Section 3: Defect Description
+                Section("Defect Description") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(defect.title ?? "Issue")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(AppTheme.textPrimary)
                                 
-                                Spacer()
-                                
-                                VStack(alignment: .trailing, spacing: 6) {
-                                    StatusBadgeView(
-                                        text: defect.severity.rawValue,
-                                        color: severityColor(defect.severity)
-                                    )
-                                    StatusBadgeView(
-                                        text: defect.status.rawValue,
-                                        color: statusColor(defect.status)
-                                    )
-                                }
+                                Text(defect.description)
+                                    .font(.subheadline)
+                                    .foregroundStyle(AppTheme.textSecondary)
                             }
                             
-                            Text("Reported on: \(formattedDate(defect.reportedDate))")
-                                .font(.caption.italic())
-                                .foregroundStyle(AppTheme.textSecondary)
-                                .padding(.top, 4)
+                            Spacer()
+                            
+                            VStack(alignment: .trailing, spacing: 6) {
+                                StatusBadgeView(
+                                    text: defect.severity.rawValue,
+                                    color: severityColor(defect.severity)
+                                )
+                                StatusBadgeView(
+                                    text: defect.status.rawValue,
+                                    color: statusColor(defect.status)
+                                )
+                            }
                         }
+                        
+                        Text("Reported on: \(formattedDate(defect.reportedDate))")
+                            .font(.caption.italic())
+                            .foregroundStyle(AppTheme.textSecondary)
                     }
+                    .padding(.vertical, 4)
+                }
 
-                    // MARK: Photos
-                    if let imgs = defect.images, !imgs.isEmpty {
-                        sectionHeader("Damage Photos")
+                // Section 4: Damage Photos (if present)
+                if let imgs = defect.images, !imgs.isEmpty {
+                    Section("Damage Photos") {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
                                 ForEach(imgs, id: \.self) { img in
@@ -513,20 +524,13 @@ struct DefectReviewSheet: View {
                                                     image
                                                         .resizable()
                                                         .scaledToFill()
-                                                        .frame(width: 120, height: 120)
-                                                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                                                case .failure:
-                                                    Image(systemName: "photo.fill")
-                                                        .resizable()
-                                                        .aspectRatio(contentMode: .fit)
-                                                        .frame(width: 120, height: 120)
-                                                        .foregroundStyle(AppTheme.brand.opacity(0.3))
-                                                        .padding(12)
-                                                        .background(AppTheme.surfaceSecondary)
+                                                        .frame(width: 100, height: 100)
                                                         .clipShape(RoundedRectangle(cornerRadius: 12))
                                                 default:
-                                                    ProgressView()
-                                                        .frame(width: 120, height: 120)
+                                                    Image(systemName: "photo.fill")
+                                                        .font(.title)
+                                                        .foregroundStyle(AppTheme.brand.opacity(0.3))
+                                                        .frame(width: 100, height: 100)
                                                         .background(AppTheme.surfaceSecondary)
                                                         .clipShape(RoundedRectangle(cornerRadius: 12))
                                                 }
@@ -546,30 +550,212 @@ struct DefectReviewSheet: View {
                                 }
                             }
                         }
-                    }
-
-                    // MARK: Actions
-                    if defect.status == .pending {
-                        pendingActionsSection
-                    } else {
-                        linkedWorkOrderSection
+                        .padding(.vertical, 4)
                     }
                 }
-                .padding(20)
+
+                // Section 5: Work Order details (if non-pending)
+                if defect.status != .pending {
+                    if let wo = linkedWorkOrder {
+                        Section("Linked Work Order") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Text(wo.title)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                    Spacer()
+                                    StatusBadgeView(
+                                        text: wo.status.rawValue,
+                                        color: wo.status == .completed ? AppTheme.success : AppTheme.warning
+                                    )
+                                }
+
+                                if let tech = appViewModel.service.users(for: .maintenance)
+                                    .first(where: { $0.id == wo.assignedMaintenanceID }) {
+                                    Label("Technician: \(tech.name) (\(tech.title))", systemImage: "wrench.and.screwdriver")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                }
+
+                                Button {
+                                    isShowingWorkOrderChat = true
+                                } label: {
+                                    Label("Open Coordination Chat", systemImage: "bubble.left.and.bubble.right.fill")
+                                        .font(.system(.subheadline, design: .rounded).bold())
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.large)
+                                .buttonBorderShape(.capsule)
+                                .tint(AppTheme.brand)
+                                .padding(.top, 4)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    } else {
+                        Section {
+                            HStack(spacing: 10) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(defect.status == .completed ? AppTheme.success : AppTheme.brand)
+                                Text(defect.status == .completed
+                                     ? "This defect report has been closed."
+                                     : "Work order will appear here once created.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+
+                // Section 6: Approval Config Form (if pending and active)
+                if defect.status == .pending && isShowingApprovalForm {
+                    Section("Configure Work Order") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Work Order Priority")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.textPrimary)
+
+                            Picker("Priority", selection: $priority) {
+                                ForEach(WorkOrderPriority.allCases, id: \.self) { level in
+                                    Text(level.rawValue).tag(level)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                        }
+                        .padding(.vertical, 4)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Assign Technician")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.textPrimary)
+
+                            let techs = appViewModel.service.users(for: .maintenance)
+
+                            if techs.isEmpty {
+                                Text("No maintenance technicians found. Please add technicians first.")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.error)
+                                    .padding(10)
+                                    .background(AppTheme.error.opacity(0.08))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            } else {
+                                Picker("Technician", selection: $selectedTechID) {
+                                    Text("Select Technician").tag(nil as UUID?)
+                                    ForEach(techs) { tech in
+                                        Text("\(tech.name) (\(tech.title))").tag(tech.id as UUID?)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                            }
+                        }
+                        .padding(.vertical, 4)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Work Order Instructions")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.textPrimary)
+
+                            TextEditor(text: $details)
+                                .frame(minHeight: 80)
+                                .padding(4)
+                        }
+                        .padding(.vertical, 4)
+
+                        VStack(spacing: 8) {
+                            Button {
+                                guard let techID = selectedTechID else { return }
+                                let orderTitle = defect.title ?? "Repair: \(vehicle?.displayName ?? "Vehicle")"
+                                appViewModel.service.approveDefectReport(
+                                    defect: defect,
+                                    assignedTechID: techID,
+                                    title: orderTitle,
+                                    priority: priority,
+                                    details: details
+                                )
+                                dismiss()
+                            } label: {
+                                Label("Approve & Coordinate Repair", systemImage: "wrench.and.screwdriver.fill")
+                                    .font(.system(.subheadline, design: .rounded).bold())
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                            .buttonBorderShape(.capsule)
+                            .tint(selectedTechID == nil ? Color.gray.opacity(0.5) : AppTheme.brand)
+                            .disabled(selectedTechID == nil)
+
+                            Button("Cancel Approval") {
+                                withAnimation {
+                                    isShowingApprovalForm = false
+                                }
+                            }
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 4)
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
             }
-            .background(AppTheme.background.ignoresSafeArea())
+            .listStyle(.insetGrouped)
             .navigationTitle("Review Defect")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") {
                         dismiss()
-                    } label: {
-                        Text("Close")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(AppTheme.brand)
                     }
-                    .buttonStyle(.borderless)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if defect.status == .pending && !isShowingApprovalForm {
+                    VStack(spacing: 12) {
+                        Button {
+                            isShowingDefectChat = true
+                        } label: {
+                            Label("Chat with Driver", systemImage: "bubble.left.and.bubble.right.fill")
+                                .font(.system(.subheadline, design: .rounded).bold())
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .buttonBorderShape(.capsule)
+                        .tint(.purple)
+
+                        HStack(spacing: 12) {
+                            Button("Reject Report") {
+                                appViewModel.service.rejectDefectReport(defect: defect)
+                                dismiss()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                            .buttonBorderShape(.capsule)
+                            .tint(AppTheme.error)
+
+                            Button("Approve & Repair") {
+                                withAnimation {
+                                    isShowingApprovalForm = true
+                                    if let firstTech = appViewModel.service.users(for: .maintenance).first {
+                                        selectedTechID = firstTech.id
+                                    }
+                                    let cleanDesc = defect.description.replacingOccurrences(
+                                        of: #"^\[.*?\]\s*"#, with: "", options: .regularExpression
+                                    )
+                                    details = "Please inspect and resolve: \(defect.title ?? "defect").\nDetails: \(cleanDesc)"
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                            .buttonBorderShape(.capsule)
+                            .tint(AppTheme.brand)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 24)
+                    .background(.ultraThinMaterial)
                 }
             }
             .sheet(isPresented: $isShowingImageDetail) {
@@ -597,252 +783,24 @@ struct DefectReviewSheet: View {
                     }
                 }
             }
-        }
-    }
-
-    // MARK: - Pending Actions Section
-
-    @ViewBuilder
-    private var pendingActionsSection: some View {
-        // Chat with Driver button (always visible for pending defects)
-        Button {
-            isShowingDefectChat = true
-        } label: {
-            HStack {
-                Image(systemName: "bubble.left.and.bubble.right.fill")
-                Text("Chat with Driver")
-            }
-            .font(.subheadline.weight(.bold))
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-            .background(Color.purple)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-        .fullScreenCover(isPresented: $isShowingDefectChat) {
-            NavigationStack {
-                WorkOrderChatView(defectReportID: defect.id)
-                    .environment(appViewModel)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button {
-                                isShowingDefectChat = false
-                            } label: {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundStyle(AppTheme.brand)
-                                    .frame(width: 32, height: 32)
-                                    .background(AppTheme.brand.opacity(0.12), in: Circle())
+            .fullScreenCover(isPresented: $isShowingDefectChat) {
+                NavigationStack {
+                    WorkOrderChatView(defectReportID: defect.id)
+                        .environment(appViewModel)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button {
+                                    isShowingDefectChat = false
+                                } label: {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(AppTheme.brand)
+                                        .frame(width: 32, height: 32)
+                                        .background(AppTheme.brand.opacity(0.12), in: Circle())
+                                }
+                                .buttonStyle(.borderless)
                             }
-                            .buttonStyle(.borderless)
                         }
-                    }
-            }
-        }
-
-        if !isShowingApprovalForm {
-            HStack(spacing: 16) {
-                Button("Reject Report") {
-                    appViewModel.service.rejectDefectReport(defect: defect)
-                    dismiss()
-                }
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(AppTheme.error)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(AppTheme.error.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                Button("Approve & Repair") {
-                    withAnimation {
-                        isShowingApprovalForm = true
-                        if let firstTech = appViewModel.service.users(for: .maintenance).first {
-                            selectedTechID = firstTech.id
-                        }
-                        let cleanDesc = defect.description.replacingOccurrences(
-                            of: #"^\[.*?\]\s*"#, with: "", options: .regularExpression
-                        )
-                        details = "Please inspect and resolve: \(defect.title ?? "defect").\nDetails: \(cleanDesc)"
-                    }
-                }
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(AppTheme.brand)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-            .padding(.top, 10)
-        } else {
-            approvalConfigForm
-        }
-    }
-
-    // MARK: - Approval Config Form
-
-    private var approvalConfigForm: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Divider()
-
-            Text("Configure Work Order")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(AppTheme.brand)
-
-            // Priority Picker
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Work Order Priority")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-
-                Picker("Priority", selection: $priority) {
-                    ForEach(WorkOrderPriority.allCases, id: \.self) { level in
-                        Text(level.rawValue).tag(level)
-                    }
-                }
-                .pickerStyle(.segmented)
-            }
-
-            // Tech Selection
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Assign Technician")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-
-                let techs = appViewModel.service.users(for: .maintenance)
-
-                if techs.isEmpty {
-                    Text("No maintenance technicians found. Please add technicians first.")
-                        .font(.caption)
-                        .foregroundStyle(AppTheme.error)
-                        .padding(10)
-                        .background(AppTheme.error.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                } else {
-                    Picker("Technician", selection: $selectedTechID) {
-                        Text("Select Technician").tag(nil as UUID?)
-                        ForEach(techs) { tech in
-                            Text("\(tech.name) (\(tech.title))").tag(tech.id as UUID?)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(AppTheme.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                }
-            }
-
-            // Details Editor
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Work Order Instructions")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-
-                TextEditor(text: $details)
-                    .frame(minHeight: 80)
-                    .padding(10)
-                    .background(AppTheme.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .scrollContentBackground(.hidden)
-            }
-
-            // Submit approval
-            Button {
-                guard let techID = selectedTechID else { return }
-                let orderTitle = defect.title ?? "Repair: \(vehicle?.displayName ?? "Vehicle")"
-                appViewModel.service.approveDefectReport(
-                    defect: defect,
-                    assignedTechID: techID,
-                    title: orderTitle,
-                    priority: priority,
-                    details: details
-                )
-                dismiss()
-            } label: {
-                HStack {
-                    Image(systemName: "wrench.and.screwdriver.fill")
-                    Text("Approve & Coordinate Repair")
-                        .font(.headline)
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(selectedTechID == nil ? AppTheme.textSecondary : AppTheme.brand)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-            }
-            .disabled(selectedTechID == nil)
-
-            Button("Cancel Approval") {
-                withAnimation {
-                    isShowingApprovalForm = false
-                }
-            }
-            .font(.subheadline)
-            .foregroundStyle(AppTheme.textSecondary)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 4)
-        }
-        .padding()
-        .background(AppTheme.surfaceSecondary.opacity(0.3))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-    }
-
-    // MARK: - Linked Work Order Section (non-pending)
-
-    @ViewBuilder
-    private var linkedWorkOrderSection: some View {
-        if let wo = linkedWorkOrder {
-            sectionHeader("Linked Work Order")
-            GlassCard {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(wo.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                        Spacer()
-                        StatusBadgeView(
-                            text: wo.status.rawValue,
-                            color: wo.status == .completed ? AppTheme.success : AppTheme.warning
-                        )
-                    }
-
-                    if let tech = appViewModel.service.users(for: .maintenance)
-                        .first(where: { $0.id == wo.assignedMaintenanceID }) {
-                        Label("Technician: \(tech.name) (\(tech.title))", systemImage: "wrench.and.screwdriver")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-
-                    Button {
-                        isShowingWorkOrderChat = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "bubble.left.and.bubble.right.fill")
-                            Text("Open Coordination Chat")
-                        }
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(AppTheme.brand)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .padding(.top, 4)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        } else {
-            GlassCard {
-                HStack(spacing: 10) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(defect.status == .completed ? AppTheme.success : AppTheme.brand)
-                    Text(defect.status == .completed
-                         ? "This defect report has been closed."
-                         : "Work order will appear here once created.")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.textSecondary)
                 }
             }
         }
@@ -908,13 +866,6 @@ struct DefectReviewSheet: View {
     }
 
     // MARK: - Helpers
-
-    @ViewBuilder
-    private func sectionHeader(_ text: String) -> some View {
-        Text(text)
-            .font(.headline)
-            .foregroundStyle(AppTheme.textPrimary)
-    }
 
     private func severityColor(_ severity: WorkOrderPriority) -> Color {
         switch severity {

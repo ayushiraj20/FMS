@@ -855,7 +855,7 @@ private struct NativeDetailCard<Content: View>: View {
     }
 }
 
-private struct VehicleDetailView: View {
+struct VehicleDetailView: View {
     @Bindable var viewModel: VehicleManagementViewModel
     let vehicleID: UUID
 
@@ -950,33 +950,6 @@ private struct VehicleDetailView: View {
                         Text(viewModel.routeText(for: vehicle))
                     } label: {
                         Label("Route Context", systemImage: "point.topleft.down.curvedto.point.bottomright.up.fill")
-                    }
-                }
-                
-                // Section 4: Quick Actions
-                Section("Quick Actions") {
-                    Button {
-                        activeSheet = .liveView
-                    } label: {
-                        Label("Live View", systemImage: "viewfinder")
-                    }
-                    
-                    Button {
-                        activeSheet = .tripDetails
-                    } label: {
-                        Label("Trip Details", systemImage: "doc.text.magnifyingglass")
-                    }
-                    
-                    Button {
-                        activeSheet = .ping
-                    } label: {
-                        Label("Ping Telemetry", systemImage: "antenna.radiowaves.left.and.right")
-                    }
-                    
-                    Button {
-                        activeSheet = .insights
-                    } label: {
-                        Label("Attention & Insights", systemImage: "sparkles")
                     }
                 }
                 

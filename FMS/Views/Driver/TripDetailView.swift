@@ -4,7 +4,7 @@ import MapKit
 struct TripDetailView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @Environment(\.dismiss) private var dismiss
-    @Environment(DriverViewModel.self) private var driverVM
+    @Environment(DriverViewModel.self) private var driverVM: DriverViewModel?
     private let initialTrip: Trip
 
     private var trip: Trip {
@@ -98,17 +98,17 @@ struct TripDetailView: View {
                 .interactiveDismissDisabled()
                 .sheet(isPresented: $showPreTripInspectionSheet) {
                     TripStartInspectionSheet(trip: trip) {
-                        driverVM.showToastMessage("Trip started. Have a safe journey.")
+                        driverVM?.showToastMessage("Trip started. Have a safe journey.")
                     }
                     .environment(appViewModel)
-                    .environment(driverVM)
+                    .environment(driverVM ?? DriverViewModel())
                 }
                 .sheet(isPresented: $showPostTripInspectionSheet) {
                     TripStartInspectionSheet(trip: trip, inspectionType: .postTrip) {
                         dismiss()
                     }
                     .environment(appViewModel)
-                    .environment(driverVM)
+                    .environment(driverVM ?? DriverViewModel())
                 }
                 .sheet(isPresented: $showBreakLogSheet) {
                     TripBreakLogSheet(trip: trip)
@@ -331,7 +331,7 @@ struct TripDetailView: View {
             Button {
                 showBreakLogSheet = true
             } label: {
-                Text("Log Break")
+                Text("Break Log")
                     .font(.system(.headline, design: .rounded).bold())
                     .frame(maxWidth: .infinity)
             }
