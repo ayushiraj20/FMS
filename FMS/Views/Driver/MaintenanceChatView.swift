@@ -243,7 +243,7 @@ struct DriverManagerChatView: View {
                 }
             }
             pollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                Task {
+                Task { @MainActor in
                     await appViewModel.service.syncChatMessages()
                     if let currentUser, let recipient {
                         appViewModel.service.markChatMessagesRead(between: currentUser.id, and: recipient.id)
