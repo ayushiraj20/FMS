@@ -56,8 +56,8 @@ struct AssignDriverTripView: View {
         case refrigerated   = "Refrigerated"
     }
 
-    // All drivers without an active trip — duty status is shown as info, not a filter.
-    // This lets Fleet Managers pre-assign trips to off-duty drivers.
+    // Only drivers without an active trip who are currently On Duty.
+    // Drivers must be on duty to be assigned a trip.
     private var availableDrivers: [User] {
         let all = service.driversEligibleForTripAssignment(
             organizationID: appViewModel.currentOrganization?.id
@@ -648,7 +648,7 @@ struct AssignDriverTripView: View {
                 Text("\(availableDrivers.count) eligible driver\(availableDrivers.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(AppTheme.textSecondary)
-                Text("Off-duty drivers can be pre-assigned")
+                Text("Drivers must be on duty to be assigned")
                     .font(.caption2)
                     .foregroundStyle(AppTheme.brand.opacity(0.8))
                 Spacer()

@@ -422,30 +422,30 @@ struct DriverDashboardView: View {
                         NavigationLink(destination: TripDetailView(trip: nextTrip).environment(appViewModel)) {
                             Text("Details")
                                 .font(.system(.subheadline, design: .rounded).bold())
+                                .foregroundStyle(DriverTheme.textPrimary)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                                .padding(.vertical, 12)
+                                .background(.regularMaterial, in: Capsule())
+                                .overlay(Capsule().strokeBorder(DriverTheme.cardBorder, lineWidth: 1))
                         }
                         .buttonStyle(.plain)
                         
+                        let isOnDuty = appViewModel.service.dutyStatus(for: user.id) == .onDuty
                         Button {
-                            let inspDone = appViewModel.service.todayInspection(for: user.id) != nil
-                            if inspDone {
-                                appViewModel.service.startScheduledTrip(id: nextTrip.id)
-                                driverVM.showToastMessage("Trip started! Have a safe journey 🚛")
-                            } else {
+                            if isOnDuty {
                                 tripToStart = nextTrip
                                 showTripInspectionSheet = true
                             }
                         } label: {
                             Text("Start Trip")
                                 .font(.system(.subheadline, design: .rounded).bold())
-                                .foregroundStyle(.white)
+                                .foregroundStyle(isOnDuty ? Color.white : Color.white.opacity(0.6))
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(DriverTheme.accent, in: RoundedRectangle(cornerRadius: 10))
+                                .padding(.vertical, 12)
+                                .background(isOnDuty ? DriverTheme.accent : Color.gray.opacity(0.5), in: Capsule())
                         }
                         .buttonStyle(.plain)
+                        .disabled(!isOnDuty)
                     }
                     
                     let inspDone = appViewModel.service.todayInspection(for: user.id) != nil
