@@ -13,9 +13,9 @@ struct VehicleDocumentOCRResult {
 }
 
 enum VehicleDocumentOCRService {
-    static func extractDocumentData(from image: UIImage) async throws -> VehicleDocumentOCRResult {
+    static func extractDocumentData(from image: UIImage, expectedType: DocumentType? = nil) async throws -> VehicleDocumentOCRResult {
         let lines = try await recognizeText(in: image)
-        return parse(lines: lines)
+        return parse(lines: lines, expectedType: expectedType)
     }
 
     private static func recognizeText(in image: UIImage) async throws -> [String] {
@@ -47,7 +47,7 @@ enum VehicleDocumentOCRService {
         }
     }
 
-    private static func parse(lines: [String]) -> VehicleDocumentOCRResult {
+    private static func parse(lines: [String], expectedType: DocumentType?) -> VehicleDocumentOCRResult {
         let normalizedLines = lines.map {
             $0.replacingOccurrences(of: "—", with: "-")
                 .replacingOccurrences(of: "–", with: "-")
@@ -55,7 +55,8 @@ enum VehicleDocumentOCRService {
         }
 
         let detectedType = detectType(from: normalizedLines)
-        let documentNumber = detectDocumentNumber(from: normalizedLines, type: detectedType)
+        let resolvedType = expectedType ?? detectedType
+        let documentNumber = detectDocumentNumber(from: normalizedLines, type: resolvedType)
         let expiryDate = detectExpiryDate(from: normalizedLines)
 
         return VehicleDocumentOCRResult(

@@ -66,6 +66,11 @@ struct DriverDashboardView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 8) {
+                        NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
+                            ChatToolbarIcon()
+                        }
+                        .buttonStyle(.plain)
+
                         NavigationLink(destination: BroadcastInboxView()) {
                             Image(systemName: "megaphone.fill")
                                 .imageScale(.large)
@@ -313,10 +318,31 @@ struct DriverDashboardView: View {
                                 .foregroundStyle(DriverTheme.successGreen)
                         }
                         
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(activeTrip.origin) → \(activeTrip.destination)")
-                                .font(.system(.title3, design: .rounded).bold())
+                        HStack(spacing: 12) {
+                            VStack(spacing: 0) {
+                                Circle()
+                                    .fill(DriverTheme.accent)
+                                    .frame(width: 8, height: 8)
+                                Rectangle()
+                                    .fill(DriverTheme.textSecondary.opacity(0.3))
+                                    .frame(width: 1.5, height: 22)
+                                Circle()
+                                    .fill(DriverTheme.successGreen)
+                                    .frame(width: 8, height: 8)
+                            }
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(activeTrip.origin)
+                                    .font(.system(.headline, design: .rounded).bold())
+                                    .foregroundStyle(DriverTheme.textPrimary)
+                                    .lineLimit(1)
+                                
+                                Text(activeTrip.destination)
+                                    .font(.system(.headline, design: .rounded).bold())
+                                    .foregroundStyle(DriverTheme.textPrimary)
+                                    .lineLimit(1)
+                            }
                         }
+                        .padding(.vertical, 4)
                         
                         HStack {
                             VStack(alignment: .leading) {
@@ -362,8 +388,31 @@ struct DriverDashboardView: View {
                         Spacer()
                     }
                     
-                    Text("\(nextTrip.origin) → \(nextTrip.destination)")
-                        .font(.system(.title3, design: .rounded).bold())
+                    HStack(spacing: 12) {
+                        VStack(spacing: 0) {
+                            Circle()
+                                .fill(DriverTheme.textSecondary)
+                                .frame(width: 8, height: 8)
+                            Rectangle()
+                                .fill(DriverTheme.textSecondary.opacity(0.3))
+                                .frame(width: 1.5, height: 22)
+                            Circle()
+                                .fill(DriverTheme.accent)
+                                .frame(width: 8, height: 8)
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(nextTrip.origin)
+                                .font(.system(.headline, design: .rounded).bold())
+                                .foregroundStyle(DriverTheme.textPrimary)
+                                .lineLimit(1)
+                            
+                            Text(nextTrip.destination)
+                                .font(.system(.headline, design: .rounded).bold())
+                                .foregroundStyle(DriverTheme.textPrimary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .padding(.vertical, 4)
                     
                     HStack(spacing: 12) {
                         NavigationLink(destination: TripDetailView(trip: nextTrip).environment(appViewModel)) {
@@ -420,27 +469,6 @@ struct DriverDashboardView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
                 .background(DriverTheme.criticalRed, in: Capsule())
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                DriverManagerChatView()
-                    .environment(appViewModel)
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "message.fill")
-                        .font(.title3)
-                    Text("Message Fleet Manager")
-                        .font(.system(.headline, design: .rounded).bold())
-                }
-                .foregroundStyle(DriverTheme.accent)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(.ultraThinMaterial, in: Capsule())
-                .overlay(
-                    Capsule()
-                        .stroke(DriverTheme.accent.opacity(0.22), lineWidth: 1)
-                )
             }
             .buttonStyle(.plain)
         }
