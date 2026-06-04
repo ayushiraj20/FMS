@@ -49,73 +49,68 @@ struct PendingVehiclesView: View {
     }
 
     private func vehicleCard(vehicle: Vehicle, orders: [WorkOrder]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Vehicle header
-            HStack(spacing: 12) {
-                Image(systemName: "truck.box.fill")
-                    .font(.title2)
-                    .foregroundStyle(accent)
+        GlassCard {
+            VStack(alignment: .leading, spacing: 10) {
+                // Vehicle header
+                HStack(spacing: 12) {
+                    Image(systemName: "truck.box.fill")
+                        .font(.title2)
+                        .foregroundStyle(accent)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(vehicle.displayName)
-                        .font(.headline)
-                        .foregroundStyle(headingText)
-                    Text(vehicle.plateNumber)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(detailText)
-                }
-
-                Spacer()
-
-                Text("\(orders.count)")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(accent, in: Capsule())
-            }
-
-            Divider()
-                .overlay(Color.dynamic(light: "#E6D8D2", dark: "#343741"))
-
-            // List the pending work orders for this vehicle
-            ForEach(orders) { order in
-                NavigationLink(destination: MaintenanceWorkOrdersView.MaintenanceWorkOrderDetailView(workOrder: order).environment(appViewModel).hideTabBarOnPush()) {
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(priorityColor(order.priority))
-                            .frame(width: 8, height: 8)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(order.title)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(headingText)
-                                .lineLimit(1)
-
-                            Text(order.details)
-                                .font(.caption)
-                                .foregroundStyle(detailText)
-                                .lineLimit(1)
-                        }
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(detailText.opacity(0.5))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(vehicle.displayName)
+                            .font(.headline)
+                            .foregroundStyle(headingText)
+                        Text(vehicle.plateNumber)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(detailText)
                     }
-                    .padding(.vertical, 4)
+
+                    Spacer()
+
+                    Text("\(orders.count)")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(accent, in: Capsule())
                 }
-                .buttonStyle(.plain)
+
+                Divider()
+                    .overlay(Color.dynamic(light: "#E6D8D2", dark: "#343741"))
+
+                // List the pending work orders for this vehicle
+                ForEach(orders) { order in
+                    NavigationLink(destination: MaintenanceWorkOrdersView.MaintenanceWorkOrderDetailView(workOrder: order).environment(appViewModel).hideTabBarOnPush()) {
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(priorityColor(order.priority))
+                                .frame(width: 8, height: 8)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(order.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(headingText)
+                                    .lineLimit(1)
+
+                                Text(order.details)
+                                    .font(.caption)
+                                    .foregroundStyle(detailText)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(detailText.opacity(0.5))
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
-        .padding(16)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(AppTheme.border, lineWidth: 0.3)
-        )
     }
 
     private func priorityColor(_ priority: WorkOrderPriority) -> Color {

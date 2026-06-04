@@ -62,39 +62,55 @@ struct MaintenanceReportsView: View {
 
     private var header: some View {
         GlassCard {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Maintenance Report")
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(AppTheme.textPrimary)
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "wrench.and.screwdriver.fill")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 46, height: 46)
+                        .background(AppTheme.brand, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-                HStack(spacing: 12) {
-                    Button {
-                        Task { await generateReportAndPDF() }
-                    } label: {
-                        if isLoading {
-                            ProgressView()
-                        } else {
-                            Label("Generate Report", systemImage: "doc.badge.gearshape.fill")
-                                .lineLimit(1)
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.brand)
-                    .disabled(isLoading)
-
-                    if let generatedAt {
-                        Spacer()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Maintenance Report")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(AppTheme.textPrimary)
                         
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text("Last Generated")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
-                            Text(generatedAt.formatted(date: .abbreviated, time: .shortened))
-                                .font(.caption.weight(.semibold))
+                        if let generatedAt {
+                            HStack(spacing: 4) {
+                                Text("Last Generated:")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text(generatedAt.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                        } else {
+                            Text("No report generated yet.")
+                                .font(.caption)
                                 .foregroundStyle(AppTheme.textSecondary)
                         }
                     }
                 }
+                
+                Button {
+                    Task { await generateReportAndPDF() }
+                } label: {
+                    HStack {
+                        Spacer()
+                        if isLoading {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Label("Generate Report", systemImage: "doc.badge.gearshape.fill")
+                        }
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppTheme.brand)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
+                .disabled(isLoading)
             }
         }
     }

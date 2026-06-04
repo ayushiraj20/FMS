@@ -141,7 +141,8 @@ enum FleetReportChartRenderer {
     private static func render<V: View>(width: CGFloat, height: CGFloat, @ViewBuilder content: () -> V) -> UIImage? {
         let view = content()
             .frame(width: width, height: height)
-            .background(Color(.systemBackground))
+            .background(Color.white)
+            .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2
         return renderer.uiImage

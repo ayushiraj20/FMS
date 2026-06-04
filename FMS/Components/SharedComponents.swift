@@ -37,19 +37,29 @@ struct GlassCard<Content: View>: View {
         content
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(AppTheme.cardBackground)
-                    .shadow(
-                        color: AppTheme.cardShadowColor.opacity(0.06),
-                        radius: 8,
-                        x: 0,
-                        y: 2
-                    )
-            )
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(AppTheme.border, lineWidth: 0.3)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                .white.opacity(0.35),
+                                .white.opacity(0.1),
+                                .clear,
+                                .black.opacity(0.04),
+                                .black.opacity(0.08)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.0
+                    )
+            )
+            .shadow(
+                color: Color.black.opacity(0.06),
+                radius: 10,
+                x: 0,
+                y: 4
             )
     }
 }
@@ -298,8 +308,6 @@ struct LoadingStateView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .tint(AppTheme.brand)
-            Text(title)
-                .foregroundStyle(AppTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

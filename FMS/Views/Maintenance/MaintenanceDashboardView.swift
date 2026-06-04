@@ -272,34 +272,33 @@ private struct MaintenanceMetricCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: icon)
-                .font(.callout.weight(.semibold))
-                .foregroundStyle(tint)
-                .frame(width: 20, height: 20, alignment: .leading)
+        GlassCard {
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: icon)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 20, height: 20, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.caption2)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
 
-                Text(value)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+
+                    Text(value)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
@@ -309,69 +308,75 @@ private struct MaintenancePriorityOrderCard: View {
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
-                Text("WO #\(String(order.id.uuidString.prefix(8)))")
-                    .font(.caption2.monospaced().weight(.semibold))
-                    .foregroundStyle(Color.dynamic(light: "#8A7066", dark: "#C8A99D"))
+        GlassCard {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top) {
+                    Text("WO #\(String(order.id.uuidString.prefix(8)))")
+                        .font(.caption2.monospaced().weight(.semibold))
+                        .foregroundStyle(AppTheme.textSecondary)
 
-                Spacer()
+                    Spacer()
 
-                Text(order.priority.rawValue.uppercased())
-                    .font(.caption2.weight(.bold))
-                    .tracking(0.6)
-                    .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(tint.opacity(0.18), in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("\(vehicle?.displayName ?? "Assigned Vehicle") • \(vehicle?.plateNumber ?? "No plate")")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
-                    .lineLimit(2)
-
-                Text(order.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color(hex: "#FF9500"))
-                    .lineLimit(2)
-
-                Text(order.details)
-                    .font(.caption)
-                    .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
-                    .lineLimit(2)
-            }
-
-            Divider()
-                .overlay(Color.dynamic(light: "#E6D8D2", dark: "#343741"))
-
-            HStack(spacing: 8) {
-                Image(systemName: statusIcon)
-                    .font(.caption2.weight(.bold))
-                Text(order.status.rawValue)
-                    .font(.caption.weight(.semibold))
-                Spacer()
-                Text(order.scheduledDate.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption2)
-            }
-            .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.dynamic(light: "#FFFFFF", dark: "#24262E").opacity(0.95))
-                .overlay(alignment: .leading) {
-                    Rectangle()
-                        .fill(tint)
-                        .frame(width: 3)
+                    Text(order.priority.rawValue.uppercased())
+                        .font(.caption2.weight(.bold))
+                        .tracking(0.6)
+                        .foregroundStyle(Color.dynamic(light: "#7A2618", dark: "#FFD1C6"))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(tint.opacity(0.18), in: Capsule())
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#373A45"), lineWidth: 0.5)
-                )
-        )
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("\(vehicle?.displayName ?? "Assigned Vehicle") • \(vehicle?.plateNumber ?? "No plate")")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
+                        .lineLimit(2)
+
+                    Text(order.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color(hex: "#FF9500"))
+                        .lineLimit(2)
+
+                    Text(order.details)
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .lineLimit(2)
+                }
+
+                Divider()
+                    .overlay(Color.dynamic(light: "#E6D8D2", dark: "#343741"))
+
+                HStack(spacing: 8) {
+                    Image(systemName: statusIcon)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(statusColor)
+                    Text(order.status.rawValue)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(statusColor)
+                    Spacer()
+                    Text(order.scheduledDate.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption2)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            }
+        }
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(tint)
+                .frame(width: 4)
+                .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
+                .padding(.vertical, 8)
+                .padding(.leading, 1)
+        }
+    }
+
+    private var statusColor: Color {
+        switch order.status {
+        case .open: return AppTheme.brand
+        case .inProgress: return Color(UIColor.systemBlue)
+        case .waitingParts: return .purple
+        case .completed: return AppTheme.success
+        }
     }
 
     private var statusIcon: String {
@@ -389,42 +394,35 @@ private struct MaintenanceSchedulePreviewCard: View {
     let vehicle: Vehicle?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "clock")
-                Text(schedule.dueDate.formatted(date: .abbreviated, time: .omitted))
+        GlassCard {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock")
+                        .foregroundStyle(AppTheme.brand)
+                    Text(schedule.dueDate.formatted(date: .abbreviated, time: .omitted))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+                .font(.caption2.monospaced().weight(.semibold))
+
+                Text(schedule.serviceType)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
+                    .lineLimit(2)
+                    .frame(height: 36, alignment: .topLeading)
+
+                Text(vehicle?.displayName ?? "Vehicle")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+
+                Text(schedule.status.rawValue)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(schedule.status == .overdue ? Color(hex: "#FF9500") : AppTheme.brand)
             }
-            .font(.caption2.monospaced().weight(.semibold))
-            .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
-
-            Text(schedule.serviceType)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
-                .lineLimit(2)
-                .frame(height: 36, alignment: .topLeading)
-
-            Text(vehicle?.displayName ?? "Vehicle")
-                .font(.caption)
-                .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
-                .lineLimit(1)
-
-            Text(schedule.status.rawValue)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(schedule.status == .overdue ? Color(hex: "#FF9500") : AppTheme.brand)
         }
         .frame(width: 200, alignment: .leading)
-        .frame(minHeight: 110, alignment: .leading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1D23").opacity(0.94))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 0.5)
-                )
-        )
     }
 }
 
@@ -433,47 +431,49 @@ private struct MaintenanceAssignedOrderPreviewCard: View {
     let vehicle: Vehicle?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "calendar.badge.clock")
-                Text(order.scheduledDate.formatted(date: .abbreviated, time: .shortened))
+        GlassCard {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.clock")
+                        .foregroundStyle(AppTheme.brand)
+                    Text(order.scheduledDate.formatted(date: .abbreviated, time: .shortened))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+                .font(.caption2.monospaced().weight(.semibold))
+
+                Text(order.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
+                    .lineLimit(2)
+                    .frame(height: 36, alignment: .topLeading)
+
+                Text(vehicle?.displayName ?? "Assigned Vehicle")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-            }
-            .font(.caption2.monospaced().weight(.semibold))
-            .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
 
-            Text(order.title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.dynamic(light: "#24252B", dark: "#E7E4EA"))
-                .lineLimit(2)
-                .frame(height: 36, alignment: .topLeading)
-
-            Text(vehicle?.displayName ?? "Assigned Vehicle")
-                .font(.caption)
-                .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
-                .lineLimit(1)
-
-            HStack(spacing: 6) {
-                Text(order.priority.rawValue)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(priorityColor)
-                Text(order.status.rawValue)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(Color.dynamic(light: "#715B54", dark: "#D7B8AC"))
+                HStack(spacing: 6) {
+                    Text(order.priority.rawValue)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(priorityColor)
+                    Text(order.status.rawValue)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(statusColor)
+                }
             }
         }
         .frame(width: 210, alignment: .leading)
-        .frame(minHeight: 118, alignment: .leading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.dynamic(light: "#FFFFFF", dark: "#1B1D23").opacity(0.94))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.dynamic(light: "#E6D8D2", dark: "#343741"), lineWidth: 0.5)
-                )
-        )
+    }
+
+    private var statusColor: Color {
+        switch order.status {
+        case .open: return AppTheme.brand
+        case .inProgress: return Color(UIColor.systemBlue)
+        case .waitingParts: return .purple
+        case .completed: return AppTheme.success
+        }
     }
 
     private var priorityColor: Color {

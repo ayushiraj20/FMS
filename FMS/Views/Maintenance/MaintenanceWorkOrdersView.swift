@@ -571,26 +571,62 @@ struct MaintenanceWorkOrdersView: View {
                 
                 // MARK: Chat Section
                 Section {
-                    if recentChatMessages.isEmpty {
-                        Text("No coordination messages yet. Start a thread with the fleet manager.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(recentChatMessages) { msg in
-                            let senderName = appViewModel.service.users().first(where: { $0.id == msg.senderID })?.name ?? "Staff"
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(senderName)
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(accent)
-                                Text(msg.message)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.primary)
-                            }
-                        }
-                    }
+                    let lastMsg = appViewModel.service.chatMessages(forWorkOrder: workOrder.id).last
+                    let manager = appViewModel.service.users(for: .fleetManager).first
+                    let chatTitle = manager?.name ?? "Fleet Manager"
+                    let initials = chatTitle.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined()
                     
                     NavigationLink(destination: WorkOrderChatView(workOrderID: workOrder.id).environment(appViewModel).hideTabBarOnPush()) {
-                        Label("Open Coordination Chat", systemImage: "message.fill")
+                        HStack(spacing: 12) {
+                            // Avatar
+                            Text(initials)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 40, height: 40)
+                                .background(accent)
+                                .clipShape(Circle())
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(chatTitle)
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundStyle(Color.primary)
+                                    
+                                    Spacer()
+                                    
+                                    if let lastMsg {
+                                        Text(lastMsg.timestamp.formatted(date: .omitted, time: .shortened))
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                
+                                HStack(spacing: 4) {
+                                    if let lastMsg {
+                                        let isCurrentUser = lastMsg.senderID == appViewModel.currentUser?.id
+                                        if isCurrentUser {
+                                            HStack(spacing: -5) {
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 9, weight: .bold))
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 9, weight: .bold))
+                                            }
+                                            .foregroundStyle(lastMsg.isRead ? Color.blue : Color.secondary)
+                                        }
+                                        Text(lastMsg.message)
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    } else {
+                                        Text("Tap to start coordinating...")
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
                     }
                 } header: {
                     Text("Work Order Chat")
@@ -601,8 +637,11 @@ struct MaintenanceWorkOrdersView: View {
                     Button {
                         saveTechnicianUpdate()
                     } label: {
-                        Label("Update Progress", systemImage: "checkmark.circle.fill")
-                            .frame(maxWidth: .infinity)
+                        HStack {
+                            Spacer()
+                            Label("Update Progress", systemImage: "checkmark.circle.fill")
+                            Spacer()
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(accent)
