@@ -120,3 +120,223 @@ struct VehicleFuelSpend: Identifiable {
     var vehicleID: UUID
     var totalSpend: Double
 }
+
+// MARK: - Fuel Efficiency & Carbon Analytics
+
+enum CarbonEfficiencyAnalytics {
+    static let dieselEmissionKGPerLitre = 2.68
+    static let estimatedDieselPricePerLitreINR = 95.0
+    static let targetEfficiencyKMPerLitre = 10.0
+
+    static func dashboardSummary(
+        trips: [Trip],
+        vehicles: [Vehicle],
+        drivers: [User],
+        fuelReceipts: [FuelReceipt],
+        fuelTransactions: [FuelTransaction],
+        monthContaining date: Date = .now
+    ) -> CarbonDashboardSummary {
+        let interval = Calendar.current.dateInterval(of: .month, for: date)
+        let monthlyTrips = trips.filter { trip in
+            trip.status == .completed &&
+            trip.distanceKM > 0 &&
+            interval?.contains(trip.startDate) != false
+        }
+        let monthlyReceipts = fuelReceipts.filter { interval?.contains($0.date) != false }
+        let monthlyTransactions = fuelTransactions.filter {
+            $0.verificationStatus != .rejected &&
+            interval?.contains($0.timestamp) != false
+        }
+
+        let fleetDistance = monthlyTrips.reduce(0) { $0 + $1.distanceKM }
+        let fleetLitres = fuelLitres(receipts: monthlyReceipts, transactions: monthlyTransactions)
+        let fleetEfficiency = efficiency(distanceKM: fleetDistance, litres: fleetLitres)
+        let fleetCO2 = fleetLitres * dieselEmissionKGPerLitre
+        let targetLitres = fleetDistance / targetEfficiencyKMPerLitre
+        let wastedLitres = max(0, fleetLitres - targetLitres)
+
+        let vehicleMetrics = vehicles.compactMap { vehicle -> CarbonPerformanceMetric? in
+            let vehicleTrips = monthlyTrips.filter { $0.vehicleID == vehicle.id }
+            let distance = vehicleTrips.reduce(0) { $0 + $1.distanceKM }
+            let litres = fuelLitres(
+                receipts: monthlyReceipts.filter { $0.vehicleID == vehicle.id },
+                transactions: monthlyTransactions.filter { $0.vehicleID == vehicle.id }
+            )
+            guard distance > 0 || litres > 0 else { return nil }
+            return CarbonPerformanceMetric(
+                id: vehicle.id,
+                name: vehicle.displayName,
+                subtitle: vehicle.plateNumber,
+                distanceKM: distance,
+                litres: litres,
+                carbonKG: litres * dieselEmissionKGPerLitre
+            )
+        }
+
+        let driverMetrics = drivers.filter { $0.role == .driver }.compactMap { driver -> CarbonPerformanceMetric? in
+            let driverTrips = monthlyTrips.filter { $0.driverID == driver.id }
+            let distance = driverTrips.reduce(0) { $0 + $1.distanceKM }
+            let litres = fuelLitres(
+                receipts: monthlyReceipts.filter { $0.driverID == driver.id },
+                transactions: monthlyTransactions.filter { $0.driverID == driver.id }
+            )
+            guard distance > 0 || litres > 0 else { return nil }
+            return CarbonPerformanceMetric(
+                id: driver.id,
+                name: driver.name,
+                subtitle: driver.title,
+                distanceKM: distance,
+                litres: litres,
+                carbonKG: litres * dieselEmissionKGPerLitre
+            )
+        }
+
+        return CarbonDashboardSummary(
+            fleetEfficiencyKMPerLitre: fleetEfficiency,
+            fleetCO2KG: fleetCO2,
+            potentialSavingsINR: wastedLitres * estimatedDieselPricePerLitreINR,
+            potentialLitresSaved: wastedLitres,
+            vehicleMetrics: vehicleMetrics.sortedForWaste(),
+            driverMetrics: driverMetrics.sortedForWaste()
+        )
+    }
+
+    static func driverSummary(
+        driverID: UUID,
+        trips: [Trip],
+        fuelReceipts: [FuelReceipt],
+        fuelTransactions: [FuelTransaction],
+        monthContaining date: Date = .now
+    ) -> CarbonDriverSummary {
+        let interval = Calendar.current.dateInterval(of: .month, for: date)
+        let monthlyTrips = trips.filter {
+            $0.driverID == driverID &&
+            $0.status == .completed &&
+            $0.distanceKM > 0 &&
+            interval?.contains($0.startDate) != false
+        }
+        let monthlyReceipts = fuelReceipts.filter {
+            $0.driverID == driverID && interval?.contains($0.date) != false
+        }
+        let monthlyTransactions = fuelTransactions.filter {
+            $0.driverID == driverID &&
+            $0.verificationStatus != .rejected &&
+            interval?.contains($0.timestamp) != false
+        }
+        let distance = monthlyTrips.reduce(0) { $0 + $1.distanceKM }
+        let litres = fuelLitres(receipts: monthlyReceipts, transactions: monthlyTransactions)
+        let monthlyEfficiency = efficiency(distanceKM: distance, litres: litres)
+        let lastTrip = trips
+            .filter { $0.driverID == driverID && $0.status == .completed }
+            .sorted { $0.startDate > $1.startDate }
+            .first
+            .map { trip in
+                let tripLitres = fuelTransactions
+                    .filter { $0.tripID == trip.id && $0.verificationStatus != .rejected }
+                    .reduce(0) { $0 + CarbonEfficiencyAnalytics.litres(fromSpend: $1.manualAmount) }
+                return CarbonLastTripPerformance(
+                    tripID: trip.id,
+                    route: "\(trip.origin) → \(trip.destination)",
+                    distanceKM: trip.distanceKM,
+                    efficiencyKMPerLitre: efficiency(distanceKM: trip.distanceKM, litres: tripLitres)
+                )
+            }
+
+        return CarbonDriverSummary(
+            efficiencyKMPerLitre: monthlyEfficiency,
+            grade: CarbonGrade.grade(for: monthlyEfficiency),
+            carbonKG: litres * dieselEmissionKGPerLitre,
+            litres: litres,
+            distanceKM: distance,
+            lastTrip: lastTrip
+        )
+    }
+
+    static func litres(fromSpend amount: Double) -> Double {
+        guard estimatedDieselPricePerLitreINR > 0 else { return 0 }
+        return amount / estimatedDieselPricePerLitreINR
+    }
+
+    private static func fuelLitres(receipts: [FuelReceipt], transactions: [FuelTransaction]) -> Double {
+        let receiptLitres = receipts.reduce(0) { $0 + $1.litres }
+        let transactionLitres = transactions.reduce(0) { $0 + litres(fromSpend: $1.manualAmount) }
+        return receiptLitres + transactionLitres
+    }
+
+    private static func efficiency(distanceKM: Double, litres: Double) -> Double? {
+        guard distanceKM > 0, litres > 0 else { return nil }
+        return distanceKM / litres
+    }
+}
+
+struct CarbonDashboardSummary {
+    var fleetEfficiencyKMPerLitre: Double?
+    var fleetCO2KG: Double
+    var potentialSavingsINR: Double
+    var potentialLitresSaved: Double
+    var vehicleMetrics: [CarbonPerformanceMetric]
+    var driverMetrics: [CarbonPerformanceMetric]
+}
+
+struct CarbonDriverSummary {
+    var efficiencyKMPerLitre: Double?
+    var grade: CarbonGrade
+    var carbonKG: Double
+    var litres: Double
+    var distanceKM: Double
+    var lastTrip: CarbonLastTripPerformance?
+}
+
+struct CarbonLastTripPerformance {
+    var tripID: UUID
+    var route: String
+    var distanceKM: Double
+    var efficiencyKMPerLitre: Double?
+}
+
+struct CarbonPerformanceMetric: Identifiable, Hashable {
+    var id: UUID
+    var name: String
+    var subtitle: String
+    var distanceKM: Double
+    var litres: Double
+    var carbonKG: Double
+
+    var efficiencyKMPerLitre: Double? {
+        guard distanceKM > 0, litres > 0 else { return nil }
+        return distanceKM / litres
+    }
+
+    var potentialSavingsINR: Double {
+        guard litres > 0 else { return 0 }
+        let targetLitres = distanceKM / CarbonEfficiencyAnalytics.targetEfficiencyKMPerLitre
+        let wastedLitres = max(0, litres - targetLitres)
+        return wastedLitres * CarbonEfficiencyAnalytics.estimatedDieselPricePerLitreINR
+    }
+}
+
+enum CarbonGrade: String {
+    case a = "A"
+    case b = "B"
+    case c = "C"
+    case d = "D"
+
+    static func grade(for efficiency: Double?) -> CarbonGrade {
+        guard let efficiency else { return .d }
+        if efficiency >= 10 { return .a }
+        if efficiency >= 8 { return .b }
+        if efficiency >= 6 { return .c }
+        return .d
+    }
+}
+
+private extension Array where Element == CarbonPerformanceMetric {
+    func sortedForWaste() -> [CarbonPerformanceMetric] {
+        sorted {
+            if $0.potentialSavingsINR == $1.potentialSavingsINR {
+                return ($0.efficiencyKMPerLitre ?? .greatestFiniteMagnitude) < ($1.efficiencyKMPerLitre ?? .greatestFiniteMagnitude)
+            }
+            return $0.potentialSavingsINR > $1.potentialSavingsINR
+        }
+    }
+}
