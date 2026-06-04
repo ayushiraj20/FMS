@@ -7,6 +7,7 @@ struct MaintenanceInventoryView: View {
     @Environment(AppViewModel.self) private var appViewModel
     private let allCategoriesLabel = "All"
     private let lowStockLabel = "Low Stock"
+    private let outOfStockLabel = "Out of Stock"
 
     @State private var parts: [SparePart] = []
     @State private var isLoading = false
@@ -30,7 +31,7 @@ struct MaintenanceInventoryView: View {
         let cats = Array(Set(parts.map { $0.category })).sorted {
             $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
         }
-        return [allCategoriesLabel, lowStockLabel] + cats
+        return [allCategoriesLabel, lowStockLabel, outOfStockLabel] + cats
     }
 
     private var visibleParts: [SparePart] {
@@ -45,7 +46,9 @@ struct MaintenanceInventoryView: View {
             if selectedCategory == allCategoriesLabel {
                 matchesCategory = true
             } else if selectedCategory == lowStockLabel {
-                matchesCategory = part.isLowStock || part.isOutOfStock
+                matchesCategory = part.isLowStock
+            } else if selectedCategory == outOfStockLabel {
+                matchesCategory = part.isOutOfStock
             } else {
                 matchesCategory = part.category.localizedCaseInsensitiveCompare(selectedCategory) == .orderedSame
             }

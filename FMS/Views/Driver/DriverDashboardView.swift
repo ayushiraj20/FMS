@@ -66,8 +66,8 @@ struct DriverDashboardView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 8) {
-                        NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
-                            ChatToolbarIcon()
+                        NavigationLink(destination: NotificationsView()) {
+                            NotificationToolbarIcon()
                         }
                         .buttonStyle(.plain)
 
@@ -77,9 +77,9 @@ struct DriverDashboardView: View {
                                 .frame(width: 32, height: 32)
                         }
                         .buttonStyle(.plain)
-                        
-                        NavigationLink(destination: NotificationsView()) {
-                            NotificationToolbarIcon()
+
+                        NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
+                            ChatToolbarIcon()
                         }
                         .buttonStyle(.plain)
                     }

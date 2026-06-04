@@ -45,11 +45,11 @@ struct MaintenanceDashboardView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 8) {
-                    NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
-                        ChatToolbarIcon()
+                    NavigationLink(destination: NotificationsView()) {
+                        MaintenanceNotificationToolbarIcon()
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("CHAT_BUTTON")
+                    .accessibilityIdentifier("BELL_BUTTON")
 
                     NavigationLink(destination: BroadcastInboxView()) {
                         Image(systemName: "megaphone.fill")
@@ -58,12 +58,12 @@ struct MaintenanceDashboardView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("BROADCAST_BUTTON")
-                    
-                    NavigationLink(destination: NotificationsView()) {
-                        MaintenanceNotificationToolbarIcon()
+
+                    NavigationLink(destination: DriverManagerChatView().environment(appViewModel).hideTabBarOnPush()) {
+                        ChatToolbarIcon()
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("BELL_BUTTON")
+                    .accessibilityIdentifier("CHAT_BUTTON")
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
