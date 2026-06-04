@@ -321,9 +321,10 @@ struct AssignDriverView: View {
                         .padding(.vertical, 16)
                         .frame(maxWidth: .infinity)
                         .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            Capsule()
                                 .fill(AppTheme.brand)
                         )
+                        .shadow(color: AppTheme.brand.opacity(0.35), radius: 8, y: 4)
                 }
                 .disabled(viewModel.selectedVehicle == nil || viewModel.selectedDriver == nil)
                 .opacity(viewModel.selectedVehicle == nil || viewModel.selectedDriver == nil ? 0.5 : 1.0)

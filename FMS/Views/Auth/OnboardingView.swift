@@ -40,9 +40,9 @@ struct OnboardingView: View {
             ],
             accentColor: AppTheme.brand,
             backgroundGradientColors: [
-                Color(hex: "#FFF7ED"),
-                Color(hex: "#FFFBF5"),
-                Color(hex: "#FFFFFF"),
+                Color.dynamic(light: "#FFF8F2", dark: "#1C1004"),
+                Color.dynamic(light: "#FFFDFB", dark: "#0C0602"),
+                Color.dynamic(light: "#FFFFFF", dark: "#000000"),
             ]
         ),
         OnboardingPage(
@@ -54,11 +54,11 @@ struct OnboardingView: View {
                 OnboardingIcon(systemName: "camera.fill", size: 22, offset: CGSize(width: -35, height: 25), rotation: -8, delay: 0.2),
                 OnboardingIcon(systemName: "bolt.fill", size: 20, offset: CGSize(width: 30, height: 30), rotation: 12, delay: 0.15),
             ],
-            accentColor: Color(hex: "#34C759"),
+            accentColor: AppTheme.brand,
             backgroundGradientColors: [
-                Color(hex: "#F0FFF4"),
-                Color(hex: "#F8FFF9"),
-                Color(hex: "#FFFFFF"),
+                Color.dynamic(light: "#FFF8F2", dark: "#1C1004"),
+                Color.dynamic(light: "#FFFDFB", dark: "#0C0602"),
+                Color.dynamic(light: "#FFFFFF", dark: "#000000"),
             ]
         ),
         OnboardingPage(
@@ -70,11 +70,11 @@ struct OnboardingView: View {
                 OnboardingIcon(systemName: "calendar.badge.clock", size: 22, offset: CGSize(width: 38, height: 5), rotation: 10, delay: 0.2),
                 OnboardingIcon(systemName: "chart.line.uptrend.xyaxis", size: 20, offset: CGSize(width: 0, height: 35), rotation: 5, delay: 0.15),
             ],
-            accentColor: Color(hex: "#007AFF"),
+            accentColor: AppTheme.brand,
             backgroundGradientColors: [
-                Color(hex: "#EFF6FF"),
-                Color(hex: "#F5F9FF"),
-                Color(hex: "#FFFFFF"),
+                Color.dynamic(light: "#FFF8F2", dark: "#1C1004"),
+                Color.dynamic(light: "#FFFDFB", dark: "#0C0602"),
+                Color.dynamic(light: "#FFFFFF", dark: "#000000"),
             ]
         ),
     ]
