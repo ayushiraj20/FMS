@@ -23,11 +23,15 @@ struct TripBreakLogSheet: View {
     @State private var showRefuelSheet = false
 
     private var currentUser: User? { appViewModel.currentUser }
+    
+    private var targetDriverID: UUID? {
+        trip?.driverID ?? currentUser?.id
+    }
 
     private var todayBreaks: [BreakLogEntry] {
-        guard let user = currentUser else { return [] }
+        guard let driverID = targetDriverID else { return [] }
         return appViewModel.service.breakLogs.filter {
-            $0.driverID == user.id && Calendar.current.isDateInToday($0.startTime)
+            $0.driverID == driverID && Calendar.current.isDateInToday($0.startTime)
         }
     }
 
@@ -264,9 +268,9 @@ struct TripBreakLogSheet: View {
     }
 
     private func logBreakAndDismiss() {
-        guard let user = appViewModel.currentUser else { return }
+        guard let driverID = targetDriverID else { return }
         appViewModel.service.addBreakLog(
-            driverID: user.id,
+            driverID: driverID,
             breakType: selectedBreakType,
             durationMinutes: durationMinutes
         )
