@@ -4,7 +4,7 @@ import MapKit
 struct TripDetailView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @Environment(\.dismiss) private var dismiss
-    @Environment(DriverViewModel.self) private var driverVM
+    @Environment(DriverViewModel.self) private var driverVM: DriverViewModel?
     private let initialTrip: Trip
 
     private var trip: Trip {
@@ -52,10 +52,14 @@ struct TripDetailView: View {
                 if trip.status == .inProgress,
                    let originCoordinate,
                    let vehicle = assignedVehicle {
-                    let midIndex = (routePlan?.mainRouteCoordinates.count ?? 2) / 3
+                    
+                    let liveCoord = appViewModel.service.movingFleetLocations().first(where: { $0.id == vehicle.id })?.coordinate ?? (driverVM?.currentLocation)
+
                     let fallbackCoords = [originCoordinate, destinationCoordinate].compactMap { $0 }
                     let coords = routePlan?.mainRouteCoordinates ?? fallbackCoords
-                    let currentCoord = coords[min(midIndex, max(coords.count - 1, 0))]
+                    let midIndex = coords.count / 3
+                    
+                    let currentCoord = liveCoord ?? coords[min(midIndex, max(coords.count - 1, 0))]
                     Annotation("Current", coordinate: currentCoord) {
                         ZStack {
                             Circle()
@@ -98,17 +102,17 @@ struct TripDetailView: View {
                 .interactiveDismissDisabled()
                 .sheet(isPresented: $showPreTripInspectionSheet) {
                     TripStartInspectionSheet(trip: trip) {
-                        driverVM.showToastMessage("Trip started. Have a safe journey.")
+                        driverVM?.showToastMessage("Trip started. Have a safe journey.")
                     }
                     .environment(appViewModel)
-                    .environment(driverVM)
+                    .environment(driverVM ?? DriverViewModel())
                 }
                 .sheet(isPresented: $showPostTripInspectionSheet) {
                     TripStartInspectionSheet(trip: trip, inspectionType: .postTrip) {
                         dismiss()
                     }
                     .environment(appViewModel)
-                    .environment(driverVM)
+                    .environment(driverVM ?? DriverViewModel())
                 }
                 .sheet(isPresented: $showBreakLogSheet) {
                     TripBreakLogSheet(trip: trip)
@@ -147,6 +151,41 @@ struct TripDetailView: View {
         return m > 0 ? "\(h)h \(m)m" : "\(h)h"
     }
 
+    // MARK: - Progress Calculation
+    private var tripProgress: Double {
+        if trip.status == .completed {
+            return 1.0
+        } else if trip.status == .inProgress {
+            if let originCoordinate = originCoordinate,
+               let vehicle = assignedVehicle,
+               let liveCoord = appViewModel.service.movingFleetLocations().first(where: { $0.id == vehicle.id })?.coordinate ?? driverVM?.currentLocation {
+                
+                if let routePlan = routePlan, !routePlan.mainRouteCoordinates.isEmpty {
+                    var closestIndex = 0
+                    var minDistance = CLLocationDistance.greatestFiniteMagnitude
+                    let currentLoc = CLLocation(latitude: liveCoord.latitude, longitude: liveCoord.longitude)
+                    
+                    for (i, coord) in routePlan.mainRouteCoordinates.enumerated() {
+                        let dist = CLLocation(latitude: coord.latitude, longitude: coord.longitude).distance(from: currentLoc)
+                        if dist < minDistance {
+                            minDistance = dist
+                            closestIndex = i
+                        }
+                    }
+                    return Double(closestIndex) / Double(max(routePlan.mainRouteCoordinates.count - 1, 1))
+                } else if let destinationCoordinate = destinationCoordinate {
+                    let startLoc = CLLocation(latitude: originCoordinate.latitude, longitude: originCoordinate.longitude)
+                    let endLoc = CLLocation(latitude: destinationCoordinate.latitude, longitude: destinationCoordinate.longitude)
+                    let currentLoc = CLLocation(latitude: liveCoord.latitude, longitude: liveCoord.longitude)
+                    let totalDist = startLoc.distance(from: endLoc)
+                    let currentDist = startLoc.distance(from: currentLoc)
+                    return totalDist > 0 ? min(currentDist / totalDist, 1.0) : 0.0
+                }
+            }
+        }
+        return 0.0
+    }
+
     // MARK: - Sheet Overlay Section
     private var sheetOverlaySection: some View {
         ScrollView(showsIndicators: false) {
@@ -163,9 +202,7 @@ struct TripDetailView: View {
                     
                     Spacer()
                     
-                    let completed = checkpoints.filter { $0.status == .completed }.count
-                    let total = max(checkpoints.count, 1)
-                    let progress = trip.status == .completed ? 1.0 : (trip.status == .inProgress ? Double(completed) / Double(total) : 0.0)
+                    let progress = tripProgress
                     
                     ZStack {
                         CircularProgressRing(progress: progress, size: 70, strokeWidth: 8)
@@ -180,6 +217,9 @@ struct TripDetailView: View {
 
                 // Timeline
                 checkpointTimelineSection
+
+                // Break Logs
+                breakLogsSection
 
                 // Driver card
                 if let driver = driver {
@@ -275,6 +315,62 @@ struct TripDetailView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
     }
 
+    // MARK: - Break Logs Section
+    private var tripBreaks: [BreakLogEntry] {
+        let targetDriverID = trip.driverID
+        return appViewModel.service.breakLogs.filter {
+            $0.driverID == targetDriverID && Calendar.current.isDateInToday($0.startTime)
+        }
+    }
+
+    private var breakLogsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Today's Breaks")
+                .font(.system(.title3, design: .rounded).bold())
+                .padding(.bottom, 16)
+            
+            let breaks = tripBreaks
+            if breaks.isEmpty {
+                Text("No breaks taken today.")
+                    .font(.subheadline)
+                    .foregroundStyle(DriverTheme.textSecondary)
+            } else {
+                ForEach(breaks) { brk in
+                    HStack(spacing: 12) {
+                        Text(brk.startTime.formatted(date: .omitted, time: .shortened))
+                            .font(.subheadline)
+                            .foregroundStyle(DriverTheme.textSecondary)
+                            .frame(width: 70, alignment: .leading)
+                        
+                        Circle()
+                            .fill(brk.breakType == "Fuel Stop" ? DriverTheme.accent : Color.gray)
+                            .frame(width: 8, height: 8)
+                        
+                        Text(brk.breakType)
+                            .font(.subheadline)
+                            .foregroundStyle(DriverTheme.textPrimary)
+                        
+                        Spacer()
+                        
+                        if let endTime = brk.endTime {
+                            let diff = Int(endTime.timeIntervalSince(brk.startTime) / 60)
+                            Text("\(diff)min")
+                                .font(.subheadline)
+                                .foregroundStyle(DriverTheme.textSecondary)
+                        } else {
+                            Text("Ongoing")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(DriverTheme.accent)
+                        }
+                    }
+                    .padding(.bottom, brk.id == breaks.last?.id ? 0 : 12)
+                }
+            }
+        }
+        .padding()
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+    }
+
     // MARK: - Driver Card
     private func driverContactCard(driver: User) -> some View {
         HStack(spacing: 16) {
@@ -331,7 +427,7 @@ struct TripDetailView: View {
             Button {
                 showBreakLogSheet = true
             } label: {
-                Text("Log Break")
+                Text("Break Log")
                     .font(.system(.headline, design: .rounded).bold())
                     .frame(maxWidth: .infinity)
             }

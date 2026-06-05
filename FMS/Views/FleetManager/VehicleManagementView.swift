@@ -209,116 +209,12 @@ struct VehicleManagementView: View {
         }
     }
 
-    private var heroSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Fleet Status")
-                        .font(.headline)
-                        .foregroundStyle(VehicleStudioTheme.secondary)
-                    
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(viewModel.readinessScore > 80 ? VehicleStudioTheme.success : VehicleStudioTheme.warning)
-                            .frame(width: 10, height: 10)
-                        Text("\(viewModel.readinessScore)% Readiness")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundStyle(VehicleStudioTheme.primary)
-                    }
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("\(viewModel.activeCount + viewModel.inTransitCount) Active")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(VehicleStudioTheme.accent)
-                    
-                    Text("\(viewModel.liveTrackingCount) Live")
-                        .font(.caption)
-                        .foregroundStyle(VehicleStudioTheme.secondary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(VehicleStudioTheme.accent.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-            
-            HStack(spacing: 12) {
-                summaryMetric(title: "Idle", value: "\(viewModel.idleCount)", icon: "pause.fill", color: VehicleStatus.idle.dashboardColor)
-                summaryMetric(title: "Service", value: "\(viewModel.maintenanceCount)", icon: "wrench.and.screwdriver.fill", color: VehicleStatus.outOfService.dashboardColor)
-                summaryMetric(title: "Fuel Avg", value: "\(viewModel.averageFuelLevel)%", icon: "fuelpump.fill", color: fuelTint(for: viewModel.averageFuelLevel))
-            }
-        }
-        .padding(.vertical, 10)
-    }
-
-    private func summaryMetric(title: String, value: String, icon: String, color: Color) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(color)
-            
-            VStack(alignment: .leading, spacing: 1) {
-                Text(value)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(VehicleStudioTheme.primary)
-                Text(title)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(VehicleStudioTheme.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(color.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(color.opacity(0.15), lineWidth: 1)
-        )
-    }
-
 // Removed unused heroMetricPill.
 
-    private var controlsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(VehicleStudioTheme.secondary)
-                
-                TextField("Search fleet...", text: $viewModel.searchText)
-                    .font(.body)
-                
-                if !viewModel.searchText.isEmpty {
-                    Button { viewModel.searchText = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(VehicleStudioTheme.tertiary)
-                    }
-                }
-            }
-            .padding(12)
-            .background(VehicleStudioTheme.softFill)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    filterChip(title: "All", count: viewModel.allCount, status: nil, icon: "car.2.fill")
-                    filterChip(title: "Active", count: viewModel.activeCount, status: .active, icon: "checkmark.circle.fill")
-                    filterChip(title: "Transit", count: viewModel.inTransitCount, status: .inService, icon: "arrow.triangle.turn.up.right.circle.fill")
-                    filterChip(title: "Idle", count: viewModel.idleCount, status: .idle, icon: "pause.circle.fill")
-                    filterChip(title: "Service", count: viewModel.maintenanceCount, status: .outOfService, icon: "wrench.and.screwdriver.fill")
-                }
-                .padding(.vertical, 2)
-            }
-        }
-    }
-
-    private func filterChip(title: String, count: Int, status: VehicleStatus?, icon: String) -> some View {
+    private func filterChip(title: String, count: Int, status: VehicleStatus?) -> some View {
         let isSelected = viewModel.selectedStatusFilter == status
         return VehicleFilterChip(
             title: title,
-            icon: icon,
             count: count,
             isSelected: isSelected
         ) {
@@ -329,39 +225,6 @@ struct VehicleManagementView: View {
     }
 
 // Removed unused analyticsSection definition.
-
-    private var vehiclesSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Vehicles (\(displayedVehicles.count))")
-                .font(.headline)
-                .foregroundStyle(VehicleStudioTheme.primary)
-            
-            if displayedVehicles.isEmpty {
-                VehicleEmptyStateCard(
-                    icon: "car.2",
-                    title: "No matches",
-                    message: "Current filters returned no results."
-                )
-            } else {
-                VStack(spacing: 12) {
-                    ForEach(displayedVehicles) { vehicle in
-                        NavigationLink(destination: VehicleDetailView(viewModel: viewModel, vehicleID: vehicle.id).hideTabBarOnPush()) {
-                            VehicleRowView(viewModel: viewModel, vehicle: vehicle)
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button { viewModel.prepareForEdit(vehicle) } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            Button(role: .destructive) { viewModel.confirmDelete(vehicle) } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     private var addVehicleButton: some View {
         Button {
@@ -384,25 +247,19 @@ struct VehicleManagementView: View {
 
     private func bubbleFilterChip(_ title: String, status: VehicleStatus?) -> some View {
         let count: Int
-        let icon: String
         switch status {
         case .none:
             count = viewModel.allCount
-            icon = "car.2.fill"
         case .active:
             count = viewModel.activeCount
-            icon = "checkmark.circle.fill"
         case .inService:
             count = viewModel.inTransitCount
-            icon = "arrow.triangle.turn.up.right.circle.fill"
         case .idle:
             count = viewModel.idleCount
-            icon = "pause.circle.fill"
         case .outOfService:
             count = viewModel.maintenanceCount
-            icon = "wrench.and.screwdriver.fill"
         }
-        return filterChip(title: title, count: count, status: status, icon: icon)
+        return filterChip(title: title, count: count, status: status)
     }
 
 // Removed unused resultLabel.
@@ -862,7 +719,7 @@ private struct NativeDetailCard<Content: View>: View {
     }
 }
 
-private struct VehicleDetailView: View {
+struct VehicleDetailView: View {
     @Bindable var viewModel: VehicleManagementViewModel
     let vehicleID: UUID
 
@@ -957,33 +814,6 @@ private struct VehicleDetailView: View {
                         Text(viewModel.routeText(for: vehicle))
                     } label: {
                         Label("Route Context", systemImage: "point.topleft.down.curvedto.point.bottomright.up.fill")
-                    }
-                }
-                
-                // Section 4: Quick Actions
-                Section("Quick Actions") {
-                    Button {
-                        activeSheet = .liveView
-                    } label: {
-                        Label("Live View", systemImage: "viewfinder")
-                    }
-                    
-                    Button {
-                        activeSheet = .tripDetails
-                    } label: {
-                        Label("Trip Details", systemImage: "doc.text.magnifyingglass")
-                    }
-                    
-                    Button {
-                        activeSheet = .ping
-                    } label: {
-                        Label("Ping Telemetry", systemImage: "antenna.radiowaves.left.and.right")
-                    }
-                    
-                    Button {
-                        activeSheet = .insights
-                    } label: {
-                        Label("Attention & Insights", systemImage: "sparkles")
                     }
                 }
                 
@@ -1728,7 +1558,6 @@ private struct VehicleGlassPanel<Content: View>: View {
 
 private struct VehicleFilterChip: View {
     let title: String
-    let icon: String
     let count: Int
     let isSelected: Bool
     let action: () -> Void
@@ -1736,9 +1565,6 @@ private struct VehicleFilterChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(isSelected ? .white : Color.accentColor)
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                 Text("\(count)")
@@ -1865,56 +1691,6 @@ private struct VehicleProgressBar: View {
             }
         }
         .frame(height: 8)
-    }
-}
-
-private struct VehicleRowView: View {
-    let viewModel: VehicleManagementViewModel
-    let vehicle: Vehicle
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(vehicle.status.dashboardColor.opacity(0.1))
-                Image(systemName: vehicle.status == .outOfService ? "wrench.and.screwdriver.fill" : "car.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(vehicle.status.dashboardColor)
-            }
-            .frame(width: 52, height: 52)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(vehicle.displayName)
-                    .font(.headline)
-                    .foregroundStyle(VehicleStudioTheme.primary)
-                Text(vehicle.plateNumber)
-                    .font(.subheadline)
-                    .foregroundStyle(VehicleStudioTheme.secondary)
-            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 6) {
-                Text(vehicle.status.displayName)
-                    .font(.caption2.weight(.bold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(vehicle.status.dashboardColor.opacity(0.1))
-                    .foregroundStyle(vehicle.status.dashboardColor)
-                    .clipShape(Capsule())
-            }
-            
-            Image(systemName: "chevron.right")
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(VehicleStudioTheme.tertiary)
-        }
-        .padding(12)
-        .background(VehicleStudioTheme.glassFill)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(VehicleStudioTheme.stroke.opacity(0.5), lineWidth: 1)
-        )
     }
 }
 

@@ -87,12 +87,14 @@ struct MaintenanceChatView: View {
                     Button {
                         dismiss()
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title3)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(DriverTheme.textSecondary)
-                            .padding(.leading, 8)
-                            .padding(.top, 8)
+                        ZStack {
+                            Circle()
+                                .fill(DriverTheme.textSecondary.opacity(0.15))
+                                .frame(width: 30, height: 30)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(DriverTheme.textSecondary)
+                        }
                     }
                 }
             }
@@ -241,7 +243,7 @@ struct DriverManagerChatView: View {
                 }
             }
             pollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                Task {
+                Task { @MainActor in
                     await appViewModel.service.syncChatMessages()
                     if let currentUser, let recipient {
                         appViewModel.service.markChatMessagesRead(between: currentUser.id, and: recipient.id)

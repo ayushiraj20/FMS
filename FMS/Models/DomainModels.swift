@@ -953,7 +953,7 @@ struct InspectionItem2: Identifiable, Hashable {
             InspectionItem2(title: "Horn", icon: "speaker.wave.3.fill", hint: "Test horn functionality"),
             InspectionItem2(title: "Windshield & Wipers", icon: "drop.fill", hint: "Check for cracks, wiper blades, and washer fluid"),
             InspectionItem2(title: "Engine / Fluids", icon: "engine.combustion.fill", hint: "Check oil, coolant, and listen for unusual sounds"),
-            InspectionItem2(title: "Seatbelt", icon: "seatbelt.fill", hint: "Verify seatbelt locks and retracts properly"),
+            InspectionItem2(title: "Seatbelt", icon: "figure.seated.seatbelt", hint: "Verify seatbelt locks and retracts properly"),
             InspectionItem2(title: "Emergency Kit", icon: "cross.case.fill", hint: "First aid kit, fire extinguisher, and warning triangle"),
         ]
     }

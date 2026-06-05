@@ -578,7 +578,7 @@ private struct PDFLayout {
         y += headerH
 
         // Draw rows
-        for (rowIndex, row) in rows.enumerated() {
+        for row in rows {
             // Faint divider line between rows
             let lineY = y
             let linePath = UIBezierPath()
@@ -722,7 +722,7 @@ private struct PDFLayout {
         y = h + 16
         */
 
-        let headerH: CGFloat = 30
+
         y = margin - 20
         
         drawText(AppBranding.reportProductName.uppercased(), at: CGPoint(x: margin, y: y), font: .systemFont(ofSize: 8, weight: .bold), color: brand, maxWidth: contentWidth * 0.7)

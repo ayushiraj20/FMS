@@ -5,6 +5,7 @@ import Observation
 import AudioToolbox
 import AVFoundation
 import UIKit
+import Combine
 
 enum RootFlowState {
     case splash
@@ -50,6 +51,12 @@ final class AppViewModel {
 
     // SOS alert state for the Fleet Manager dashboard overlay
     var activeEmergencyAlert: SOSAlert? = nil
+
+    // In-app notification banner
+    var inAppBannerNotification: AppNotification?
+    var showInAppBanner = false
+    @ObservationIgnored private var bannerDismissTask: Task<Void, Never>?
+    @ObservationIgnored private var notificationSubscription: AnyCancellable?
 
     // Persisted set of SOS alert IDs that the fleet manager has already resolved/dismissed.
     // Once an ID is in here, the banner will never re-appear for it—even across logins.
@@ -98,6 +105,16 @@ final class AppViewModel {
                 }
             }
         }
+
+        // Subscribe to in-app notification events from MockDataService
+        notificationSubscription = service.notificationAddedPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] newNotification in
+                guard let self else { return }
+                Task { @MainActor in
+                    self.handleIncomingNotification(newNotification)
+                }
+            }
     }
 
     // MARK: App Launch
@@ -948,6 +965,43 @@ final class AppViewModel {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - In-App Notification Banner
+
+    func handleIncomingNotification(_ notification: AppNotification) {
+        // Only show if it's for the current user or a broadcast
+        guard notification.userID == nil || notification.userID == currentUser?.id else { return }
+        
+        // Immediately reload notifications so the list and badge update
+        Task { await loadNotifications() }
+
+        // Show the banner
+        inAppBannerNotification = notification
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            showInAppBanner = true
+        }
+        
+        // Play subtle sound/haptic based on category
+        HapticFeedback.play(for: notification.category)
+
+        bannerDismissTask?.cancel()
+        bannerDismissTask = Task {
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
+            dismissInAppBanner()
+        }
+    }
+    
+    func dismissInAppBanner() {
+        withAnimation(.easeIn(duration: 0.2)) {
+            showInAppBanner = false
+        }
+        // Wait for animation to finish before clearing
+        Task {
+            try? await Task.sleep(for: .milliseconds(250))
+            inAppBannerNotification = nil
         }
     }
 }

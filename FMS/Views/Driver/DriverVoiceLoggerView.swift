@@ -229,6 +229,9 @@ struct DriverVoiceLoggerView: View {
                 return String(text[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
             }
         }
+        if text.contains("sos") {
+            return text
+        }
         return nil
     }
 
