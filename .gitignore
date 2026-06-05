@@ -114,3 +114,6 @@ ag-cache/
 /.codex-derived-3
 *.log
 FMS/.DS_Store
+SPMCache/repositories/supabase-swift-a07f8e78/config
+/SPMCache/repositories
+/SPMCache

@@ -95,8 +95,6 @@ struct MaintenanceChatView: View {
                                 .font(.system(size: 12, weight: .bold, design: .rounded))
                                 .foregroundStyle(DriverTheme.textSecondary)
                         }
-                        .padding(.leading, 8)
-                        .padding(.top, 8)
                     }
                 }
             }
@@ -245,7 +243,7 @@ struct DriverManagerChatView: View {
                 }
             }
             pollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                Task {
+                Task { @MainActor in
                     await appViewModel.service.syncChatMessages()
                     if let currentUser, let recipient {
                         appViewModel.service.markChatMessagesRead(between: currentUser.id, and: recipient.id)

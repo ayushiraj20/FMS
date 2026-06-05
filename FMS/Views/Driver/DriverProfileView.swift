@@ -64,6 +64,10 @@ struct DriverProfileView: View {
                 
                 // Actions & Settings Section
                 Section(header: Text("Settings").font(.footnote.bold()).foregroundStyle(DriverTheme.textSecondary)) {
+                    NavigationLink(destination: AppSettingsView().environment(appViewModel).hideTabBarOnPush()) {
+                        settingsRow(icon: "gearshape.fill", iconBg: DriverTheme.accent, title: "App Settings & 2FA")
+                    }
+
                     Button(action: { showDefectSheet = true }) {
                         settingsRow(icon: "exclamationmark.triangle.fill", iconBg: Color.orange, title: "Report Defect")
                     }
@@ -220,7 +224,7 @@ struct DriverProfileView: View {
                 Text("Email").font(.subheadline).foregroundStyle(DriverTheme.textSecondary).frame(width: 80, alignment: .leading)
                 TextField("Email", text: $editEmail)
                     .keyboardType(.emailAddress)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
                     .font(.subheadline)
             }
             Divider().background(DriverTheme.textSecondary.opacity(0.1))
