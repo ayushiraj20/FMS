@@ -873,7 +873,16 @@ final class AppViewModel {
 
     var unreadChatMessagesCount: Int {
         guard let currentUser else { return 0 }
-        return service.chatMessages.filter { $0.receiverID == currentUser.id && !$0.isRead }.count
+        let fleetManager = service.users.first {
+            $0.role == .fleetManager && $0.organizationID == currentUser.organizationID
+        } ?? service.users(for: .fleetManager).first
+        guard let fleetManager else { return 0 }
+        
+        return service.chatMessages.filter {
+            $0.receiverID == currentUser.id && 
+            $0.senderID == fleetManager.id && 
+            !$0.isRead 
+        }.count
     }
     var currentRole: UserRole? {
 

@@ -31,6 +31,8 @@ struct TripDetailView: View {
 
     @State private var routePlan: TripRoutePlan?
     @State private var isLoadingRoute: Bool = false
+    @State private var currentProgress: Double = 0.0
+    private let progressTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private var originCoordinate: CLLocationCoordinate2D? { trip.originCoordinate }
     private var destinationCoordinate: CLLocationCoordinate2D? { trip.destinationCoordinate }
@@ -92,6 +94,14 @@ struct TripDetailView: View {
         }
         .task {
             await loadRoutePlan()
+        }
+        .onReceive(progressTimer) { _ in
+            withAnimation {
+                currentProgress = tripProgress
+            }
+        }
+        .onAppear {
+            currentProgress = tripProgress
         }
         .sheet(isPresented: .constant(true)) {
             sheetOverlaySection
@@ -202,7 +212,7 @@ struct TripDetailView: View {
                     
                     Spacer()
                     
-                    let progress = tripProgress
+                    let progress = currentProgress
                     
                     ZStack {
                         CircularProgressRing(progress: progress, size: 70, strokeWidth: 8)
