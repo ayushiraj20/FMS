@@ -235,28 +235,73 @@ struct NotificationsView: View {
         let isSOS = notification.title.localizedCaseInsensitiveContains("ACTIVE EMERGENCY") ||
                     notification.title.localizedCaseInsensitiveContains("SOS")
         
-        let isGeofence = notification.title.localizedCaseInsensitiveContains("Geofence")
-        let isOffRoute = notification.title.localizedCaseInsensitiveContains("Off-Route")
+        let isGeofence = notification.title.localizedCaseInsensitiveContains("Geofence") ||
+                         notification.title.localizedCaseInsensitiveContains("Breach") ||
+                         notification.message.localizedCaseInsensitiveContains("geofence")
+        let isOffRoute = notification.title.localizedCaseInsensitiveContains("Off-Route") ||
+                         notification.title.localizedCaseInsensitiveContains("Route Corridor") ||
+                         notification.title.localizedCaseInsensitiveContains("Non-Ideal") ||
+                         notification.message.localizedCaseInsensitiveContains("route corridor")
         
         let isCompliance = notification.title.localizedCaseInsensitiveContains("Expired") ||
-                           notification.title.localizedCaseInsensitiveContains("Compliance")
+                           notification.title.localizedCaseInsensitiveContains("Compliance") ||
+                           notification.title.localizedCaseInsensitiveContains("Missing") ||
+                           notification.message.localizedCaseInsensitiveContains("compliance")
         
+        let isDefect = notification.title.localizedCaseInsensitiveContains("Defect") ||
+                       notification.message.localizedCaseInsensitiveContains("defect")
+                       
+        let isDriverOnDuty = notification.title.localizedCaseInsensitiveContains("Driver") ||
+                             notification.message.localizedCaseInsensitiveContains("on duty")
+
         if isSOS {
-            PriorityAlertDetailView(category: "SOS Alerts", count: 1)
+            PriorityAlertsListView(initialSelectedCategory: "SOS Alerts")
                 .environment(appViewModel)
                 .hideTabBarOnPush()
-        } else if isGeofence {
-            PriorityAlertDetailView(category: "Geofence", count: 1)
-                .environment(appViewModel)
-                .hideTabBarOnPush()
-        } else if isOffRoute {
-            PriorityAlertDetailView(category: "Off-Route", count: 1)
-                .environment(appViewModel)
-                .hideTabBarOnPush()
+        } else if isGeofence || isOffRoute {
+            if let trip = findTrip(for: notification) {
+                TripDetailView(trip: trip)
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            } else if let vehicle = findVehicle(for: notification) {
+                VehicleDetailView(viewModel: VehicleManagementViewModel(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id), vehicleID: vehicle.id)
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            } else {
+                PriorityAlertsListView(initialSelectedCategory: "Off-Route")
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            }
         } else if isCompliance {
-            VehicleManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)
-                .environment(appViewModel)
-                .hideTabBarOnPush()
+            if let vehicle = findVehicle(for: notification) {
+                VehicleDetailView(viewModel: VehicleManagementViewModel(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id), vehicleID: vehicle.id)
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            } else {
+                VehicleManagementView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            }
+        } else if isDefect {
+            if let defect = findDefectReport(for: notification) {
+                DefectReportsListView(initialSelectedDefectID: defect.id)
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            } else {
+                DefectReportsListView()
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            }
+        } else if isDriverOnDuty {
+            if let driver = findDriver(for: notification) {
+                DriverDetailView(driver: driver, service: appViewModel.service)
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            } else {
+                TeamView(service: appViewModel.service, currentOrgID: appViewModel.currentOrganization?.id)
+                    .environment(appViewModel)
+                    .hideTabBarOnPush()
+            }
         } else if isChat {
             let chat = findChatDetails(for: notification)
             if chat.workOrderID != nil || chat.defectReportID != nil {
@@ -326,12 +371,61 @@ struct NotificationsView: View {
         return nil
     }
 
+    private func findVehicle(for notification: AppNotification) -> Vehicle? {
+        let vehicles = appViewModel.service.vehicles
+        for vehicle in vehicles {
+            if notification.message.localizedCaseInsensitiveContains(vehicle.plateNumber) ||
+               notification.title.localizedCaseInsensitiveContains(vehicle.plateNumber) {
+                return vehicle
+            }
+        }
+        for vehicle in vehicles {
+            if notification.message.localizedCaseInsensitiveContains(vehicle.displayName) ||
+               notification.title.localizedCaseInsensitiveContains(vehicle.displayName) {
+                return vehicle
+            }
+        }
+        return nil
+    }
+
+    private func findDriver(for notification: AppNotification) -> User? {
+        let users = appViewModel.service.users.filter { $0.role == .driver }
+        for user in users {
+            if notification.message.localizedCaseInsensitiveContains(user.name) ||
+               notification.title.localizedCaseInsensitiveContains(user.name) {
+                return user
+            }
+        }
+        return nil
+    }
+
     private func findDefectReport(for notification: AppNotification) -> DefectReport? {
         let defects = appViewModel.service.defects
         for defect in defects {
-            if let defectTitle = defect.title,
-               (notification.message.localizedCaseInsensitiveContains(defectTitle) ||
-                notification.title.localizedCaseInsensitiveContains(defectTitle)) {
+            if let driver = appViewModel.service.users.first(where: { $0.id == defect.driverID }),
+               let vehicle = appViewModel.service.vehicles.first(where: { $0.id == defect.vehicleID }) {
+                if notification.message.localizedCaseInsensitiveContains(driver.name),
+                   notification.message.localizedCaseInsensitiveContains(vehicle.plateNumber) {
+                    if let title = defect.title, notification.message.localizedCaseInsensitiveContains(title) {
+                        return defect
+                    }
+                    let desc = defect.description
+                    if !desc.isEmpty, notification.message.localizedCaseInsensitiveContains(desc) {
+                        return defect
+                    }
+                }
+            }
+        }
+        for defect in defects {
+            if let title = defect.title,
+               (notification.message.localizedCaseInsensitiveContains(title) ||
+                notification.title.localizedCaseInsensitiveContains(title)) {
+                return defect
+            }
+            let desc = defect.description
+            if !desc.isEmpty,
+               (notification.message.localizedCaseInsensitiveContains(desc) ||
+                notification.title.localizedCaseInsensitiveContains(desc)) {
                 return defect
             }
         }

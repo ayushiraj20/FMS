@@ -83,24 +83,6 @@ struct AppSettingsView: View {
                         
                         GlassCard {
                             VStack(spacing: 16) {
-                                Toggle(isOn: $viewModel.biometricUnlockEnabled) {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "faceid")
-                                            .foregroundStyle(roleColor)
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("Biometric Unlock")
-                                                .font(.subheadline.weight(.semibold))
-                                                .foregroundStyle(AppTheme.textPrimary)
-                                            Text("Use Face ID or Touch ID to access FleetOS")
-                                                .font(.caption)
-                                                .foregroundStyle(AppTheme.textSecondary)
-                                        }
-                                    }
-                                }
-                                .tint(roleColor)
-
-                                Divider().background(AppTheme.border)
-
                                 HStack(spacing: 12) {
                                     Image(systemName: "lock.shield.fill")
                                         .foregroundStyle(isMFAEnabled ? AppTheme.success : roleColor)

@@ -2,8 +2,12 @@ import SwiftUI
 
 struct PriorityAlertsListView: View {
     @Environment(AppViewModel.self) private var appViewModel
-    @State private var selectedCategory = "SOS Alerts"
+    @State private var selectedCategory: String
     @Namespace private var categoryNamespace
+
+    init(initialSelectedCategory: String = "SOS Alerts") {
+        _selectedCategory = State(initialValue: initialSelectedCategory)
+    }
 
     // Computed from live service data so counts update in real-time
     private var categories: [(name: String, icon: String, color: Color, count: Int)] {

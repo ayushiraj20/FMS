@@ -364,16 +364,6 @@ struct DriverDashboardView: View {
                                 Text("\(Int(activeTrip.distanceKM)) km").font(.subheadline.bold())
                             }
                         }
-                        
-                        HStack {
-                            Spacer()
-                            Text("View Live Map")
-                                .font(.system(.subheadline, design: .rounded).bold())
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(DriverTheme.accent, in: Capsule())
-                        }
                     }
                     .padding(16)
                     .background(
